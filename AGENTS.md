@@ -1,15 +1,26 @@
 # local-whisper Agent Guide
 
 ## Build Commands
-- `make build` - Compile binary (`go build -o local-whisper`)
-- `make install-raycast` - Build and install Raycast command script
-- `make install-bin` - Build and install to ~/.local/bin
-- `make clean` - Remove built binary
-- `go run main.go [flags]` - Run directly without building
-- No tests or linting currently configured
+- `make build` - Compile binary to `bin/local-whisper`
+- `make test` - Run all unit tests (13 test functions across 4 packages)
+- `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
+- `make install-raycast` - Build, download model, install Raycast command
+- `make install-bin` - Build, download model, install to ~/.local/bin
+- `make clean` - Remove bin/ directory
+- `go run ./cmd/local-whisper [flags]` - Run directly without building
 
 ## Architecture
-Single-file CLI tool (`main.go`) for local voice transcription. Wraps external `whisper-cli` command-line tool and `sox` for audio recording/processing.
+Multi-package CLI tool for local voice transcription. Wraps external `whisper-cli` command-line tool and `sox` for audio recording/processing.
+
+**Project Structure:**
+```
+cmd/local-whisper/main.go      - CLI entry point
+internal/recording/recorder.go - Audio recording with silence detection
+internal/audio/processor.go    - Audio normalization
+internal/clipboard/clipboard.go - Clipboard & auto-paste operations
+pkg/whisper/whisper.go         - Public Whisper client wrapper
+scripts/setup-model.sh         - Auto-download model script
+```
 
 **External dependencies** (not in go.mod):
 - `whisper-cli` - OpenAI Whisper C++ implementation
@@ -17,7 +28,7 @@ Single-file CLI tool (`main.go`) for local voice transcription. Wraps external `
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
 
-**Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, user-provided)
+**Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, auto-downloaded by `make setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)
 
 **Temp directory**: `/tmp/voice-input/` (raw/processed WAV files, transcript)
@@ -29,13 +40,14 @@ Single-file CLI tool (`main.go`) for local voice transcription. Wraps external `
 
 ## Code Style
 - **Imports**: Standard library only (no external Go dependencies)
-- **Naming**: CamelCase for functions; descriptive names (e.g., `transcribeAudio`, `recordAudio`, `pasteWithAppleScript`)
+- **Naming**: CamelCase for functions; descriptive names (e.g., `recordAudio`, `pasteWithAppleScript`)
 - **Error handling**: Check errors explicitly, exit with code 1 on failure; warn but continue on non-critical errors (e.g., sound/paste)
-- **Functions**: One responsibility per function; helpers (playSound, copyToClipboard, etc.) at bottom
+- **Functions**: One responsibility per function; helpers at bottom
 - **Flags**: Use standard `flag` package for CLI arguments
 - **Output**: Use `fmt.Println` for status, `fmt.Fprintf(os.Stderr, ...)` for errors; emoji-prefixed messages (🎤, ✅, ❌, ⚠️)
 - **Concurrency**: Use goroutines for background sound playback; don't block recording
 - **Subprocess**: Redirect cmd.Stderr/Stdout to user (for transparency and debugging)
+- **Packages**: Clear separation - `cmd/` (entry point), `internal/` (private), `pkg/` (public/reusable)
 
 ## CLI Flags
 - `-context string` - Custom context file path (overrides global ~/.whisper-context)
@@ -48,12 +60,17 @@ Single-file CLI tool (`main.go`) for local voice transcription. Wraps external `
 - `-verbose` (default true) - Show processing status messages (🎤, 🧠, ✅, etc.)
 
 ## Key Functions
-- `recordAudio(path, playSound)` - Records with sox, 2s silence detection (3% threshold), plays Blow.aiff in background
-- `processAudio(in, out)` - Normalizes audio with rate/channel conversion
-- `transcribeAudio(path, output, prompt, model, lang)` - Runs whisper-cli with model/language selection, reads transcript
-- `copyToClipboard(text)` - Uses pbcopy (macOS)
-- `pasteWithAppleScript()` - Auto-pastes via osascript (requires Accessibility permissions)
-- `playSound(path, enabled)` - Async afplay (non-blocking)
+- `recording.Recorder.Record()` - Records with sox, 2s silence detection (3% threshold), plays Blow.aiff in background
+- `audio.Processor.Normalize()` - Normalizes audio with rate/channel conversion
+- `whisper.Client.Transcribe()` - Runs whisper-cli with model/language selection, reads transcript
+- `clipboard.CopyToClipboard()` - Uses pbcopy (macOS)
+- `clipboard.PasteWithAppleScript()` - Auto-pastes via osascript (requires Accessibility permissions)
+- `clipboard.PlaySound()` - Async afplay (non-blocking)
+
+## Testing
+- 13 test functions across 4 packages (`pkg/whisper`, `internal/audio`, `internal/clipboard`, `internal/recording`)
+- Run with: `make test`
+- Tests cover initialization, path handling, model validation, clipboard operations
 
 ## Signal Handling
 - Catches SIGINT (Ctrl+C) and SIGTERM for graceful shutdown

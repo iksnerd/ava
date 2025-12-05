@@ -14,63 +14,72 @@ A lightweight Go CLI tool for local voice transcription. Records audio, processe
 - **Flexible Output**: Copy to clipboard, save to file, display in terminal, or suppress output.
 - **Raycast Integration**: One-command access via Raycast (configurable hotkey).
 
-## Quick Start with Raycast
+## Quick Start
 
-1. Build and install the Raycast command:
-   ```bash
-   make install-raycast
-   ```
+### Raycast (Recommended)
 
-2. Open **Raycast Settings** (Cmd+,)
+```bash
+git clone https://github.com/iksnerd/local-whisper.git
+cd local-whisper
+make install-raycast  # Builds binary, downloads model, installs Raycast command
+```
 
-3. Go to **Extensions** → Scroll down to **Transcribe Local Whisper**
+Then:
+1. Open **Raycast Settings** (Cmd+,)
+2. Go to **Extensions** → Scroll down to **Transcribe Local Whisper**
+3. Click three dots (⋯) → **Set Hotkey** → Press hotkey (e.g., **Cmd+Shift+V**) → **Save**
 
-4. Click the three dots (⋯) and select **Set Hotkey**
+Press your hotkey anytime to start transcribing!
 
-5. Press your desired hotkey (e.g., **Cmd+Shift+V**)
+### CLI
 
-6. Click **Save**
+```bash
+git clone https://github.com/iksnerd/local-whisper.git
+cd local-whisper
+make install-bin  # Builds binary, downloads model, installs to ~/.local/bin
 
-Now press your hotkey anytime to start transcribing!
+# Then use directly
+local-whisper
+```
 
 ## Installation
 
-### 1. Install Dependencies
+### Prerequisites
 
 ```bash
-# Install recording and transcription tools
-brew install sox whisper-cpp
-
-# Create directory for models
-mkdir -p ~/.local/share/whisper-cpp
-
-# Download the Base Model (best balance of speed/accuracy)
-wget -O ~/.local/share/whisper-cpp/ggml-base.en.bin \
-  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+brew install sox whisper-cpp go  # Go 1.25+
 ```
 
-### 2. Build local-whisper
+### Full Install (Automatic Model Download)
 
 ```bash
-cd /Users/user/GolandProjects/local-whisper
-go build -o local-whisper
+git clone https://github.com/iksnerd/local-whisper.git
+cd local-whisper
+
+# Choose one:
+make install-raycast  # Install Raycast command (+ model)
+make install-bin      # Install CLI to ~/.local/bin (+ model)
+make setup-model      # Just download model
 ```
 
-### 3. Install Binary (Optional)
+The `make install-*` commands automatically:
+- ✅ Build the binary
+- ✅ Download Whisper model if missing (~141MB)
+- ✅ Install to the appropriate location
+
+### Manual Build & Install
 
 ```bash
-# Move to /usr/local/bin to run from anywhere
-sudo mv local-whisper /usr/local/bin/
-
-# Or add to your PATH
-export PATH="$PATH:$(pwd)"
+make build            # Binary → bin/local-whisper
+make setup-model      # Download model to ~/.local/share/whisper-cpp/
+./bin/local-whisper   # Run directly
 ```
 
-### 4. Grant Permissions (Critical)
+### Grant Accessibility Permissions (For Auto-Paste)
 
-For auto-paste to work:
+For `Cmd+V` auto-paste to work:
 1. Open **System Settings** → **Privacy & Security** → **Accessibility**
-2. Add **Terminal** (or your editor) to the list
+2. Add **Terminal**, **Raycast**, or your editor
 3. Enable the toggle
 
 ## Usage
@@ -167,13 +176,13 @@ Local context overrides global context.
 - Run: `brew install whisper-cpp`
 
 **"Model not found"**
-- Run the download command in Installation step 1
-- Verify: `ls -lh ~/.local/share/whisper-cpp/`
-- Model should be ~141MB
+- Run: `make setup-model` (auto-downloads)
+- Or manually: `wget -O ~/.local/share/whisper-cpp/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin`
+- Verify: `ls -lh ~/.local/share/whisper-cpp/` (should be ~141MB)
 
 **Slow transcription**
 - First run loads the 141MB model (~5-10 seconds). Subsequent runs are much faster.
-- Use smaller model: `wget -O ~/.local/share/whisper-cpp/ggml-tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin`
+- Use tiny model for speed: `-model tiny` (74MB, faster, lower accuracy)
 
 **Recording doesn't start immediately**
 - It does—recording starts right away while Blow.aiff plays
@@ -181,32 +190,43 @@ Local context overrides global context.
 
 ## Development
 
-### Run without building
+### Project Structure
 
-```bash
-go run main.go [flags]
+```
+cmd/local-whisper/     - CLI entry point (main.go)
+internal/
+  ├── audio/           - Audio normalization (processor.go)
+  ├── clipboard/       - Clipboard & paste operations
+  ├── recording/       - Audio recording (recorder.go)
+pkg/whisper/           - Public Whisper wrapper (reusable library)
+scripts/setup-model.sh - Model download script
+Makefile               - Build automation
 ```
 
-### Rebuild and reinstall
+### Build & Test
 
 ```bash
-# Just rebuild
-make build
-
-# Rebuild and install to ~/.local/bin
-make install-bin
-
-# Rebuild and install Raycast command
-make install-raycast
+make build             # Build binary to bin/local-whisper
+make test              # Run all tests (13 test functions)
+make clean             # Remove bin/ directory
+make setup-model       # Download Whisper model
 ```
 
-### Clean up
+### Run in Development
 
 ```bash
-make clean
+go run ./cmd/local-whisper [flags]
 ```
 
-See `AGENTS.md` for architecture and code style details.
+### Code Style
+
+- Go 1.25+, standard library only
+- World-class project structure (cmd/, internal/, pkg/)
+- Unit tests for all packages
+- Single responsibility per function
+- Descriptive naming, clear error handling
+
+See `AGENTS.md` for detailed architecture and code guidelines.
 
 ## License
 
