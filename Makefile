@@ -19,7 +19,7 @@ help:
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BINARY_PATH)
+	@cd cmd/local-whisper && go build -o ../../$(BINARY_PATH)
 	@echo "✅ Built: ./$(BINARY_PATH)"
 
 install-raycast: build
