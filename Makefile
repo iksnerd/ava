@@ -1,23 +1,26 @@
 .PHONY: build install-raycast install-bin clean help
 
 BINARY_NAME=local-whisper
+BUILD_DIR=bin
 RAYCAST_DIR=$(HOME)/raycast-scripts
-BIN_DIR=$(HOME)/.local/bin
+INSTALL_BIN_DIR=$(HOME)/.local/bin
+BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
 
 help:
 	@echo "local-whisper Makefile"
 	@echo ""
 	@echo "Commands:"
-	@echo "  make build              - Build the binary"
+	@echo "  make build              - Build the binary to bin/"
 	@echo "  make install-raycast    - Install as Raycast command script"
 	@echo "  make install-bin        - Install binary to ~/.local/bin"
-	@echo "  make clean              - Remove built binary"
+	@echo "  make clean              - Remove bin/ directory"
 	@echo ""
 
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."
-	@go build -o $(BINARY_NAME)
-	@echo "✅ Built: ./$(BINARY_NAME)"
+	@mkdir -p $(BUILD_DIR)
+	@go build -o $(BINARY_PATH)
+	@echo "✅ Built: ./$(BINARY_PATH)"
 
 install-raycast: build
 	@echo "📦 Installing Raycast command..."
@@ -35,7 +38,7 @@ install-raycast: build
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# Local whisper voice transcription" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-.}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "exec $(abspath $(BINARY_NAME))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "exec $(abspath $(BINARY_PATH))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "✅ Installed: $(RAYCAST_DIR)/whisper-transcribe.sh"
 	@echo ""
@@ -48,15 +51,15 @@ install-raycast: build
 
 install-bin: build
 	@echo "📦 Installing binary..."
-	@mkdir -p $(BIN_DIR)
-	@cp $(BINARY_NAME) $(BIN_DIR)/$(BINARY_NAME)
-	@chmod +x $(BIN_DIR)/$(BINARY_NAME)
-	@echo "✅ Installed: $(BIN_DIR)/$(BINARY_NAME)"
+	@mkdir -p $(INSTALL_BIN_DIR)
+	@cp $(BINARY_PATH) $(INSTALL_BIN_DIR)/$(BINARY_NAME)
+	@chmod +x $(INSTALL_BIN_DIR)/$(BINARY_NAME)
+	@echo "✅ Installed: $(INSTALL_BIN_DIR)/$(BINARY_NAME)"
 	@echo ""
 	@echo "Add to your PATH in ~/.zshrc or ~/.bash_profile:"
-	@echo "  export PATH=\"$(BIN_DIR):\$$PATH\""
+	@echo "  export PATH=\"$(INSTALL_BIN_DIR):\$$PATH\""
 
 clean:
 	@echo "🧹 Cleaning up..."
-	@rm -f $(BINARY_NAME)
+	@rm -rf $(BUILD_DIR)
 	@echo "✅ Cleaned"
