@@ -11,6 +11,7 @@ help:
 	@echo ""
 	@echo "Commands:"
 	@echo "  make build              - Build the binary to bin/"
+	@echo "  make test               - Run all tests"
 	@echo "  make install-raycast    - Install as Raycast command script"
 	@echo "  make install-bin        - Install binary to ~/.local/bin"
 	@echo "  make clean              - Remove bin/ directory"
@@ -21,6 +22,11 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@cd cmd/local-whisper && go build -o ../../$(BINARY_PATH)
 	@echo "✅ Built: ./$(BINARY_PATH)"
+
+test:
+	@echo "🧪 Running tests..."
+	@go test -v ./...
+	@echo "✅ Tests passed"
 
 install-raycast: build
 	@echo "📦 Installing Raycast command..."
