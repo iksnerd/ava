@@ -1,4 +1,4 @@
-.PHONY: build install-raycast install-bin clean help
+.PHONY: build test install-raycast install-bin setup-model clean help
 
 BINARY_NAME=local-whisper
 BUILD_DIR=bin
@@ -12,8 +12,9 @@ help:
 	@echo "Commands:"
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make test               - Run all tests"
-	@echo "  make install-raycast    - Install as Raycast command script"
-	@echo "  make install-bin        - Install binary to ~/.local/bin"
+	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
+	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
+	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
 	@echo "  make clean              - Remove bin/ directory"
 	@echo ""
 
@@ -28,7 +29,10 @@ test:
 	@go test -v ./...
 	@echo "✅ Tests passed"
 
-install-raycast: build
+setup-model:
+	@bash scripts/setup-model.sh
+
+install-raycast: build setup-model
 	@echo "📦 Installing Raycast command..."
 	@mkdir -p $(RAYCAST_DIR)
 	@echo "#!/bin/bash" > $(RAYCAST_DIR)/whisper-transcribe.sh
@@ -55,14 +59,17 @@ install-raycast: build
 	@echo "4. Select: $(RAYCAST_DIR)"
 	@echo "5. Reload Raycast (Cmd+Shift+R)"
 
-install-bin: build
+install-bin: build setup-model
 	@echo "📦 Installing binary..."
 	@mkdir -p $(INSTALL_BIN_DIR)
 	@cp $(BINARY_PATH) $(INSTALL_BIN_DIR)/$(BINARY_NAME)
 	@chmod +x $(INSTALL_BIN_DIR)/$(BINARY_NAME)
 	@echo "✅ Installed: $(INSTALL_BIN_DIR)/$(BINARY_NAME)"
 	@echo ""
-	@echo "Add to your PATH in ~/.zshrc or ~/.bash_profile:"
+	@echo "Setup complete! You can now use:"
+	@echo "  $(BINARY_NAME)"
+	@echo ""
+	@echo "Optional: Add to your PATH in ~/.zshrc or ~/.bash_profile:"
 	@echo "  export PATH=\"$(INSTALL_BIN_DIR):\$$PATH\""
 
 clean:
