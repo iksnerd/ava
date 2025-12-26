@@ -1,4 +1,4 @@
-.PHONY: build test install-raycast install-bin setup-model clean help
+.PHONY: build test install-raycast install-bin setup-deps setup-model setup clean help
 
 BINARY_NAME=local-whisper
 BUILD_DIR=bin
@@ -10,9 +10,11 @@ help:
 	@echo "local-whisper Makefile"
 	@echo ""
 	@echo "Commands:"
+	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
+	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli)"
+	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make test               - Run all tests"
-	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
 	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
 	@echo "  make clean              - Remove bin/ directory"
@@ -29,8 +31,15 @@ test:
 	@go test -v ./...
 	@echo "✅ Tests passed"
 
+setup-deps:
+	@bash scripts/setup-deps.sh
+
 setup-model:
 	@bash scripts/setup-model.sh
+
+setup: setup-deps setup-model
+	@echo ""
+	@echo "✅ All setup complete! Ready to build and run."
 
 install-raycast: build setup-model
 	@echo "📦 Installing Raycast command..."

@@ -47,10 +47,14 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 		"--prompt", opts.ContextPrompt,
 	)
 
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	// Suppress whisper-cli verbose output
+	devNull, _ := os.Open(os.DevNull)
+	cmd.Stderr = devNull
+	cmd.Stdout = devNull
 
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	devNull.Close()
+	if err != nil {
 		return "", err
 	}
 
