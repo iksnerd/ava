@@ -39,11 +39,13 @@ func (r *Recorder) Record() error {
 		"silence", "1", "0.01", "0.1%", "1", "2.0", "3%")
 
 	// Suppress sox output
-	devNull, _ := os.Open(os.DevNull)
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		return err
+	}
+	defer devNull.Close()
 	cmd.Stderr = devNull
 	cmd.Stdout = devNull
 
-	err := cmd.Run()
-	devNull.Close()
-	return err
+	return cmd.Run()
 }

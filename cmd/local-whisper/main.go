@@ -64,6 +64,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "❌ Failed to create temp directory: %v\n", err)
 		os.Exit(1)
 	}
+	defer os.RemoveAll(tmpDir)
 
 	// Check dependencies
 	if err := checkDependencies(); err != nil {

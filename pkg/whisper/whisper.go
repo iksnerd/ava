@@ -48,12 +48,15 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 	)
 
 	// Suppress whisper-cli verbose output
-	devNull, _ := os.Open(os.DevNull)
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		return "", fmt.Errorf("failed to open devnull: %w", err)
+	}
+	defer devNull.Close()
 	cmd.Stderr = devNull
 	cmd.Stdout = devNull
 
-	err := cmd.Run()
-	devNull.Close()
+	err = cmd.Run()
 	if err != nil {
 		return "", err
 	}
