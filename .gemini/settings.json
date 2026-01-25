@@ -1,0 +1,17 @@
+{
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": true,
+      "respectGeminiIgnore": true
+    }
+  },
+  "experimental": {
+    "skills": true
+  },
+  "tools": {
+    "autoAccept": false
+  },
+  "ui": {
+    "showLineNumbers": true
+  }
+}
