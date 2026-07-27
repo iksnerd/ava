@@ -1,0 +1,12 @@
+[project]
+name = "voxtral-primitives"
+version = "0.1.0"
+description = "Voxtral MLX primitives (STT, realtime STT, TTS) for local-whisper"
+requires-python = ">=3.11"
+dependencies = [
+    "mlx-audio>=0.4.6",
+    "sounddevice>=0.5.5",
+]
+
+[tool.uv]
+package = false

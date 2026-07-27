@@ -1,10 +1,12 @@
-.PHONY: build test install-raycast install-bin setup-deps setup-model setup clean help
+.PHONY: build build-voice-monitor test install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-blackhole clean help
 
 BINARY_NAME=local-whisper
+MONITOR_BINARY_NAME=voice-monitor
 BUILD_DIR=bin
 RAYCAST_DIR=$(HOME)/raycast-scripts
 INSTALL_BIN_DIR=$(HOME)/.local/bin
 BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
+MONITOR_BINARY_PATH=$(BUILD_DIR)/$(MONITOR_BINARY_NAME)
 
 help:
 	@echo "local-whisper Makefile"
@@ -13,7 +15,10 @@ help:
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
+	@echo "  make setup-voxtral      - Create Python venv and install Voxtral MLX primitives"
+	@echo "  make setup-blackhole    - Install BlackHole loopback driver to capture system/call audio"
 	@echo "  make build              - Build the binary to bin/"
+	@echo "  make build-voice-monitor - Build the realtime transcript monitor (localhost + log file)"
 	@echo "  make test               - Run all tests"
 	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
 	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
@@ -25,6 +30,12 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@cd cmd/local-whisper && go build -o ../../$(BINARY_PATH)
 	@echo "✅ Built: ./$(BINARY_PATH)"
+
+build-voice-monitor:
+	@echo "🔨 Building $(MONITOR_BINARY_NAME)..."
+	@mkdir -p $(BUILD_DIR)
+	@cd cmd/voice-monitor && go build -o ../../$(MONITOR_BINARY_PATH)
+	@echo "✅ Built: ./$(MONITOR_BINARY_PATH)"
 
 test:
 	@echo "🧪 Running tests..."
@@ -40,6 +51,12 @@ setup-model:
 setup: setup-deps setup-model
 	@echo ""
 	@echo "✅ All setup complete! Ready to build and run."
+
+setup-voxtral:
+	@bash scripts/setup-voxtral.sh
+
+setup-blackhole:
+	@bash scripts/setup-blackhole.sh
 
 install-raycast: build setup-model
 	@echo "📦 Installing Raycast command..."

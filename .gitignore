@@ -3,6 +3,10 @@ bin/
 dist/
 local-whisper
 
+# Python (voxtral/)
+voxtral/.venv/
+voxtral/__pycache__/
+
 # IDE
 .idea/
 *.swp
