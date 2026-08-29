@@ -1,35 +1,52 @@
 # local-whisper Agent Guide
 
+This repo is four components: the `local-whisper` Go CLI (dictation), the
+`mlx-engine` Python server (local STT+TTS, used by the CLI and by
+everything below), `scripts/` (Claude Code voice hooks), and
+`ClaudeVoiceMenuBar` (a Swift menu bar app for tuning voice settings). This
+guide covers the Go CLI; see each component's own README for the others —
+`mlx-engine/README.md`, `docs/claude-code-voice-hooks.md`,
+`ClaudeVoiceMenuBar/README.md`.
+
 ## Build Commands
 - `make build` - Compile binary to `bin/local-whisper`
-- `make test` - Run all unit tests (13 test functions across 4 packages)
+- `make test` - Run all unit tests (11 test functions across 4 packages)
 - `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin
+- `make start-engine` / `stop-engine` / `status-engine` - Manage the `mlx-engine` background server (needed for `-engine voxtral`)
 - `make clean` - Remove bin/ directory
 - `go run ./cmd/local-whisper [flags]` - Run directly without building
 
 ## Architecture
-Multi-package CLI tool for local voice transcription. Wraps external `whisper-cli` command-line tool and `sox` for audio recording/processing.
+Multi-package CLI tool for local voice transcription, with two interchangeable
+engines: `whisper.cpp` via subprocess (default), or Voxtral via a local HTTP
+server (`-engine voxtral`, see `pkg/voxtral/` and `mlx-engine/`).
 
 **Project Structure:**
 ```
-cmd/local-whisper/main.go      - CLI entry point
-internal/recording/recorder.go - Audio recording with silence detection
-internal/audio/processor.go    - Audio normalization
+cmd/local-whisper/main.go       - CLI entry point, engine selection
+internal/recording/recorder.go  - Audio recording with silence detection
+internal/audio/processor.go     - Audio normalization
 internal/clipboard/clipboard.go - Clipboard & auto-paste operations
-pkg/whisper/whisper.go         - Public Whisper client wrapper
-scripts/setup-model.sh         - Auto-download model script
+pkg/whisper/whisper.go          - whisper-cli subprocess wrapper (-engine whisper)
+pkg/voxtral/voxtral.go          - mlx-engine HTTP client (-engine voxtral)
+mlx-engine/                     - the local STT/TTS server (separate Python/uv project)
+scripts/setup-model.sh          - Auto-download whisper model script
+scripts/voxtral-server.sh       - Start/stop/status for mlx-engine
 ```
 
 **External dependencies** (not in go.mod):
-- `whisper-cli` - OpenAI Whisper C++ implementation
+- `whisper-cli` - OpenAI Whisper C++ implementation (`-engine whisper`, the default)
 - `sox` - Audio recording with silence detection
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
+- `uv` - runs `mlx-engine`, needed for `-engine voxtral` (auto-started on first use via `pkg/voxtral`'s health check + `scripts/voxtral-server.sh`)
 
-**Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, auto-downloaded by `make setup-model`)
+**Model location** (whisper engine): `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, auto-downloaded by `make setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)
+
+**Voxtral engine**: `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit`, served by `mlx-engine/server.py` at `127.0.0.1:8765`, loaded lazily on first `/transcribe` request. See `mlx-engine/README.md`.
 
 **Temp directory**: `/tmp/voice-input/` (raw/processed WAV files, transcript)
 
@@ -39,7 +56,7 @@ scripts/setup-model.sh         - Auto-download model script
 - Normalizes audio before transcription
 
 ## Code Style
-- **Imports**: Standard library only (no external Go dependencies)
+- **Imports**: Standard library only in the Go code (no external Go dependencies)
 - **Naming**: CamelCase for functions; descriptive names (e.g., `recordAudio`, `pasteWithAppleScript`)
 - **Error handling**: Check errors explicitly, exit with code 1 on failure; warn but continue on non-critical errors (e.g., sound/paste)
 - **Functions**: One responsibility per function; helpers at bottom
@@ -48,12 +65,14 @@ scripts/setup-model.sh         - Auto-download model script
 - **Concurrency**: Use goroutines for background sound playback; don't block recording
 - **Subprocess**: Redirect cmd.Stderr/Stdout to user (for transparency and debugging)
 - **Packages**: Clear separation - `cmd/` (entry point), `internal/` (private), `pkg/` (public/reusable)
+- **Resource cleanup**: always check `os.Open`/HTTP response errors and `defer Close()` — a past leak in the voxtral health check (unclosed response body) is exactly the class of bug to avoid here.
 
 ## CLI Flags
-- `-context string` - Custom context file path (overrides global ~/.whisper-context)
+- `-engine string` (default "whisper") - Transcription engine: "whisper" (whisper.cpp subprocess) or "voxtral" (mlx-engine HTTP server)
+- `-context string` - Custom context file path (overrides global ~/.whisper-context) — whisper engine only, not yet sent to voxtral
 - `-dir string` - Change working directory before recording
 - `-lang string` (default "en") - Language code (en, es, fr, de, etc.)
-- `-model string` (default "base") - Model size: "base" (141MB, accurate) or "tiny" (74MB, faster)
+- `-model string` (default "base") - Model size: "base" (141MB, accurate) or "tiny" (74MB, faster) — whisper engine only
 - `-output string` - Save transcription to file (in addition to clipboard)
 - `-no-paste` - Skip auto-paste to cursor (still copies to clipboard)
 - `-no-sound` - Disable Blow.aiff and Pop.aiff audio cues
@@ -63,14 +82,16 @@ scripts/setup-model.sh         - Auto-download model script
 - `recording.Recorder.Record()` - Records with sox, 2s silence detection (3% threshold), plays Blow.aiff in background
 - `audio.Processor.Normalize()` - Normalizes audio with rate/channel conversion
 - `whisper.Client.Transcribe()` - Runs whisper-cli with model/language selection, reads transcript
+- `voxtral.Client.Transcribe()` - POSTs audio to mlx-engine's `/transcribe`, returns text + latency
 - `clipboard.CopyToClipboard()` - Uses pbcopy (macOS)
 - `clipboard.PasteWithAppleScript()` - Auto-pastes via osascript (requires Accessibility permissions)
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- 13 test functions across 4 packages (`pkg/whisper`, `internal/audio`, `internal/clipboard`, `internal/recording`)
+- 11 test functions across 4 packages (`pkg/whisper`, `internal/audio`, `internal/clipboard`, `internal/recording`)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations
+- `pkg/voxtral` has no tests yet — it's a thin HTTP client, exercised so far via manual/integration testing against a running `mlx-engine`
 
 ## Signal Handling
 - Catches SIGINT (Ctrl+C) and SIGTERM for graceful shutdown
