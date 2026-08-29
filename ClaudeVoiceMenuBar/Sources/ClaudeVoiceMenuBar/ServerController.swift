@@ -69,6 +69,7 @@ final class ServerController: ObservableObject {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
         task.arguments = ["\(VoicePaths.scriptsDir)/\(name)", arg]
+        task.environment = VoicePaths.hardenedEnvironment
         task.terminationHandler = { proc in
             DispatchQueue.main.async { completion(proc.terminationStatus) }
         }

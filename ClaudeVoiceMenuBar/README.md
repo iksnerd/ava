@@ -1,9 +1,13 @@
 # Claude Voice
 
-A menu bar app for tuning the local voice stack (`../mlx-engine/`, `../scripts/`)
-that Claude Code's Stop/Notification hooks speak through — speed, volume,
-voice, spoken-message length, and whether to summarize long messages with a
-local LLM instead of cutting them off mid-sentence.
+A menu bar app for the local voice stack (`../mlx-engine/`, `../scripts/`,
+`../` itself): a **Dictate** button for recording/transcribing/pasting at
+your cursor (via `local-whisper -engine voxtral` — the same dictation tool
+this whole repo started as, just triggerable from here instead of only
+Raycast), plus live tuning for everything Claude Code's Stop/Notification
+hooks speak through — speed, volume, voice, spoken-message length, and
+whether to summarize long messages with a local LLM instead of cutting them
+off mid-sentence.
 
 A SwiftUI `MenuBarExtra` app, built as a bare Swift Package — there's no
 Xcode project, `open Package.swift` (or File → Open in Xcode) gives you a
@@ -38,6 +42,7 @@ present in that file come from `../scripts/voice-defaults.json`.
 
 | Setting | Effect |
 |---|---|
+| Dictate (button) | Runs `local-whisper -engine voxtral` — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build` or `make install-bin` in the repo root). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |
@@ -56,7 +61,7 @@ Sources/ClaudeVoiceMenuBar/
   Components.swift                      - SettingsRow / SectionCard / StatusBadge
   VoiceSettings.swift                   - config load/save/merge with voice-defaults.json
   ServerController.swift                - polls mlx-engine's /health, drives start/stop
-  Paths.swift                           - where the companion shell scripts live
+  Paths.swift                           - where the companion shell scripts/binary live, PATH hardening
 Resources/AppIcon.icns
 scripts/build-app.sh                    - packages + installs the release build
 ```
@@ -67,3 +72,13 @@ action's underlying process actually finishes (`forceRefresh`) — a poll
 guard that *also* gated the action's own completion handler would leave the
 status permanently stuck on "Starting…"/"Stopping…", since the guard and
 the thing meant to clear it would be checking the exact same condition.
+
+A GUI app launched via LaunchServices/launchd (as this one is, once packaged
+— see the LaunchAgent note above) inherits a minimal PATH: just
+`/usr/bin:/bin:/usr/sbin:/sbin`, not Homebrew's `/opt/homebrew/bin` where
+`sox` lives. `Dictate` shells out to the `local-whisper` binary directly (no
+wrapping script to fix this the way `speak.sh`/`voxtral-server.sh` do via
+`lib.sh`), so it failed silently — the binary launched, its own dependency
+check couldn't find `sox` on `PATH`, and it exited immediately, with nothing
+surfaced since `Process.run()`'s error wasn't being read. `VoicePaths.hardenedEnvironment`
+fixes this by setting `PATH` explicitly on every `Process` this app spawns.

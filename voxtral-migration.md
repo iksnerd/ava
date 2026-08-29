@@ -58,12 +58,20 @@ The Go CLI acts as a thin client when the `--engine=voxtral` flag is used.
 *   [x] Documentation updated (`README.md`, `mlx-engine/README.md`, and the two docs above).
 *   [x] `scripts/setup-deps.sh` installs `uv`.
 
-### Known gap
-`ContextPrompt` (the `.whisper-context` vocabulary-hint feature) is honored
-under `--engine=whisper` but never actually reaches the server under
-`--engine=voxtral` — the Go client doesn't send it, and `/transcribe` doesn't
-accept it. Fixing this needs a design decision on how Voxtral should consume
-a context prompt, not just a one-line patch.
+### Known limitation: `.whisper-context` doesn't work under `--engine=voxtral`
+Not a missing wire-up — the model itself can't take it. `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit`
+is `mlx_audio`'s `voxtral_realtime` implementation, whose `generate()` has no
+prompt/context parameter at all: its input to the decoder is a hardcoded
+`[BOS] + [STREAMING_PAD]*n + audio embeddings` sequence with no slot for
+injected text (checked the source directly, not just the public signature).
+
+`mlx_audio` does ship a *different*, non-realtime Voxtral model
+(`voxtral`, not `voxtral_realtime`) whose `generate()` takes a chat-style
+`message` list that could carry a context hint — but swapping to it means
+running a second, slower model path just for this, working against the
+whole reason Voxtral-Realtime was chosen (fast, always-warm dictation).
+Decided to leave `.whisper-context` as whisper-engine-only rather than
+take that tradeoff.
 
 ---
 *Last updated: 2026-08-29*

@@ -8,6 +8,21 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
+            Button {
+                dictate()
+            } label: {
+                Label("Dictate", systemImage: "mic.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.indigo)
+            .disabled(VoicePaths.dictateBinary == nil)
+            .help(
+                VoicePaths.dictateBinary != nil
+                    ? "Record, transcribe, and paste at your cursor"
+                    : "local-whisper binary not found — run `make build` (or `make install-bin`) in the repo"
+            )
+
             SectionCard(header: "Playback") {
                 SettingsRow(
                     icon: "hare.fill", tint: .orange, title: "Speed",
@@ -104,7 +119,7 @@ struct SettingsView: View {
                 .background(Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             VStack(alignment: .leading, spacing: 0) {
                 Text("Claude Voice").font(.system(size: 14, weight: .semibold))
-                Text("Local voice for Claude Code")
+                Text("Dictation + spoken Claude Code updates")
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
             }
@@ -178,10 +193,20 @@ struct SettingsView: View {
         ])
     }
 
+    private func dictate() {
+        guard let bin = VoicePaths.dictateBinary else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: bin)
+        task.arguments = ["-engine", "voxtral"]
+        task.environment = VoicePaths.hardenedEnvironment
+        try? task.run()
+    }
+
     private func runShell(_ path: String, _ args: [String]) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
         task.arguments = [path] + args
+        task.environment = VoicePaths.hardenedEnvironment
         try? task.run()
     }
 }

@@ -19,7 +19,7 @@ bar app to tune it all.
 - **Raycast Integration**: available as a Raycast command.
 - **Text-to-speech**: a local Kokoro TTS server for anything that wants to speak, not just this CLI — see [`mlx-engine/`](mlx-engine/README.md).
 - **Spoken Claude Code notifications**: hooks that speak when Claude finishes a turn or needs a decision — see [Claude Code voice hooks](docs/claude-code-voice-hooks.md).
-- **Claude Voice menu bar app**: tune speed/volume/voice/message-length live — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
+- **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
 
 ## Quick Start
 
