@@ -10,6 +10,8 @@ MODEL_SIZE="141MB"
 
 echo "🎙️  local-whisper Model Setup"
 echo ""
+echo "Note: If using the 'voxtral' engine (MLX), models are downloaded automatically on first run."
+echo ""
 
 # Create directory
 mkdir -p "$MODEL_DIR"

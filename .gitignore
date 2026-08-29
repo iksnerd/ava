@@ -1,7 +1,15 @@
 # Build artifacts
 bin/
 dist/
-local-whisper
+/local-whisper
+
+# Python / mlx-engine
+mlx-engine/.venv/
+mlx-engine/__pycache__/
+mlx-engine/**/__pycache__/
+
+# Swift
+ClaudeVoiceMenuBar/.build/
 
 # IDE
 .idea/

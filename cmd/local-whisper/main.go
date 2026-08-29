@@ -3,15 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"local-whisper/internal/audio"
 	"local-whisper/internal/clipboard"
 	"local-whisper/internal/recording"
+	"local-whisper/pkg/voxtral"
 	"local-whisper/pkg/whisper"
 )
 
@@ -26,11 +29,12 @@ func main() {
 	contextFile := flag.String("context", "", "Path to context file (optional)")
 	outputFile := flag.String("output", "", "Output file for transcription (optional)")
 	workDir := flag.String("dir", "", "Working directory (optional)")
-	modelName := flag.String("model", "base", "Model size: base (default) or tiny")
+	modelName := flag.String("model", "base", "Model size: base (default) or tiny (for whisper only)")
 	language := flag.String("lang", "en", "Language code: en, es, fr, de, etc. (default: en)")
 	noPaste := flag.Bool("no-paste", false, "Don't auto-paste to clipboard/cursor")
 	noSound := flag.Bool("no-sound", false, "Disable sound effects")
 	showStatus := flag.Bool("verbose", true, "Show processing status")
+	engine := flag.String("engine", "whisper", "Inference engine: whisper (default) or voxtral")
 
 	flag.Parse()
 
@@ -45,8 +49,14 @@ func main() {
 		os.Exit(0)
 	}()
 
+	// Validate engine selection
+	if *engine != "whisper" && *engine != "voxtral" {
+		fmt.Fprintf(os.Stderr, "❌ Invalid engine: %s (use 'whisper' or 'voxtral')\n", *engine)
+		os.Exit(1)
+	}
+
 	// Validate model selection
-	if *modelName != "base" && *modelName != "tiny" {
+	if *engine == "whisper" && *modelName != "base" && *modelName != "tiny" {
 		fmt.Fprintf(os.Stderr, "❌ Invalid model: %s (use 'base' or 'tiny')\n", *modelName)
 		os.Exit(1)
 	}
@@ -66,14 +76,14 @@ func main() {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Check dependencies
-	if err := checkDependencies(); err != nil {
+	// Check dependencies based on engine
+	if err := checkDependencies(*engine); err != nil {
 		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
 
 	if *showStatus {
-		fmt.Println("🎤 Starting voice transcription...")
+		fmt.Printf("🎤 Starting voice transcription (engine: %s)...\n", *engine)
 	}
 
 	// Step 1: Record audio
@@ -139,32 +149,46 @@ func main() {
 		fmt.Println("🧠 Transcribing audio...")
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Failed to get home directory: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Select model
-	var modelFile string
-	if *modelName == "tiny" {
-		modelFile = tinyModel
-	} else {
-		modelFile = baseModel
-	}
-
-	modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", modelFile)
-	whisperClient := whisper.NewClient(modelPath)
-
+	var text string
+	var transcribeErr error
 	textOutputPath := filepath.Join(tmpDir, "prompt.txt")
-	text, err := whisperClient.Transcribe(whisper.TranscribeOptions{
-		AudioPath:     processedAudioPath,
-		OutputPath:    textOutputPath,
-		ContextPrompt: contextPrompt,
-		Language:      *language,
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Transcription failed: %v\n", err)
+
+	if *engine == "voxtral" {
+		vxClient := voxtral.NewClient("") // Defaults to http://127.0.0.1:8765
+		text, transcribeErr = vxClient.Transcribe(voxtral.TranscribeOptions{
+			AudioPath:     processedAudioPath,
+			OutputPath:    textOutputPath,
+			ContextPrompt: contextPrompt,
+			Language:      *language,
+		})
+	} else {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Failed to get home directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Select model
+		var modelFile string
+		if *modelName == "tiny" {
+			modelFile = tinyModel
+		} else {
+			modelFile = baseModel
+		}
+
+		modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", modelFile)
+		whisperClient := whisper.NewClient(modelPath)
+
+		text, transcribeErr = whisperClient.Transcribe(whisper.TranscribeOptions{
+			AudioPath:     processedAudioPath,
+			OutputPath:    textOutputPath,
+			ContextPrompt: contextPrompt,
+			Language:      *language,
+		})
+	}
+
+	if transcribeErr != nil {
+		fmt.Fprintf(os.Stderr, "❌ Transcription failed: %v\n", transcribeErr)
 		os.Exit(1)
 	}
 
@@ -200,8 +224,12 @@ func main() {
 	clipboard.PlaySound("/System/Library/Sounds/Pop.aiff", !*noSound)
 }
 
-func checkDependencies() error {
-	deps := []string{"sox", "whisper-cli"}
+func checkDependencies(engine string) error {
+	deps := []string{"sox"}
+	if engine == "whisper" {
+		deps = append(deps, "whisper-cli")
+	}
+
 	for _, dep := range deps {
 		_, err := exec.LookPath(dep)
 		if err != nil {
@@ -212,5 +240,16 @@ func checkDependencies() error {
 			}
 		}
 	}
+
+	if engine == "voxtral" {
+		// Quick HTTP GET to see if the server and model are up
+		client := &http.Client{Timeout: 1 * time.Second}
+		res, err := client.Get("http://127.0.0.1:8765/health")
+		if err != nil || res.StatusCode != 200 {
+			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/voxtral-server.sh start")
+		}
+		res.Body.Close()
+	}
+
 	return nil
 }

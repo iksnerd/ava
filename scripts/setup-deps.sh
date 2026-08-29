@@ -39,6 +39,28 @@ else
     echo "✅ whisper-cli already installed"
 fi
 
+# Setup Python and MLX dependencies
+if ! command -v uv &> /dev/null; then
+    echo "⬇️  Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to install uv"
+        exit 1
+    fi
+    export PATH="$HOME/.local/bin:$PATH"
+    echo "✅ uv installed"
+else
+    echo "✅ uv already installed"
+fi
+
+echo "⬇️  Installing Voxtral inference server dependencies..."
+cd mlx-engine && uv sync
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to setup mlx-engine dependencies"
+    exit 1
+fi
+echo "✅ MLX Voxtral dependencies installed"
+
 echo ""
 echo "✅ All dependencies installed!"
 exit 0

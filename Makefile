@@ -11,14 +11,26 @@ help:
 	@echo ""
 	@echo "Commands:"
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
-	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli)"
+	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make test               - Run all tests"
+	@echo "  make start-engine       - Start the Voxtral MLX background server"
+	@echo "  make stop-engine        - Stop the Voxtral MLX background server"
+	@echo "  make status-engine      - Check if the Voxtral MLX server is running"
 	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
 	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
 	@echo "  make clean              - Remove bin/ directory"
 	@echo ""
+
+start-engine:
+	@bash scripts/voxtral-server.sh start
+
+stop-engine:
+	@bash scripts/voxtral-server.sh stop
+
+status-engine:
+	@bash scripts/voxtral-server.sh status
 
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."
@@ -42,13 +54,15 @@ setup: setup-deps setup-model
 	@echo "✅ All setup complete! Ready to build and run."
 
 install-raycast: build setup-model
-	@echo "📦 Installing Raycast command..."
+	@echo "📦 Installing Raycast commands..."
 	@mkdir -p $(RAYCAST_DIR)
+
+	@echo "-> Creating whisper-transcribe.sh"
 	@echo "#!/bin/bash" > $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.schemaVersion 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.title Transcribe Local Whisper" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.description Voice transcription using local Whisper model (no cloud, no data sent)" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "# @raycast.title Dictate with Whisper" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "# @raycast.description Voice transcription using local Whisper model (CPU)" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.mode fullOutput" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.currentDirectoryPath" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.icon 🎙️" >> $(RAYCAST_DIR)/whisper-transcribe.sh
@@ -56,10 +70,47 @@ install-raycast: build setup-model
 	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# Local whisper voice transcription" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-.}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "exec $(abspath $(BINARY_PATH))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-$(abspath .)}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "exec $(abspath $(BINARY_PATH)) --engine=whisper" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "✅ Installed: $(RAYCAST_DIR)/whisper-transcribe.sh"
+
+	@echo "-> Creating voxtral-transcribe.sh"
+	@echo "#!/bin/bash" > $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.schemaVersion 1" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.title Dictate with Voxtral" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.description Fast voice transcription using Voxtral MLX model (Apple Silicon)" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.mode fullOutput" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.currentDirectoryPath" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.icon 🧠" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.packageName Voice" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "cd \"$(abspath .)\" || exit 1" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "bash scripts/voxtral-server.sh start" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "exec $(abspath $(BINARY_PATH)) --engine=voxtral" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@chmod +x $(RAYCAST_DIR)/voxtral-transcribe.sh
+
+	@echo "-> Creating voxtral-toggle.sh"
+	@echo "#!/bin/bash" > $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.schemaVersion 1" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.title Toggle Voxtral Server" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.description Start or Stop the Voxtral MLX memory-resident server" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.mode compact" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.icon ⚙️" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.packageName Voice" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "cd \"$(abspath .)\" || exit 1" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "if [ -f /tmp/voxtral-server.pid ] && kill -0 \$$(cat /tmp/voxtral-server.pid) 2>/dev/null; then" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "  bash scripts/voxtral-server.sh stop > /dev/null && echo '🛑 Voxtral Server Stopped'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "else" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "  bash scripts/voxtral-server.sh start > /dev/null && echo '🚀 Voxtral Server Started'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "fi" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@chmod +x $(RAYCAST_DIR)/voxtral-toggle.sh
+
+	@echo "✅ Installed all scripts to: $(RAYCAST_DIR)"
 	@echo ""
 	@echo "Next steps:"
 	@echo "1. Open Raycast Settings (Cmd+,)"
