@@ -14,7 +14,7 @@ import (
 	"local-whisper/internal/audio"
 	"local-whisper/internal/clipboard"
 	"local-whisper/internal/recording"
-	"local-whisper/pkg/voxtral"
+	"local-whisper/pkg/mlxengine"
 	"local-whisper/pkg/whisper"
 )
 
@@ -154,8 +154,8 @@ func main() {
 	textOutputPath := filepath.Join(tmpDir, "prompt.txt")
 
 	if *engine == "voxtral" {
-		vxClient := voxtral.NewClient("") // Defaults to http://127.0.0.1:8765
-		text, transcribeErr = vxClient.Transcribe(voxtral.TranscribeOptions{
+		vxClient := mlxengine.NewClient("") // Defaults to http://127.0.0.1:8765
+		text, transcribeErr = vxClient.Transcribe(mlxengine.TranscribeOptions{
 			AudioPath:     processedAudioPath,
 			OutputPath:    textOutputPath,
 			ContextPrompt: contextPrompt,

@@ -1,0 +1,98 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+
+    subgraph existing["Existing today - dictation (cmd/local-whisper)"]
+        mic1[("🎤 Mic")]
+        rec["internal/recording\nsox, 16kHz mono,\nstops on silence"]
+        norm["internal/audio\nProcessor.Normalize"]
+        wcli["pkg/whisper\nexec whisper-cli"]
+        model_w[("ggml-base.en.bin\n(whisper.cpp, local)")]
+        clip["internal/clipboard\npbcopy + AppleScript paste"]
+
+        mic1 --> rec --> norm --> wcli
+        model_w -.-> wcli
+        wcli -->|text| clip
+    end
+
+    subgraph new["New this change - Voxtral MLX primitives"]
+        direction TB
+
+        subgraph go_new["pkg/voxtral (Go, stdlib only)"]
+            gstt["Transcribe()\nexec stt.py"]
+            gtts["Speak()\nexec tts.py"]
+            grt["StreamRealtime()\nlong-lived exec realtime.py,\nstdout JSON lines"]
+        end
+
+        subgraph py_new["voxtral/ (Python uv project, MLX)"]
+            stt_py["stt.py\nVoxtral Mini 3B\none-shot transcribe"]
+            hpf["HighPassFilter\n(--highpass-hz, default 80Hz)\nstateful scipy sosfilt"]
+            rt_py["realtime.py\n--engine voxtral|whisper\nstreaming transcribe"]
+            diar_py["Sortformer diarization\n(--diarize, whisper engine only)"]
+            tts_py["tts.py\nVoxtral 4B TTS\ntext -> wav"]
+        end
+
+        mic2[("🎤 Mic\n(push-to-talk\nvia internal/recording)")]
+        mic3[("🎤 Mic (default)\nor BlackHole loopback\n(--device, captures call audio\n- remote participants only)")]
+
+        mw3b[("mlx-community/\nVoxtral-Mini-3B-2507-bf16")]
+        mw4brt[("mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit\nOR whisper-large-v3-turbo\n(--engine, 99+ languages incl. Bulgarian)")]
+        mdiar[("mlx-community/\ndiar_sortformer_4spk-v1-fp32")]
+        mwtts[("mlx-community/\nVoxtral-4B-TTS-2603-mlx-bf16\n(CC-BY-NC)")]
+
+        gstt --> stt_py
+        grt --> rt_py
+        gtts --> tts_py
+
+        mic2 --> stt_py
+        mic3 -.->|sd.InputStream, --device| hpf --> rt_py
+        rt_py -.->|same filtered chunk| diar_py
+
+        mw3b -.-> stt_py
+        mw4brt -.-> rt_py
+        mdiar -.-> diar_py
+        mwtts -.-> tts_py
+
+        stt_py -->|text| gstt
+        rt_py -->|"{event, text, speaker} JSON lines"| grt
+        diar_py -.->|speaker label per chunk| rt_py
+        tts_py -->|wav file| gtts
+    end
+
+    subgraph monitor["New this change - cmd/voice-monitor"]
+        meet["Google Meet\n(Settings -> Audio -> Speakers\nmust be set to the Multi-Output Device\nexplicitly - doesn't follow macOS\nsystem-default changes automatically)"]
+        moutput["Multi-Output Device\n(Audio MIDI Setup - use built-in\nSpeakers, NOT Bluetooth/AirPods,\nwhich silently drop the 2nd member)"]
+        blackhole[("BlackHole 2ch\n(virtual loopback driver)")]
+        speakers[("🔊 Real speakers\n(so you still hear the call)")]
+
+        vm["cmd/voice-monitor\nnet/http, stdlib only\n--diarize, --highpass-hz flags"]
+        sse["/events (SSE)"]
+        page["/ - live transcript page\n(EventSource, auto-updates)"]
+        logf[("/tmp/voice-input/\ntranscript-&lt;ts&gt;.txt\n[Speaker N] prefixed on change")]
+        browser[("🌐 Browser\nlocalhost:8765")]
+
+        meet --> moutput
+        moutput --> blackhole
+        moutput --> speakers
+        blackhole -.->|"--device BlackHole"| mic3
+
+        vm -->|StreamRealtime| grt
+        grt -->|RealtimeDelta| vm
+        vm --> sse --> browser
+        vm --> page --> browser
+        vm -->|append text| logf
+    end
+
+    subgraph planned["Planned - not built yet"]
+        actions["internal/actions (new)\nintent -> AppleScript / shell\n(open app, volume, Shortcuts, ...)"]
+        speaker[("🔊 afplay\n(reuses internal/clipboard.PlaySound)")]
+
+        grt -->|transcript text| actions
+        gstt -.->|could also feed| actions
+        actions -->|response text| gtts
+        gtts --> speaker
+    end
+
+    style existing fill:#eef2ff,stroke:#4f46e5
+    style new fill:#ecfdf5,stroke:#059669
+    style monitor fill:#ecfdf5,stroke:#059669
+    style planned fill:#fef3c7,stroke:#d97706,stroke-dasharray: 5 5

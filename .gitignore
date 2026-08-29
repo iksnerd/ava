@@ -11,6 +11,10 @@ mlx-engine/**/__pycache__/
 # Swift
 ClaudeVoiceMenuBar/.build/
 
+# Python (voxtral/)
+voxtral/.venv/
+voxtral/__pycache__/
+
 # IDE
 .idea/
 *.swp
