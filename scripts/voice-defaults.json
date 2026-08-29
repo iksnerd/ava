@@ -1,0 +1,10 @@
+{
+  "speed": 1.3,
+  "volume": 1.0,
+  "voice": "af_heart",
+  "sayRate": 220,
+  "stopMaxChars": 600,
+  "notifyMaxChars": 500,
+  "llmSummary": false,
+  "summaryModel": "qwen2.5:3b"
+}
