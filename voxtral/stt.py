@@ -4,6 +4,7 @@
 Push-to-talk counterpart to pkg/whisper: takes a recorded audio file and
 prints the transcript, the same shape whisper-cli output takes today.
 """
+
 import argparse
 import json
 import sys
@@ -18,7 +19,9 @@ def main():
     parser.add_argument("--language", default="en", help="Language code")
     parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--output", help="Optional path to also write the transcript to")
-    parser.add_argument("--json", action="store_true", help="Print {\"text\": ...} instead of plain text")
+    parser.add_argument(
+        "--json", action="store_true", help='Print {"text": ...} instead of plain text'
+    )
     args = parser.parse_args()
 
     from mlx_audio.stt.utils import load_model

@@ -1,17 +1,18 @@
+import asyncio
+import contextlib
 import io
-import time
 import os
 import tempfile
-import asyncio
-import sys
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import Response
-from pydantic import BaseModel
+import time
+
 import mlx.core as mx
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from mlx_audio.stt.generate import generate_transcription
-from mlx_audio.utils import load_model
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.tts.utils import load_model as load_tts_model
+from mlx_audio.utils import load_model
+from pydantic import BaseModel
 
 app = FastAPI(title="Local Voice MLX Inference Server")
 
@@ -44,9 +45,13 @@ class LazyModel:
             start_time = time.time()
             try:
                 self.instance = self._loader(self.model_path)
-                print(f"{self.label} model loaded successfully in {time.time() - start_time:.2f} seconds.")
+                print(
+                    f"{self.label} model loaded successfully in {time.time() - start_time:.2f} seconds."
+                )
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to load {self.label} model: {e}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to load {self.label} model: {e}"
+                ) from e
         return self.instance
 
     @property
@@ -57,20 +62,22 @@ class LazyModel:
 stt_model = LazyModel("STT", MODEL_PATH, load_model)
 tts_model = LazyModel("TTS", TTS_MODEL_PATH, load_tts_model)
 
+
 async def idle_shutdown_checker():
     """Background task that shuts down the server after a period of inactivity."""
     while True:
         await asyncio.sleep(60)  # Check every minute
         idle_time = time.time() - last_request_time
         if idle_time > IDLE_TIMEOUT_SEC:
-            print(f"Server idle for {IDLE_TIMEOUT_SEC/60:.0f} minutes. Shutting down to free RAM...")
+            print(
+                f"Server idle for {IDLE_TIMEOUT_SEC / 60:.0f} minutes. Shutting down to free RAM..."
+            )
             PID_FILE = "/tmp/voxtral-server.pid"
             if os.path.exists(PID_FILE):
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(PID_FILE)
-                except:
-                    pass
             os._exit(0)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -78,6 +85,7 @@ async def startup_event():
     # so starting the server (and a cold /speak call) doesn't have to pay for
     # loading the 4B Voxtral STT model when only TTS is needed, and vice versa.
     asyncio.create_task(idle_shutdown_checker())
+
 
 @app.get("/health")
 async def health_check():
@@ -92,6 +100,7 @@ async def health_check():
         "tts_model": TTS_MODEL_PATH,
         "tts_loaded": tts_model.loaded,
     }
+
 
 @app.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...), language: str = "en"):
@@ -108,14 +117,14 @@ async def transcribe(audio: UploadFile = File(...), language: str = "en"):
         # 1. Read the uploaded file directly into an in-memory byte buffer
         audio_bytes = await audio.read()
         buf = io.BytesIO(audio_bytes)
-        
-        import soundfile as sf
+
         import numpy as np
-        
+        import soundfile as sf
+
         # 2. Decode the WAV file from memory
         # We assume 16kHz mono (which the Go client enforces via sox)
         audio_data, samplerate = sf.read(buf, dtype="float32")
-        
+
         # If stereo, convert to mono by averaging channels
         if len(audio_data.shape) > 1:
             audio_data = np.mean(audio_data, axis=1)
@@ -132,28 +141,30 @@ async def transcribe(audio: UploadFile = File(...), language: str = "en"):
                 language=language,
                 temp=0.0,
                 beam_size=1,
-                verbose=False
+                verbose=False,
             )
 
             # Extract the actual text from the STTOutput object or other formats
             if hasattr(result, "text"):
                 final_text = result.text
             elif isinstance(result, list):
-                final_text = " ".join([seg.get("text", "") for seg in result if isinstance(seg, dict)])
+                final_text = " ".join(
+                    [seg.get("text", "") for seg in result if isinstance(seg, dict)]
+                )
             elif isinstance(result, dict):
                 final_text = result.get("text", "")
             else:
                 final_text = str(result)
 
-            return {
-                "text": final_text.strip(),
-                "latency_sec": round(time.time() - start_time, 3)
-            }
+            return {"text": final_text.strip(), "latency_sec": round(time.time() - start_time, 3)}
         except Exception as inner_e:
-            raise HTTPException(status_code=500, detail=f"Generation failed: {inner_e}")
-            
+            raise HTTPException(
+                status_code=500, detail=f"Generation failed: {inner_e}"
+            ) from inner_e
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @app.post("/speak")
 async def speak(req: SpeakRequest):
@@ -181,7 +192,7 @@ async def speak(req: SpeakRequest):
                 verbose=False,
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Speech generation failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Speech generation failed: {e}") from e
 
         wav_path = os.path.join(tmpdir, f"{prefix}_000.wav")
         if not os.path.exists(wav_path):
@@ -194,4 +205,5 @@ async def speak(req: SpeakRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8765)

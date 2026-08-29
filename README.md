@@ -198,9 +198,13 @@ internal/
   ├── audio/             - Audio normalization
   ├── clipboard/         - Clipboard & paste operations
   ├── recording/         - Audio recording
+  ├── procutil/           - shared subprocess/signal helpers
 pkg/whisper/              - whisper.cpp subprocess wrapper (-engine whisper)
-pkg/voxtral/              - Voxtral MLX server HTTP client (-engine voxtral)
+pkg/mlxengine/            - mlx-engine HTTP client (-engine voxtral)
+pkg/voxtral/              - voxtral/ Python primitives subprocess wrapper (cmd/voice-monitor)
+cmd/voice-monitor/        - realtime call-transcript monitor (see SETUP.md)
 mlx-engine/               - the local STT/TTS server itself (Python, uv-managed)
+voxtral/                  - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
 scripts/                  - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)
 ClaudeVoiceMenuBar/       - menu bar app for tuning voice settings (Swift)
 Makefile                  - build automation
@@ -210,10 +214,16 @@ Makefile                  - build automation
 
 ```bash
 make build             # Build binary
-make test              # Run tests (11 test functions)
+make test              # Run tests
+make vet                # go vet the Go code
+make fmt                # Format Go (gofmt) and Python (ruff format), in place
+make fmt-check          # Same, check-only (CI-safe)
+make lint               # vet + fmt-check + ruff check (mlx-engine/, voxtral/)
 make clean             # Remove bin/
 go run ./cmd/local-whisper [flags]  # Run without building
 ```
+
+Run `make lint` before committing.
 
 ### Code Guidelines
 

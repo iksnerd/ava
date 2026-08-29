@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-blackhole clean help
+.PHONY: build build-voice-monitor test vet fmt fmt-check lint install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -20,6 +20,10 @@ help:
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make build-voice-monitor - Build the realtime transcript monitor (localhost + log file)"
 	@echo "  make test               - Run all tests"
+	@echo "  make vet                - go vet the Go code"
+	@echo "  make fmt                - Format Go (gofmt) and Python (ruff format), in place"
+	@echo "  make fmt-check          - Check formatting without modifying files (CI-safe)"
+	@echo "  make lint               - vet + fmt-check + ruff check (mlx-engine/, voxtral/)"
 	@echo "  make start-engine       - Start the Voxtral MLX background server"
 	@echo "  make stop-engine        - Stop the Voxtral MLX background server"
 	@echo "  make status-engine      - Check if the Voxtral MLX server is running"
@@ -53,6 +57,33 @@ test:
 	@echo "🧪 Running tests..."
 	@go test -v ./...
 	@echo "✅ Tests passed"
+
+vet:
+	@echo "🔍 Vetting Go code..."
+	@go vet ./...
+	@echo "✅ Vet passed"
+
+fmt:
+	@echo "🎨 Formatting Go code..."
+	@gofmt -w .
+	@echo "🎨 Formatting Python code (mlx-engine, voxtral)..."
+	@cd mlx-engine && uv run ruff format .
+	@cd voxtral && uv run ruff format .
+	@echo "✅ Formatted"
+
+fmt-check:
+	@echo "🎨 Checking Go formatting..."
+	@test -z "$$(gofmt -l .)" || (echo "❌ Not gofmt'd:" && gofmt -l . && exit 1)
+	@echo "🎨 Checking Python formatting (mlx-engine, voxtral)..."
+	@cd mlx-engine && uv run ruff format --check .
+	@cd voxtral && uv run ruff format --check .
+	@echo "✅ Formatting clean"
+
+lint: vet fmt-check
+	@echo "🔍 Linting Python code (mlx-engine, voxtral)..."
+	@cd mlx-engine && uv run ruff check .
+	@cd voxtral && uv run ruff check .
+	@echo "✅ Lint passed"
 
 setup-deps:
 	@bash scripts/setup-deps.sh

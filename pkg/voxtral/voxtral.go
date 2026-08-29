@@ -27,6 +27,15 @@ func NewClient(pythonPath, scriptDir string) *Client {
 	}
 }
 
+// checkPython verifies the venv python from NewClient actually exists,
+// since every entry point below shells out to it.
+func (c *Client) checkPython() error {
+	if _, err := os.Stat(c.PythonPath); err != nil {
+		return fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
+	}
+	return nil
+}
+
 // TranscribeOptions configures a one-shot Voxtral Mini 3B transcription.
 type TranscribeOptions struct {
 	AudioPath string
@@ -35,8 +44,8 @@ type TranscribeOptions struct {
 
 // Transcribe runs Voxtral Mini 3B (stt.py) on a recorded audio file.
 func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
-	if _, err := os.Stat(c.PythonPath); err != nil {
-		return "", fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
+	if err := c.checkPython(); err != nil {
+		return "", err
 	}
 
 	cmd := exec.Command(c.PythonPath, filepath.Join(c.ScriptDir, "stt.py"),
@@ -62,8 +71,8 @@ type SpeakOptions struct {
 
 // Speak runs Voxtral TTS (tts.py), writing a wav file to opts.OutputPath.
 func (c *Client) Speak(opts SpeakOptions) error {
-	if _, err := os.Stat(c.PythonPath); err != nil {
-		return fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
+	if err := c.checkPython(); err != nil {
+		return err
 	}
 
 	voice := opts.Voice
@@ -132,8 +141,8 @@ type RealtimeOptions struct {
 // exits on its own. Unlike Transcribe, this is a long-lived subprocess, not
 // a one-shot call.
 func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta)) (stop func() error, err error) {
-	if _, err := os.Stat(c.PythonPath); err != nil {
-		return nil, fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
+	if err := c.checkPython(); err != nil {
+		return nil, err
 	}
 
 	args := []string{filepath.Join(c.ScriptDir, "realtime.py")}
@@ -191,8 +200,8 @@ func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta
 // ListInputDevices runs realtime.py --list-devices and returns its stdout,
 // e.g. to find a BlackHole loopback device name/index for RealtimeOptions.Device.
 func (c *Client) ListInputDevices() (string, error) {
-	if _, err := os.Stat(c.PythonPath); err != nil {
-		return "", fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
+	if err := c.checkPython(); err != nil {
+		return "", err
 	}
 
 	cmd := exec.Command(c.PythonPath, filepath.Join(c.ScriptDir, "realtime.py"), "--list-devices")

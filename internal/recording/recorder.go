@@ -1,8 +1,10 @@
 package recording
 
 import (
-	"os"
 	"os/exec"
+
+	"local-whisper/internal/audio"
+	"local-whisper/internal/procutil"
 )
 
 // Recorder handles audio recording with silence detection
@@ -35,17 +37,15 @@ func (r *Recorder) Record() error {
 	}
 
 	// Record with sox
-	cmd := exec.Command("sox", "-d", "-r", "16000", "-c", "1", r.OutputPath,
+	cmd := exec.Command("sox", "-d", "-r", audio.SampleRateHz, "-c", audio.Channels, r.OutputPath,
 		"silence", "1", "0.01", "0.1%", "1", "2.0", "3%")
 
 	// Suppress sox output
-	devNull, err := os.Open(os.DevNull)
+	closeSilence, err := procutil.Silence(cmd)
 	if err != nil {
 		return err
 	}
-	defer devNull.Close()
-	cmd.Stderr = devNull
-	cmd.Stdout = devNull
+	defer closeSilence()
 
 	return cmd.Run()
 }

@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
+	"local-whisper/internal/procutil"
 	"local-whisper/pkg/voxtral"
 )
 
@@ -249,14 +248,11 @@ func main() {
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", *port), Handler: mux}
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
+	procutil.OnInterrupt(func() {
 		fmt.Println("\n⏹️  Stopping...")
 		stop()
 		server.Close()
-	}()
+	})
 
 	fmt.Printf("🌐 Open http://localhost:%d to watch the live transcript\n", *port)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

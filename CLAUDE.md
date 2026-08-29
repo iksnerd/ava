@@ -14,10 +14,15 @@ this file covers the Go side.
 make build              # Build local-whisper binary to bin/local-whisper
 make build-voice-monitor # Build the realtime call-transcript monitor (see SETUP.md)
 make test                # Run all tests (go test -v ./...)
-go vet ./...              # Check for issues
+make vet                  # go vet ./...
+make fmt                  # gofmt + ruff format (mlx-engine/, voxtral/), in place
+make fmt-check            # Same, but check-only — no writes (CI-safe)
+make lint                  # vet + fmt-check + ruff check (mlx-engine/, voxtral/)
 make clean                # Remove bin/
 make start-engine          # Start mlx-engine (needed for local-whisper -engine voxtral)
 ```
+
+Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtral/`) are linted/formatted with `ruff` (a `uv` dev dependency in each's `pyproject.toml`); `E501` is intentionally off there since `ruff format` governs code line length and the rest is unwrappable help/print strings.
 
 ## Project Structure
 

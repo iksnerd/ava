@@ -13,6 +13,7 @@ per line to stdout as transcript deltas arrive, so a long-lived Go subprocess
 can read it line-by-line. Runs until interrupted (Ctrl+C / SIGINT), then
 flushes whatever was still pending before exiting.
 """
+
 import argparse
 import json
 import sys
@@ -63,7 +64,9 @@ def list_devices():
         if dev["max_input_channels"] <= 0:
             continue
         marker = " (default)" if idx == default_input else ""
-        print(f"[{idx}] {dev['name']} - {dev['max_input_channels']}ch @ {int(dev['default_samplerate'])}Hz{marker}")
+        print(
+            f"[{idx}] {dev['name']} - {dev['max_input_channels']}ch @ {int(dev['default_samplerate'])}Hz{marker}"
+        )
 
 
 def resolve_device(spec):
@@ -78,13 +81,21 @@ def resolve_device(spec):
 
     spec_lower = spec.lower()
     devices = sd.query_devices()
-    matches = [i for i, d in enumerate(devices) if d["max_input_channels"] > 0 and spec_lower in d["name"].lower()]
+    matches = [
+        i
+        for i, d in enumerate(devices)
+        if d["max_input_channels"] > 0 and spec_lower in d["name"].lower()
+    ]
 
     if not matches:
-        raise SystemExit(f"No input device matching {spec!r}. Run with --list-devices to see options.")
+        raise SystemExit(
+            f"No input device matching {spec!r}. Run with --list-devices to see options."
+        )
     if len(matches) > 1:
         names = ", ".join(f"[{i}] {devices[i]['name']}" for i in matches)
-        raise SystemExit(f"Multiple input devices match {spec!r}: {names}. Use an index to disambiguate.")
+        raise SystemExit(
+            f"Multiple input devices match {spec!r}: {names}. Use an index to disambiguate."
+        )
     return matches[0]
 
 
@@ -101,7 +112,9 @@ def run_voxtral(model_name, device, transcription_delay_ms, highpass_hz=0.0):
             samples = hpf(samples)
         session.feed(samples)
 
-    stream = sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", device=device, callback=on_audio)
+    stream = sd.InputStream(
+        samplerate=SAMPLE_RATE, channels=1, dtype="float32", device=device, callback=on_audio
+    )
 
     emit("ready", device=device_name(device), engine="voxtral")
 
@@ -122,7 +135,15 @@ def run_voxtral(model_name, device, transcription_delay_ms, highpass_hz=0.0):
     emit("done")
 
 
-def run_whisper(model_name, device, language, chunk_duration, frame_threshold, diarize_model_name=None, highpass_hz=0.0):
+def run_whisper(
+    model_name,
+    device,
+    language,
+    chunk_duration,
+    frame_threshold,
+    diarize_model_name=None,
+    highpass_hz=0.0,
+):
     from mlx_audio.stt.models.whisper.audio import log_mel_spectrogram
     from mlx_audio.stt.models.whisper.streaming import StreamingConfig, StreamingDecoder
     from mlx_audio.stt.utils import load_model
@@ -142,7 +163,9 @@ def run_whisper(model_name, device, language, chunk_duration, frame_threshold, d
         # StreamingDecoder can't auto-detect language like the batch API does -
         # it defaults to English unless told otherwise, so pass --language
         # explicitly for anything else (e.g. "bg" for Bulgarian).
-        return StreamingDecoder(model, StreamingConfig(frame_threshold=frame_threshold), language=language)
+        return StreamingDecoder(
+            model, StreamingConfig(frame_threshold=frame_threshold), language=language
+        )
 
     decoder = new_decoder()
     segment_seconds = 0.0
@@ -165,9 +188,17 @@ def run_whisper(model_name, device, language, chunk_duration, frame_threshold, d
     def on_audio(indata, frames, time_info, status):
         buf.append(indata[:, 0].copy())
 
-    stream = sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", device=device, callback=on_audio)
+    stream = sd.InputStream(
+        samplerate=SAMPLE_RATE, channels=1, dtype="float32", device=device, callback=on_audio
+    )
 
-    emit("ready", device=device_name(device), engine="whisper", language=language or "en", diarize=diar_model is not None)
+    emit(
+        "ready",
+        device=device_name(device),
+        engine="whisper",
+        language=language or "en",
+        diarize=diar_model is not None,
+    )
 
     def flush(is_last):
         nonlocal buf, decoder, segment_seconds, diar_state
@@ -178,7 +209,10 @@ def run_whisper(model_name, device, language, chunk_duration, frame_threshold, d
         if hpf is not None:
             chunk = hpf(chunk)
 
-        is_silent = chunk.size == 0 or np.sqrt(np.mean(chunk.astype(np.float64) ** 2)) < SILENCE_RMS_THRESHOLD
+        is_silent = (
+            chunk.size == 0
+            or np.sqrt(np.mean(chunk.astype(np.float64) ** 2)) < SILENCE_RMS_THRESHOLD
+        )
         if is_silent and not is_last:
             return
 
@@ -191,7 +225,9 @@ def run_whisper(model_name, device, language, chunk_duration, frame_threshold, d
         # captures Meet's mixed output, never this machine's own mic input.
         speaker = None
         if diar_model is not None and chunk.size > 0:
-            for dresult in diar_model.generate_stream(chunk, state=diar_state, sample_rate=SAMPLE_RATE):
+            for dresult in diar_model.generate_stream(
+                chunk, state=diar_state, sample_rate=SAMPLE_RATE
+            ):
                 diar_state = dresult.state
                 if dresult.segments:
                     longest = max(dresult.segments, key=lambda s: s.end - s.start)
@@ -220,7 +256,9 @@ def run_whisper(model_name, device, language, chunk_duration, frame_threshold, d
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Realtime transcription via Voxtral Realtime or Whisper (MLX)")
+    parser = argparse.ArgumentParser(
+        description="Realtime transcription via Voxtral Realtime or Whisper (MLX)"
+    )
     parser.add_argument(
         "--engine",
         choices=["voxtral", "whisper"],
@@ -228,13 +266,20 @@ def main():
         help="'voxtral' = Voxtral Mini 4B Realtime, <500ms latency, 13 languages. "
         "'whisper' = multilingual Whisper (99+ languages incl. Bulgarian), ~1s latency.",
     )
-    parser.add_argument("--model", default=None, help="HF repo id or local path (default depends on --engine)")
+    parser.add_argument(
+        "--model", default=None, help="HF repo id or local path (default depends on --engine)"
+    )
     parser.add_argument(
         "--language",
         default=None,
         help="Language code, e.g. 'bg' for Bulgarian. Whisper engine only; defaults to English if omitted.",
     )
-    parser.add_argument("--chunk-duration", type=float, default=1.0, help="Whisper engine: seconds of audio per decode step")
+    parser.add_argument(
+        "--chunk-duration",
+        type=float,
+        default=1.0,
+        help="Whisper engine: seconds of audio per decode step",
+    )
     parser.add_argument(
         "--frame-threshold",
         type=int,
@@ -254,7 +299,9 @@ def main():
         "diarization. Only distinguishes remote participants already mixed into Meet's audio output - "
         "can never label your own mic input, since that never flows through this pipeline.",
     )
-    parser.add_argument("--diarize-model", default=None, help="Override the diarization model HF repo id")
+    parser.add_argument(
+        "--diarize-model", default=None, help="Override the diarization model HF repo id"
+    )
     parser.add_argument(
         "--highpass-hz",
         type=float,
@@ -267,7 +314,9 @@ def main():
         default=None,
         help="Input device name (substring, e.g. 'BlackHole') or index. Default: system default mic.",
     )
-    parser.add_argument("--list-devices", action="store_true", help="List available input devices and exit")
+    parser.add_argument(
+        "--list-devices", action="store_true", help="List available input devices and exit"
+    )
     args = parser.parse_args()
 
     if args.list_devices:
@@ -290,7 +339,12 @@ def main():
     else:
         if args.diarize:
             print("--diarize is only supported with --engine whisper; ignoring.", file=sys.stderr)
-        run_voxtral(args.model or DEFAULT_VOXTRAL_MODEL, device, args.transcription_delay_ms, args.highpass_hz)
+        run_voxtral(
+            args.model or DEFAULT_VOXTRAL_MODEL,
+            device,
+            args.transcription_delay_ms,
+            args.highpass_hz,
+        )
 
 
 if __name__ == "__main__":

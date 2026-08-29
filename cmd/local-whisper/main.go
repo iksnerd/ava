@@ -6,22 +6,21 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"local-whisper/internal/audio"
 	"local-whisper/internal/clipboard"
+	"local-whisper/internal/procutil"
 	"local-whisper/internal/recording"
 	"local-whisper/pkg/mlxengine"
 	"local-whisper/pkg/whisper"
 )
 
 const (
-	tmpDir       = "/tmp/voice-input"
-	baseModel    = "ggml-base.en.bin"
-	tinyModel    = "ggml-tiny.en.bin"
+	tmpDir    = "/tmp/voice-input"
+	baseModel = "ggml-base.en.bin"
+	tinyModel = "ggml-tiny.en.bin"
 )
 
 func main() {
@@ -37,17 +36,6 @@ func main() {
 	engine := flag.String("engine", "whisper", "Inference engine: whisper (default) or voxtral")
 
 	flag.Parse()
-
-	// Setup signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		if *showStatus {
-			fmt.Println("\n⏹️ Recording cancelled.")
-		}
-		os.Exit(0)
-	}()
 
 	// Validate engine selection
 	if *engine != "whisper" && *engine != "voxtral" {
@@ -75,6 +63,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer os.RemoveAll(tmpDir)
+
+	// Setup signal handling for graceful shutdown: clean up the temp
+	// directory (which may hold recorded audio) before exiting, same as a
+	// normal run does via the defer above.
+	procutil.OnInterrupt(func() {
+		if *showStatus {
+			fmt.Println("\n⏹️ Recording cancelled.")
+		}
+		os.RemoveAll(tmpDir)
+		os.Exit(0)
+	})
 
 	// Check dependencies based on engine
 	if err := checkDependencies(*engine); err != nil {
@@ -231,12 +230,14 @@ func checkDependencies(engine string) error {
 	}
 
 	for _, dep := range deps {
-		_, err := exec.LookPath(dep)
-		if err != nil {
-			if dep == "sox" {
+		if _, err := exec.LookPath(dep); err != nil {
+			switch dep {
+			case "sox":
 				return fmt.Errorf("sox is not installed. Run: brew install sox")
-			} else if dep == "whisper-cli" {
+			case "whisper-cli":
 				return fmt.Errorf("whisper-cli is not installed. Run: brew install whisper-cpp")
+			default:
+				return fmt.Errorf("%s is not installed", dep)
 			}
 		}
 	}

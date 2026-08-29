@@ -67,3 +67,13 @@ tradeoff is ever needed.
 Managed by [`uv`](https://docs.astral.sh/uv/) — see `pyproject.toml`. Key
 ones: `fastapi`, `uvicorn`, `mlx-audio[tts]` (Kokoro needs `misaki` for
 phonemization, pulled in by the `[tts]` extra).
+
+## Lint & format
+
+```bash
+uv run ruff check .    # lint
+uv run ruff format .   # format, in place
+```
+
+Or from the repo root: `make lint` / `make fmt` (covers this and `voxtral/`
+together with the Go side).

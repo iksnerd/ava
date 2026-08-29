@@ -112,9 +112,13 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 		return "", fmt.Errorf("failed to parse server response: %w", err)
 	}
 
-	// Write the output to OutputPath for debugging/caching if requested
+	// Write the output to OutputPath for debugging/caching if requested. A
+	// write failure here doesn't invalidate an otherwise-successful
+	// transcription, so it's reported rather than returned as an error.
 	if opts.OutputPath != "" {
-		_ = os.WriteFile(opts.OutputPath, []byte(response.Text), 0644)
+		if err := os.WriteFile(opts.OutputPath, []byte(response.Text), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)
+		}
 	}
 
 	return response.Text, nil

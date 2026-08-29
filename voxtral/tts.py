@@ -5,6 +5,7 @@ Synthesizes text to a wav file. Playback is left to the caller (afplay on
 macOS, same as internal/clipboard.PlaySound already uses for sound effects)
 rather than bundled here, to keep this a pure text-to-wav primitive.
 """
+
 import argparse
 
 DEFAULT_MODEL = "mlx-community/Voxtral-4B-TTS-2603-mlx-bf16"
@@ -14,7 +15,9 @@ DEFAULT_VOICE = "casual_male"
 def main():
     parser = argparse.ArgumentParser(description="Synthesize speech with Voxtral TTS (MLX)")
     parser.add_argument("--text", required=True, help="Text to speak")
-    parser.add_argument("--voice", default=DEFAULT_VOICE, help="Voice preset, e.g. casual_male, cheerful_female")
+    parser.add_argument(
+        "--voice", default=DEFAULT_VOICE, help="Voice preset, e.g. casual_male, cheerful_female"
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL, help="HF repo id or local path")
     parser.add_argument("--output", required=True, help="Path to write the synthesized wav file")
     args = parser.parse_args()

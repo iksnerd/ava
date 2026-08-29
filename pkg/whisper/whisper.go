@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"local-whisper/internal/procutil"
 )
 
 // Client wraps the whisper-cli command-line tool
@@ -33,7 +35,7 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 	// Check if model exists
 	if _, err := os.Stat(c.ModelPath); err != nil {
 		modelFile := filepath.Base(c.ModelPath)
-		return "", fmt.Errorf("whisper model not found at %s. Download with: wget -O %s https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%s", 
+		return "", fmt.Errorf("whisper model not found at %s. Download with: wget -O %s https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%s",
 			c.ModelPath, c.ModelPath, modelFile)
 	}
 
@@ -48,16 +50,13 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 	)
 
 	// Suppress whisper-cli verbose output
-	devNull, err := os.Open(os.DevNull)
+	closeSilence, err := procutil.Silence(cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to open devnull: %w", err)
 	}
-	defer devNull.Close()
-	cmd.Stderr = devNull
-	cmd.Stdout = devNull
+	defer closeSilence()
 
-	err = cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return "", err
 	}
 
