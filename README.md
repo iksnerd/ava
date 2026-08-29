@@ -4,9 +4,9 @@ Local voice tools for your Mac: dictation, text-to-speech, and spoken Claude
 Code notifications — everything runs on-device, nothing leaves your machine.
 
 Started as a Go CLI wrapping `whisper.cpp` for dictation. It's grown into a
-small local-voice stack: two interchangeable transcription engines, a local
-TTS server, Claude Code hooks that speak session status out loud, and a menu
-bar app to tune it all.
+small local-voice stack: two interchangeable transcription engines, a
+real-time call-transcription monitor, a local TTS server, Claude Code hooks
+that speak session status out loud, and a menu bar app to tune it all.
 
 ## Features
 
@@ -17,35 +17,12 @@ bar app to tune it all.
 - **Context Awareness**: reads `.whisper-context` files for vocabulary hints (whisper engine).
 - **Clipboard Integration**: copies to clipboard and optionally pastes via Cmd+V.
 - **Raycast Integration**: available as a Raycast command.
+- **Real-time call transcription**: `voice-monitor` streams a live transcript (with optional speaker diarization) from the mic or a loopback device like BlackHole, to a browser tab and a log file — see [`SETUP.md`](SETUP.md).
 - **Text-to-speech**: a local Kokoro TTS server for anything that wants to speak, not just this CLI — see [`mlx-engine/`](mlx-engine/README.md).
 - **Spoken Claude Code notifications**: hooks that speak when Claude finishes a turn or needs a decision — see [Claude Code voice hooks](docs/claude-code-voice-hooks.md).
 - **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
 
-## Quick Start
-
-### Raycast
-
-```bash
-git clone https://github.com/iksnerd/local-whisper.git
-cd local-whisper
-make install-raycast
-```
-
-Then in Raycast Settings:
-1. Extensions → Add Script Directory → Select `~/raycast-scripts`
-2. Reload Raycast (Cmd+Shift+R)
-3. Search "Transcribe Local Whisper" and set your hotkey
-
-### CLI
-
-```bash
-git clone https://github.com/iksnerd/local-whisper.git
-cd local-whisper
-make install-bin
-local-whisper
-```
-
-## Installation
+## Getting Started
 
 ### Prerequisites
 
@@ -53,29 +30,46 @@ local-whisper
 brew install sox whisper-cpp go
 ```
 
+The default `whisper` engine works on any Mac. Voxtral (higher-accuracy
+transcription, TTS, and call monitoring) needs Apple Silicon — it runs
+on-device via [MLX](https://github.com/ml-explore/mlx).
+
 ### Install
 
 ```bash
 git clone https://github.com/iksnerd/local-whisper.git
 cd local-whisper
-make install-raycast   # Raycast command
-# or
-make install-bin       # CLI to ~/.local/bin
+make install-bin       # builds the binary, downloads the model (~141MB), installs to ~/.local/bin
+local-whisper
 ```
 
-The install commands build the binary, download the model (~141MB), and set everything up.
-
-### Manual Setup
+Or as a Raycast command instead of a standalone binary:
 
 ```bash
-make build             # Binary to bin/local-whisper
-make setup-model       # Download model
-./bin/local-whisper
+make install-raycast
 ```
 
-### Accessibility (For Auto-Paste)
+Then in Raycast Settings:
+1. Extensions → Add Script Directory → Select `~/raycast-scripts`
+2. Reload Raycast (Cmd+Shift+R)
+3. Search "Transcribe Local Whisper" and set a hotkey
 
-System Settings → Privacy & Security → Accessibility → Add Terminal/Raycast/your editor.
+### Enable auto-paste
+
+System Settings → Privacy & Security → Accessibility → add Terminal (or
+Raycast, or your editor). Without this, transcripts still land on the
+clipboard, they just won't auto-paste — `local-whisper -no-paste` skips this
+entirely.
+
+That's it — say something, it lands wherever your cursor is.
+
+### Manual build (no install)
+
+```bash
+make build             # binary to bin/local-whisper
+make setup-model       # download the Whisper model
+./bin/local-whisper
+```
 
 ## Usage
 
@@ -183,6 +177,7 @@ Check `/tmp/voxtral-server.log` if it doesn't come up. Full troubleshooting: [`m
 ## Documentation
 
 - [`mlx-engine/README.md`](mlx-engine/README.md) — the local STT/TTS server: endpoints, models, running it standalone.
+- [`SETUP.md`](SETUP.md) — `voice-monitor` (real-time call transcription): BlackHole loopback setup, engine/diarization options, known gaps.
 - [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken Claude Code notifications: setup, settings, how message length/summarization work.
 - [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar app for tuning the above live.
 - [`voxtral-migration.md`](voxtral-migration.md) — design record for why/how the Voxtral engine was added.
@@ -193,21 +188,21 @@ Check `/tmp/voxtral-server.log` if it doesn't come up. Full troubleshooting: [`m
 ### Structure
 
 ```
-cmd/local-whisper/       - CLI entry point
+cmd/local-whisper/     - CLI entry point
+cmd/voice-monitor/     - realtime call-transcript monitor (see SETUP.md)
 internal/
-  ├── audio/             - Audio normalization
-  ├── clipboard/         - Clipboard & paste operations
-  ├── recording/         - Audio recording
-  ├── procutil/           - shared subprocess/signal helpers
-pkg/whisper/              - whisper.cpp subprocess wrapper (-engine whisper)
-pkg/mlxengine/            - mlx-engine HTTP client (-engine voxtral)
-pkg/voxtral/              - voxtral/ Python primitives subprocess wrapper (cmd/voice-monitor)
-cmd/voice-monitor/        - realtime call-transcript monitor (see SETUP.md)
-mlx-engine/               - the local STT/TTS server itself (Python, uv-managed)
-voxtral/                  - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
-scripts/                  - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)
-ClaudeVoiceMenuBar/       - menu bar app for tuning voice settings (Swift)
-Makefile                  - build automation
+  ├── audio/           - Audio normalization
+  ├── clipboard/       - Clipboard & paste operations
+  ├── recording/       - Audio recording
+  └── procutil/        - shared subprocess/signal helpers
+pkg/whisper/            - whisper.cpp subprocess wrapper (-engine whisper)
+pkg/mlxengine/          - mlx-engine HTTP client (-engine voxtral)
+pkg/voxtral/            - voxtral/ Python primitives subprocess wrapper (cmd/voice-monitor)
+mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
+voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
+scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)
+ClaudeVoiceMenuBar/     - menu bar app for tuning voice settings (Swift)
+Makefile                - build automation
 ```
 
 ### Build & Test
