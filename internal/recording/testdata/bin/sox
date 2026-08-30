@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fixture "sox" for Recorder.Record: sox -d -r <rate> -c <channels> <out> silence ... norm -3
+# so $6=out. Logs the full arg list for assertions if $SOX_LOG is set.
+out="$6"
+
+if [ -n "$SOX_LOG" ]; then
+  printf '%s\n' "$@" > "$SOX_LOG"
+fi
+
+echo "recorded audio" > "$out"

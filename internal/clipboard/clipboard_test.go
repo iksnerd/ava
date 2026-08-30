@@ -1,41 +1,98 @@
 package clipboard
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"local-whisper/internal/testutil"
 )
 
-func TestCopyToClipboardBasic(t *testing.T) {
-	// This test requires pbcopy to be available (macOS only)
-	// It will copy to clipboard if run on macOS
-	text := "test text"
-	err := CopyToClipboard(text)
+func TestCopyToClipboardWritesStdin(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
 
-	// Just verify it doesn't panic or return error on macOS
-	if err != nil {
-		// Expected on non-macOS systems without pbcopy
-		t.Logf("CopyToClipboard error (expected on non-macOS): %v", err)
+	cases := []struct {
+		name string
+		text string
+	}{
+		{"empty", ""},
+		{"ascii", "hello clipboard"},
+		{"unicode and emoji", "héllo 🎤 wörld"},
+		{"multiline", "line one\nline two\nline three"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clipOut := filepath.Join(t.TempDir(), "clip.out")
+			t.Setenv("CLIP_OUT", clipOut)
+
+			if err := CopyToClipboard(tc.text); err != nil {
+				t.Fatalf("CopyToClipboard(%q) error = %v", tc.text, err)
+			}
+
+			got, err := os.ReadFile(clipOut)
+			if err != nil {
+				t.Fatalf("read what pbcopy received: %v", err)
+			}
+			if string(got) != tc.text {
+				t.Errorf("pbcopy received %q, want %q", got, tc.text)
+			}
+		})
 	}
 }
 
-func TestCopyToClipboardEmpty(t *testing.T) {
-	// Test copying empty string
-	text := ""
-	err := CopyToClipboard(text)
+func TestCopyToClipboardCommandFailure(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-fail")
 
-	// Should succeed even with empty string
-	if err != nil {
-		t.Logf("CopyToClipboard with empty string error: %v", err)
+	if err := CopyToClipboard("anything"); err == nil {
+		t.Fatal("expected an error when pbcopy fails, got nil")
 	}
 }
 
-func TestCopyToClipboardLongText(t *testing.T) {
-	// Test copying long text
-	text := "This is a longer test string with multiple words and special characters like !@#$%^&*(). " +
-		"It should work fine with CopyToClipboard function. " +
-		"Even with newlines:\nLine 1\nLine 2"
-	err := CopyToClipboard(text)
+func TestPasteWithAppleScriptInvokesOsascript(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
 
+	logPath := filepath.Join(t.TempDir(), "osascript.log")
+	t.Setenv("OSASCRIPT_LOG", logPath)
+
+	PasteWithAppleScript()
+
+	got, err := os.ReadFile(logPath)
 	if err != nil {
-		t.Logf("CopyToClipboard with long text error: %v", err)
+		t.Fatalf("read osascript invocation log: %v", err)
+	}
+	if !strings.Contains(string(got), `keystroke "v" using {command down}`) {
+		t.Errorf("osascript args = %q, want the cmd-v keystroke script", got)
+	}
+}
+
+func TestPlaySoundEnabled(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	logPath := filepath.Join(t.TempDir(), "afplay.log")
+	t.Setenv("AFPLAY_LOG", logPath)
+
+	PlaySound("/System/Library/Sounds/Pop.aiff", true)
+
+	got, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read afplay invocation log: %v", err)
+	}
+	if strings.TrimSpace(string(got)) != "/System/Library/Sounds/Pop.aiff" {
+		t.Errorf("afplay was called with %q, want the Pop.aiff path", got)
+	}
+}
+
+func TestPlaySoundDisabled(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	logPath := filepath.Join(t.TempDir(), "afplay.log")
+	t.Setenv("AFPLAY_LOG", logPath)
+
+	PlaySound("/System/Library/Sounds/Pop.aiff", false)
+
+	if _, err := os.Stat(logPath); err == nil {
+		t.Error("expected afplay not to be invoked when enabled is false")
 	}
 }

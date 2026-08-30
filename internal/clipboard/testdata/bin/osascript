@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fixture "osascript": records its arguments to $OSASCRIPT_LOG, if set.
+if [ -n "$OSASCRIPT_LOG" ]; then
+  printf '%s\n' "$@" > "$OSASCRIPT_LOG"
+fi
+exit 0

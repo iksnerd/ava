@@ -16,6 +16,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"local-whisper/pkg/transcribe"
 )
 
 // Client wraps the local mlx-engine HTTP server.
@@ -33,14 +35,6 @@ func NewClient(serverURL string) *Client {
 	}
 }
 
-// TranscribeOptions contains transcription parameters
-type TranscribeOptions struct {
-	AudioPath     string
-	OutputPath    string
-	ContextPrompt string
-	Language      string
-}
-
 // TranscribeResponse is the expected JSON response from the server
 type TranscribeResponse struct {
 	Text       string  `json:"text"`
@@ -48,7 +42,7 @@ type TranscribeResponse struct {
 }
 
 // Transcribe transcribes audio by sending it to the MLX Voxtral server
-func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
+func (c *Client) Transcribe(opts transcribe.Options) (string, error) {
 	// Open the audio file
 	file, err := os.Open(opts.AudioPath)
 	if err != nil {

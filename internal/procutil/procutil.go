@@ -12,7 +12,10 @@ import (
 // Silence redirects cmd's stdout and stderr to /dev/null. Call the returned
 // closer once cmd has finished running to release the descriptor.
 func Silence(cmd *exec.Cmd) (func(), error) {
-	devNull, err := os.Open(os.DevNull)
+	// Opened write-only: cmd writes into this fd, and a program that (unlike
+	// most) checks fprintf's return value will get EBADF from a read-only
+	// handle and can treat that as a fatal error.
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		return nil, err
 	}

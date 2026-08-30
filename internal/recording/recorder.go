@@ -5,6 +5,7 @@ import (
 
 	"local-whisper/internal/audio"
 	"local-whisper/internal/procutil"
+	"local-whisper/internal/ttscontrol"
 )
 
 // Recorder handles audio recording with silence detection
@@ -24,21 +25,35 @@ func NewRecorder(outputPath string, playSound bool) *Recorder {
 // Record starts recording with sox
 // - Starts recording immediately (skip initial silence)
 // - Stops after 2.0s of silence at 3% threshold
+// - Peak-normalizes to -3dB before writing OutputPath
+//
+// Capture and normalization run as one sox effects chain rather than two
+// separate invocations: the rate/channel conversion a later resample step
+// would do is already a no-op here (sox captures directly at
+// audio.SampleRateHz/Channels), so the only effect worth a second process
+// was "norm -3" — folding it in here saves a full sox spawn and an
+// intermediate temp file on every recording.
 func (r *Recorder) Record() error {
-	// Play start sound in background
+	// Stop any in-flight Claude Voice TTS before opening the mic: otherwise
+	// whatever it's currently speaking (e.g. a hook notification that
+	// overlaps a dictation) goes out the speakers and back in through the
+	// mic while sox is capturing.
+	ttscontrol.StopSpeaking()
+
+	// Play the start cue and let it finish before sox starts listening. sox
+	// has no lead-in (it starts capturing immediately, not after the first
+	// sound), so backgrounding this would let the beep itself bleed into
+	// the recording through the mic.
 	if r.PlaySound {
-		go func() {
-			cmd := exec.Command("afplay", "/System/Library/Sounds/Blow.aiff")
-			// Ensure audio can play by not redirecting stdout/stderr
-			cmd.Stdout = nil
-			cmd.Stderr = nil
-			cmd.Run()
-		}()
+		cmd := exec.Command("afplay", "/System/Library/Sounds/Blow.aiff")
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.Run()
 	}
 
 	// Record with sox
 	cmd := exec.Command("sox", "-d", "-r", audio.SampleRateHz, "-c", audio.Channels, r.OutputPath,
-		"silence", "1", "0.01", "0.1%", "1", "2.0", "3%")
+		"silence", "1", "0.01", "0.1%", "1", "2.0", "3%", "norm", "-3")
 
 	// Suppress sox output
 	closeSilence, err := procutil.Silence(cmd)

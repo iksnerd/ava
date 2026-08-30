@@ -1,13 +1,14 @@
 package whisper
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"local-whisper/internal/procutil"
+	"local-whisper/pkg/transcribe"
 )
 
 // Client wraps the whisper-cli command-line tool
@@ -22,16 +23,10 @@ func NewClient(modelPath string) *Client {
 	}
 }
 
-// TranscribeOptions contains transcription parameters
-type TranscribeOptions struct {
-	AudioPath     string
-	OutputPath    string
-	ContextPrompt string
-	Language      string
-}
-
-// Transcribe transcribes audio using whisper-cli
-func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
+// Transcribe transcribes audio using whisper-cli. With -nt (no timestamps)
+// and no -otxt/-of, whisper-cli's stdout is exactly the transcript, so it's
+// captured directly rather than round-tripped through a file on disk.
+func (c *Client) Transcribe(opts transcribe.Options) (string, error) {
 	// Check if model exists
 	if _, err := os.Stat(c.ModelPath); err != nil {
 		modelFile := filepath.Base(c.ModelPath)
@@ -39,32 +34,37 @@ func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
 			c.ModelPath, c.ModelPath, modelFile)
 	}
 
-	// Transcribe with language parameter
 	cmd := exec.Command("whisper-cli",
 		"-m", c.ModelPath,
 		"-f", opts.AudioPath,
-		"-otxt", "-of", strings.TrimSuffix(opts.OutputPath, ".txt"),
 		"-t", "8", "-nt", "-sns",
 		"-l", opts.Language,
 		"--prompt", opts.ContextPrompt,
 	)
+	// cmd.Output() leaves Stderr nil, so it buffers the child's stderr
+	// (whisper-cli's verbose model-load/timing logs) into ExitError.Stderr
+	// instead of printing it — silencing it on success, and giving a real
+	// diagnostic instead of a bare "exit status 1" on failure.
 
-	// Suppress whisper-cli verbose output
-	closeSilence, err := procutil.Silence(cmd)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to open devnull: %w", err)
-	}
-	defer closeSilence()
-
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
-
-	// Read transcribed text
-	text, err := os.ReadFile(opts.OutputPath)
-	if err != nil {
-		return "", err
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("whisper-cli failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("whisper-cli failed: %w", err)
 	}
 
-	return strings.TrimSpace(string(text)), nil
+	text := strings.TrimSpace(string(out))
+
+	// Writing OutputPath is for debugging/caching; a failure here doesn't
+	// invalidate an otherwise-successful transcription, so it's reported
+	// rather than returned as an error (matching pkg/mlxengine).
+	if opts.OutputPath != "" {
+		if err := os.WriteFile(opts.OutputPath, []byte(text), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)
+		}
+	}
+
+	return text, nil
 }

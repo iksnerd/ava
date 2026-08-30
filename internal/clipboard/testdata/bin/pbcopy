@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fixture "pbcopy": writes whatever it receives on stdin to $CLIP_OUT, so
+# tests can verify CopyToClipboard actually piped the given text through.
+if [ -n "$CLIP_OUT" ]; then
+  cat > "$CLIP_OUT"
+else
+  cat > /dev/null
+fi

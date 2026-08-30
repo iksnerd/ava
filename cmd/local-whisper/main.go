@@ -9,18 +9,20 @@ import (
 	"path/filepath"
 	"time"
 
-	"local-whisper/internal/audio"
 	"local-whisper/internal/clipboard"
 	"local-whisper/internal/procutil"
 	"local-whisper/internal/recording"
 	"local-whisper/pkg/mlxengine"
+	"local-whisper/pkg/transcribe"
 	"local-whisper/pkg/whisper"
 )
 
 const (
-	tmpDir    = "/tmp/voice-input"
-	baseModel = "ggml-base.en.bin"
-	tinyModel = "ggml-tiny.en.bin"
+	tmpDir           = "/tmp/voice-input"
+	baseModel        = "ggml-base.en.bin"
+	tinyModel        = "ggml-tiny.en.bin"
+	voxtralHealthURL = "http://127.0.0.1:8765/health"
+	noContextPrompt  = ". "
 )
 
 func main() {
@@ -37,15 +39,13 @@ func main() {
 
 	flag.Parse()
 
-	// Validate engine selection
-	if *engine != "whisper" && *engine != "voxtral" {
-		fmt.Fprintf(os.Stderr, "❌ Invalid engine: %s (use 'whisper' or 'voxtral')\n", *engine)
+	if err := validateEngine(*engine); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
 
-	// Validate model selection
-	if *engine == "whisper" && *modelName != "base" && *modelName != "tiny" {
-		fmt.Fprintf(os.Stderr, "❌ Invalid model: %s (use 'base' or 'tiny')\n", *modelName)
+	if err := validateModel(*engine, *modelName); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
 
@@ -76,7 +76,7 @@ func main() {
 	})
 
 	// Check dependencies based on engine
-	if err := checkDependencies(*engine); err != nil {
+	if err := checkDependencies(*engine, voxtralHealthURL); err != nil {
 		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
@@ -90,102 +90,58 @@ func main() {
 		fmt.Println("🎧 Listening... (press Ctrl+C to stop)")
 	}
 
-	rawAudioPath := filepath.Join(tmpDir, "prompt_raw.wav")
-	recorder := recording.NewRecorder(rawAudioPath, !*noSound)
+	audioPath := filepath.Join(tmpDir, "prompt.wav")
+	recorder := recording.NewRecorder(audioPath, !*noSound)
 	if err := recorder.Record(); err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Recording failed: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Check if audio was actually recorded
-	fileInfo, err := os.Stat(rawAudioPath)
+	fileInfo, err := os.Stat(audioPath)
 	if err != nil || fileInfo.Size() < 1000 {
 		fmt.Println("⚠️ No audio recorded.")
 		os.Exit(0)
 	}
 
 	if *showStatus {
-		fmt.Println("✅ Raw audio recorded.")
+		fmt.Println("✅ Audio recorded.")
 	}
 
-	// Step 2: Process audio
-	if *showStatus {
-		fmt.Println("🎧 Normalizing audio...")
+	// Step 2: Load context
+	var globalContextPath string
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		globalContextPath = filepath.Join(homeDir, ".whisper-context")
+	}
+	contextPrompt, contextMsg := loadContextPrompt(*contextFile, globalContextPath)
+	if *showStatus && contextMsg != "" {
+		fmt.Println(contextMsg)
 	}
 
-	processedAudioPath := filepath.Join(tmpDir, "prompt_processed.wav")
-	processor := audio.NewProcessor(rawAudioPath, processedAudioPath)
-	if err := processor.Normalize(); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Audio processing failed: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Step 3: Load context
-	contextPrompt := ". "
-	if *contextFile != "" {
-		if content, err := os.ReadFile(*contextFile); err == nil {
-			contextPrompt = string(content) + " " + contextPrompt
-			if *showStatus {
-				fmt.Printf("📂 Context loaded: %s\n", *contextFile)
-			}
-		}
-	} else {
-		// Try to load from home directory
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			globalContextPath := filepath.Join(homeDir, ".whisper-context")
-			if content, err := os.ReadFile(globalContextPath); err == nil {
-				contextPrompt = string(content) + " " + contextPrompt
-				if *showStatus {
-					fmt.Println("🌍 Global context loaded: ~/.whisper-context")
-				}
-			}
-		}
-	}
-
-	// Step 4: Transcribe
+	// Step 3: Transcribe
 	if *showStatus {
 		fmt.Println("🧠 Transcribing audio...")
 	}
 
-	var text string
-	var transcribeErr error
-	textOutputPath := filepath.Join(tmpDir, "prompt.txt")
-
+	var transcriber transcribe.Client
 	if *engine == "voxtral" {
-		vxClient := mlxengine.NewClient("") // Defaults to http://127.0.0.1:8765
-		text, transcribeErr = vxClient.Transcribe(mlxengine.TranscribeOptions{
-			AudioPath:     processedAudioPath,
-			OutputPath:    textOutputPath,
-			ContextPrompt: contextPrompt,
-			Language:      *language,
-		})
+		transcriber = mlxengine.NewClient("") // Defaults to http://127.0.0.1:8765
 	} else {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Failed to get home directory: %v\n", err)
 			os.Exit(1)
 		}
-
-		// Select model
-		var modelFile string
-		if *modelName == "tiny" {
-			modelFile = tinyModel
-		} else {
-			modelFile = baseModel
-		}
-
-		modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", modelFile)
-		whisperClient := whisper.NewClient(modelPath)
-
-		text, transcribeErr = whisperClient.Transcribe(whisper.TranscribeOptions{
-			AudioPath:     processedAudioPath,
-			OutputPath:    textOutputPath,
-			ContextPrompt: contextPrompt,
-			Language:      *language,
-		})
+		modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", selectModelFile(*modelName))
+		transcriber = whisper.NewClient(modelPath)
 	}
 
+	text, transcribeErr := transcriber.Transcribe(transcribe.Options{
+		AudioPath:     audioPath,
+		OutputPath:    filepath.Join(tmpDir, "prompt.txt"),
+		ContextPrompt: contextPrompt,
+		Language:      *language,
+	})
 	if transcribeErr != nil {
 		fmt.Fprintf(os.Stderr, "❌ Transcription failed: %v\n", transcribeErr)
 		os.Exit(1)
@@ -196,7 +152,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Step 5: Output
+	// Step 4: Output
 	fmt.Printf("✅ Copied: %s\n", text)
 
 	if *outputFile != "" {
@@ -223,7 +179,54 @@ func main() {
 	clipboard.PlaySound("/System/Library/Sounds/Pop.aiff", !*noSound)
 }
 
-func checkDependencies(engine string) error {
+// validateEngine checks that engine is one of the supported inference
+// engines.
+func validateEngine(engine string) error {
+	if engine != "whisper" && engine != "voxtral" {
+		return fmt.Errorf("Invalid engine: %s (use 'whisper' or 'voxtral')", engine)
+	}
+	return nil
+}
+
+// validateModel checks the --model flag; it only constrains the whisper
+// engine, which ships exactly two local models.
+func validateModel(engine, model string) error {
+	if engine == "whisper" && model != "base" && model != "tiny" {
+		return fmt.Errorf("Invalid model: %s (use 'base' or 'tiny')", model)
+	}
+	return nil
+}
+
+// selectModelFile maps the --model flag to the whisper.cpp model filename
+// under ~/.local/share/whisper-cpp/.
+func selectModelFile(modelName string) string {
+	if modelName == "tiny" {
+		return tinyModel
+	}
+	return baseModel
+}
+
+// loadContextPrompt resolves the transcription context prompt: an explicit
+// --context file takes priority, then the per-user global context file
+// (globalContextPath, normally ~/.whisper-context), falling back to no
+// context. status is a human-readable line for --verbose output, empty if
+// nothing was loaded.
+func loadContextPrompt(contextFile, globalContextPath string) (prompt, status string) {
+	if contextFile != "" {
+		if content, err := os.ReadFile(contextFile); err == nil {
+			return string(content) + " " + noContextPrompt, fmt.Sprintf("📂 Context loaded: %s", contextFile)
+		}
+		return noContextPrompt, ""
+	}
+	if globalContextPath != "" {
+		if content, err := os.ReadFile(globalContextPath); err == nil {
+			return string(content) + " " + noContextPrompt, "🌍 Global context loaded: ~/.whisper-context"
+		}
+	}
+	return noContextPrompt, ""
+}
+
+func checkDependencies(engine, voxtralHealthURL string) error {
 	deps := []string{"sox"}
 	if engine == "whisper" {
 		deps = append(deps, "whisper-cli")
@@ -245,11 +248,14 @@ func checkDependencies(engine string) error {
 	if engine == "voxtral" {
 		// Quick HTTP GET to see if the server and model are up
 		client := &http.Client{Timeout: 1 * time.Second}
-		res, err := client.Get("http://127.0.0.1:8765/health")
-		if err != nil || res.StatusCode != 200 {
+		res, err := client.Get(voxtralHealthURL)
+		if err != nil {
 			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/voxtral-server.sh start")
 		}
-		res.Body.Close()
+		defer res.Body.Close()
+		if res.StatusCode != 200 {
+			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/voxtral-server.sh start")
+		}
 	}
 
 	return nil

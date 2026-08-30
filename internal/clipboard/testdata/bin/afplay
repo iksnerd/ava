@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fixture "afplay": records the sound path it was asked to play, if $AFPLAY_LOG is set.
+if [ -n "$AFPLAY_LOG" ]; then
+  echo "$1" > "$AFPLAY_LOG"
+fi
+exit 0

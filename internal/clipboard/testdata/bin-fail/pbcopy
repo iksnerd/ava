@@ -1,0 +1,4 @@
+#!/bin/sh
+cat > /dev/null
+echo "pbcopy: fixture failure" >&2
+exit 1

@@ -1,6 +1,6 @@
 # Build artifacts
-bin/
-dist/
+/bin/
+/dist/
 /local-whisper
 
 # Python / mlx-engine

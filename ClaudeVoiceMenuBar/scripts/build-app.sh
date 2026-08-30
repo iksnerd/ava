@@ -49,6 +49,25 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Read Aloud with Claude Voice</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>readAloud</string>
+            <key>NSPortName</key>
+            <string>$APP_NAME</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>public.utf8-plain-text</string>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST
@@ -62,3 +81,7 @@ cp -R "$APP_DIR" "$INSTALLED_APP"
 codesign --force --deep -s - "$INSTALLED_APP"
 
 echo "✅ Installed. Launch with: open -a \"$APP_NAME\""
+echo "   Note: after (re)installing, 'Read Aloud with Claude Voice' can take a"
+echo "   minute to appear in other apps' right-click Services menu — relaunching"
+echo "   $APP_NAME (already done via NSUpdateDynamicServices on launch) usually"
+echo "   surfaces it immediately; if not, log out and back in."

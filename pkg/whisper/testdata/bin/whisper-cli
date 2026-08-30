@@ -1,0 +1,31 @@
+#!/bin/sh
+# Fixture whisper-cli: parses just enough of the real CLI's flags to print
+# the transcript to stdout the way the real binary does with -nt and no
+# -otxt/-of, and to let tests assert on how the command line was built (via
+# $WHISPER_LOG, if set). Verbose logs go to stderr, like the real binary.
+lang=""
+prompt=""
+audio=""
+model=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -l) lang="$2"; shift 2 ;;
+    --prompt) prompt="$2"; shift 2 ;;
+    -f) audio="$2"; shift 2 ;;
+    -m) model="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+if [ -n "$WHISPER_LOG" ]; then
+  {
+    echo "model=$model"
+    echo "audio=$audio"
+    echo "lang=$lang"
+    echo "prompt=$prompt"
+  } > "$WHISPER_LOG"
+fi
+
+echo "fixture whisper-cli: verbose model-load log" >&2
+echo "${WHISPER_FIXTURE_TEXT:-fixture transcription}"

@@ -1,8 +1,16 @@
 package whisper
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"local-whisper/internal/testutil"
+	"local-whisper/pkg/transcribe"
 )
+
+const fixtureModelPath = "testdata/model.bin"
 
 func TestNewClient(t *testing.T) {
 	modelPath := "/path/to/model.bin"
@@ -13,44 +21,145 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestTranscribeOptions(t *testing.T) {
-	opts := TranscribeOptions{
-		AudioPath:     "/tmp/audio.wav",
-		OutputPath:    "/tmp/output.txt",
-		ContextPrompt: "test prompt",
-		Language:      "en",
-	}
-
-	if opts.AudioPath != "/tmp/audio.wav" {
-		t.Errorf("expected AudioPath /tmp/audio.wav, got %s", opts.AudioPath)
-	}
-
-	if opts.Language != "en" {
-		t.Errorf("expected Language en, got %s", opts.Language)
-	}
-}
-
 func TestTranscribeModelNotFound(t *testing.T) {
-	modelPath := "/nonexistent/model.bin"
-	client := NewClient(modelPath)
+	client := NewClient("/nonexistent/model.bin")
 
-	opts := TranscribeOptions{
+	_, err := client.Transcribe(transcribe.Options{
 		AudioPath:     "/tmp/audio.wav",
 		OutputPath:    "/tmp/output.txt",
 		ContextPrompt: ".",
 		Language:      "en",
-	}
-
-	_, err := client.Transcribe(opts)
+	})
 	if err == nil {
-		t.Error("expected error when model not found, got nil")
+		t.Fatal("expected error when model not found, got nil")
 	}
-
-	if !contains(err.Error(), "whisper model not found") {
+	if !strings.Contains(err.Error(), "whisper model not found") {
 		t.Errorf("expected 'whisper model not found' in error, got %v", err)
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && s[:len(substr)] == substr || len(s) > len(substr))
+func TestTranscribeSuccess(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	if err := os.WriteFile(audioPath, []byte("fixture audio"), 0644); err != nil {
+		t.Fatalf("write fixture audio: %v", err)
+	}
+	outputPath := filepath.Join(dir, "prompt.txt")
+	logPath := filepath.Join(dir, "whisper.log")
+	t.Setenv("WHISPER_LOG", logPath)
+
+	client := NewClient(fixtureModelPath)
+	text, err := client.Transcribe(transcribe.Options{
+		AudioPath:     audioPath,
+		OutputPath:    outputPath,
+		ContextPrompt: "some context",
+		Language:      "bg",
+	})
+	if err != nil {
+		t.Fatalf("Transcribe() error = %v", err)
+	}
+	if text != "fixture transcription" {
+		t.Errorf("text = %q, want %q", text, "fixture transcription")
+	}
+
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read whisper-cli invocation log: %v", err)
+	}
+	for _, want := range []string{"audio=" + audioPath, "lang=bg", "prompt=some context", "model=" + fixtureModelPath} {
+		if !strings.Contains(string(log), want) {
+			t.Errorf("whisper-cli invocation log = %q, want it to contain %q", log, want)
+		}
+	}
+
+	written, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(written) != "fixture transcription" {
+		t.Errorf("output file content = %q, want the trimmed transcript with no extra newline", written)
+	}
+}
+
+func TestTranscribeTrimsWhisperCliOutput(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+
+	// The real whisper-cli prints a leading newline+space before the
+	// transcript with -nt; Transcribe must trim it rather than pass it
+	// through.
+	t.Setenv("WHISPER_FIXTURE_TEXT", "\n  padded transcript  \n")
+
+	client := NewClient(fixtureModelPath)
+	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath})
+	if err != nil {
+		t.Fatalf("Transcribe() error = %v", err)
+	}
+	if text != "padded transcript" {
+		t.Errorf("text = %q, want trimmed %q", text, "padded transcript")
+	}
+}
+
+func TestTranscribeNoOutputPathSkipsWrite(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+
+	client := NewClient(fixtureModelPath)
+	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath})
+	if err != nil {
+		t.Fatalf("Transcribe() error = %v", err)
+	}
+	if text != "fixture transcription" {
+		t.Errorf("text = %q, want %q", text, "fixture transcription")
+	}
+}
+
+// A failure writing OutputPath is documented as non-fatal: the
+// transcription itself already succeeded, so Transcribe should still
+// return the text (matching pkg/mlxengine's behavior).
+func TestTranscribeOutputWriteFailureIsNonFatal(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+
+	badOutputPath := filepath.Join(dir, "no-such-dir", "out.txt")
+
+	client := NewClient(fixtureModelPath)
+	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath, OutputPath: badOutputPath})
+	if err != nil {
+		t.Fatalf("Transcribe() error = %v, want nil despite the bad OutputPath", err)
+	}
+	if text != "fixture transcription" {
+		t.Errorf("text = %q, want %q", text, "fixture transcription")
+	}
+}
+
+func TestTranscribeCommandFailure(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-fail")
+
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+
+	client := NewClient(fixtureModelPath)
+	_, err := client.Transcribe(transcribe.Options{
+		AudioPath:  audioPath,
+		OutputPath: filepath.Join(dir, "prompt.txt"),
+	})
+	if err == nil {
+		t.Fatal("expected an error when whisper-cli fails, got nil")
+	}
+	if !strings.Contains(err.Error(), "whisper-cli: fixture failure") {
+		t.Errorf("err = %v, want it to include the captured stderr", err)
+	}
 }

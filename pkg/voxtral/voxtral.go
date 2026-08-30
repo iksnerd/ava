@@ -177,7 +177,14 @@ func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta
 		return nil, err
 	}
 
+	// cmd.Wait() closes stdout as soon as the process exits, which races
+	// the scanner goroutine below if stop() calls Wait() directly — the
+	// last buffered deltas (e.g. the final "done" event) can be silently
+	// dropped. scanDone lets stop() wait for the scan loop to drain the
+	// pipe before waiting on the process itself.
+	scanDone := make(chan struct{})
 	go func() {
+		defer close(scanDone)
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			var delta RealtimeDelta
@@ -191,6 +198,7 @@ func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta
 		if cmd.Process != nil {
 			cmd.Process.Signal(os.Interrupt)
 		}
+		<-scanDone
 		return cmd.Wait()
 	}
 

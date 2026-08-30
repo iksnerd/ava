@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fixture "sox" for checkDependencies tests: existing and executable is all
+# that's checked (via exec.LookPath), so it never needs to actually run.
+exit 0

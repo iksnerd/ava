@@ -81,10 +81,36 @@ async def idle_shutdown_checker():
 
 @app.on_event("startup")
 async def startup_event():
-    # Both models are loaded lazily on first use of their respective endpoint,
-    # so starting the server (and a cold /speak call) doesn't have to pay for
-    # loading the 4B Voxtral STT model when only TTS is needed, and vice versa.
+    # The STT model stays lazy — loaded on first /transcribe use, so starting
+    # the server (or a cold /speak call) doesn't pay for the 4B Voxtral model
+    # when only TTS is needed. TTS is warmed eagerly here instead: measured
+    # on an M3 Pro, Kokoro's first generate_audio call after loading costs an
+    # extra ~2.6s (MLX's lazy compilation) beyond the ~230-290ms steady-state
+    # a warm call takes — worth paying once at startup (delaying /health)
+    # rather than on whichever real request happens to be first, including
+    # the one right after the idle-shutdown timer below has torn things down.
     asyncio.create_task(idle_shutdown_checker())
+    _warm_tts_model()
+
+
+def _warm_tts_model():
+    print("Warming up TTS model...")
+    start = time.time()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        generate_audio(
+            text="Ready.",
+            model=tts_model.get(),
+            voice="af_heart",
+            speed=1.0,
+            output_path=tmpdir,
+            file_prefix="warmup",
+            audio_format="wav",
+            join_audio=True,
+            save=True,
+            play=False,
+            verbose=False,
+        )
+    print(f"TTS model warmed up in {time.time() - start:.2f}s.")
 
 
 @app.get("/health")
@@ -176,6 +202,13 @@ async def speak(req: SpeakRequest):
 
     tts_model_instance = tts_model.get()
 
+    # Kokoro voice ids are prefixed by language+locale (af_/am_ = American
+    # English, bf_/bm_ = British English, ef_/em_ = Spanish, etc.) — without
+    # this, generate_audio's lang_code always defaults to American English,
+    # so a British (or other-locale) voice gets phonemized with the wrong
+    # accent's rules despite sounding like the right voice.
+    lang_code = req.voice[:1] or "a"
+
     with tempfile.TemporaryDirectory() as tmpdir:
         prefix = "speech"
         try:
@@ -184,9 +217,18 @@ async def speak(req: SpeakRequest):
                 model=tts_model_instance,
                 voice=req.voice,
                 speed=req.speed,
+                lang_code=lang_code,
                 output_path=tmpdir,
                 file_prefix=prefix,
                 audio_format="wav",
+                # Kokoro splits text longer than ~1200 tokens into multiple
+                # segments; without join_audio, generate_audio writes each as
+                # its own speech_000.wav/speech_001.wav/... and reading back
+                # only the first would silently truncate anything past a
+                # paragraph or two. join_audio=True stitches them into one
+                # speech.wav so arbitrarily long text (e.g. a whole article)
+                # comes back complete.
+                join_audio=True,
                 save=True,
                 play=False,
                 verbose=False,
@@ -194,7 +236,7 @@ async def speak(req: SpeakRequest):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Speech generation failed: {e}") from e
 
-        wav_path = os.path.join(tmpdir, f"{prefix}_000.wav")
+        wav_path = os.path.join(tmpdir, f"{prefix}.wav")
         if not os.path.exists(wav_path):
             raise HTTPException(status_code=500, detail="Speech generation produced no audio.")
         with open(wav_path, "rb") as f:

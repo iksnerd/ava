@@ -28,9 +28,10 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 - `cmd/local-whisper/` - CLI entry point (dictation)
 - `cmd/voice-monitor/` - realtime transcript monitor: serves a live transcript over SSE at localhost and logs it to a file; input can be the mic or a loopback device (e.g. BlackHole) for capturing call audio
-- `internal/recording/` - Audio recording via sox
-- `internal/audio/` - Audio normalization/processing
+- `internal/recording/` - Audio recording via sox, including peak normalization (`norm -3`) as part of the same sox invocation — capture already happens at `internal/audio`'s target rate/channels, so there's no separate resample/normalize pass
+- `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
+- `pkg/transcribe/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types
 - `pkg/whisper/` - whisper-cli subprocess wrapper (`local-whisper -engine whisper`, default)
 - `pkg/mlxengine/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`)
 - `pkg/voxtral/` - a *different*, independent client: wraps the `voxtral/` Python/MLX primitives directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture — don't confuse the two.

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: VoiceSettings
+    @EnvironmentObject private var activity: SpeechActivityMonitor
     @StateObject private var server = ServerController()
 
     var body: some View {
@@ -64,16 +65,27 @@ struct SettingsView: View {
                     icon: "checkmark.message.fill", tint: .green, title: "On finish",
                     keyPath: \.stopMaxChars, range: 100...1200, defaultValue: 600
                 )
-                .help("How long the spoken summary can be when Claude finishes responding")
+                .help(
+                    settings.config.llmSummary
+                        ? "Target length for the LLM summary when Claude finishes responding — a soft budget given to the model, not a hard cutoff"
+                        : "How long the spoken summary can be when Claude finishes responding, before it's cut off mid-sentence"
+                )
                 limitedLengthRow(
                     icon: "bell.badge.fill", tint: .red, title: "Notification",
                     keyPath: \.notifyMaxChars, range: 100...1200, defaultValue: 500
                 )
-                .help("How long a spoken notification (permission prompts, waiting for input) can be")
+                .help("How long a spoken notification (permission prompts, waiting for input) can be, before it's cut off mid-sentence — always a hard cutoff, LLM summary doesn't apply here")
                 SettingsRow(icon: "sparkles", tint: .pink, title: "LLM summary", subtitle: "qwen2.5:3b") {
                     Toggle("", isOn: $settings.config.llmSummary).labelsHidden()
                 }
-                .help("Summarize long \"on finish\" messages with the local Ollama model instead of a mid-sentence cutoff")
+                .help("Summarize long \"On finish\" messages with the local Ollama model instead of a mid-sentence cutoff. Only applies to \"On finish\" — notifications are always truncated.")
+
+                if settings.config.llmSummary {
+                    Text("Only applies to \"On finish\" — notifications are always truncated, never summarized.")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             SectionCard(header: "Server") {
@@ -90,6 +102,18 @@ struct SettingsView: View {
             }
 
             VStack(spacing: 8) {
+                if activity.isSpeaking {
+                    Button(role: .destructive) {
+                        Speech.stop()
+                    } label: {
+                        Label("Stop Speaking", systemImage: "stop.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .controlSize(.regular)
+                }
+
                 Button {
                     runTest()
                 } label: {
@@ -180,17 +204,12 @@ struct SettingsView: View {
 
     private func runTest() {
         settings.saveNow()
-        runShell("\(VoicePaths.scriptsDir)/speak.sh", [
-            "This is Claude Voice, speaking at the current speed, volume, and voice settings.",
-        ])
+        Speech.speak("This is Claude Voice, speaking at the current speed, volume, and voice settings.")
     }
 
     private func previewVoice() {
         settings.saveNow()
-        runShell("\(VoicePaths.scriptsDir)/speak.sh", [
-            "This is the \(settings.config.voice) voice.",
-            settings.config.voice,
-        ])
+        Speech.speak("This is the \(settings.config.voice) voice.", voice: settings.config.voice)
     }
 
     private func dictate() {
@@ -198,14 +217,6 @@ struct SettingsView: View {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: bin)
         task.arguments = ["-engine", "voxtral"]
-        task.environment = VoicePaths.hardenedEnvironment
-        try? task.run()
-    }
-
-    private func runShell(_ path: String, _ args: [String]) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [path] + args
         task.environment = VoicePaths.hardenedEnvironment
         try? task.run()
     }

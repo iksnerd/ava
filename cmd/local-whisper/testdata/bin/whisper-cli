@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fixture "whisper-cli" for checkDependencies tests: same as the sox fixture,
+# only its presence on PATH is checked.
+exit 0

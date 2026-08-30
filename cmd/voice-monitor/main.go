@@ -118,6 +118,68 @@ const indexHTML = `<!doctype html>
 </body>
 </html>`
 
+// resolvePythonPath applies the --python flag's default: the venv python3
+// under voxtralDir, unless an explicit path was given.
+func resolvePythonPath(pythonPath, voxtralDir string) string {
+	if pythonPath != "" {
+		return pythonPath
+	}
+	return filepath.Join(voxtralDir, ".venv", "bin", "python3")
+}
+
+// defaultLogPath is the --log flag's default: a timestamped file under dir.
+func defaultLogPath(dir string, now time.Time) string {
+	return filepath.Join(dir, fmt.Sprintf("transcript-%s.txt", now.Format("20060102-150405")))
+}
+
+// newMux builds the HTTP handler serving the live-transcript page ("/") and
+// its SSE feed ("/events") off of h.
+func newMux(h *hub) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(indexHTML))
+	})
+
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.WriteHeader(http.StatusOK)
+		flusher.Flush() // send headers now so the browser's EventSource fires onopen immediately, not on the first delta
+
+		if snap := h.snapshot(); snap != "" {
+			payload, _ := json.Marshal(map[string]string{"text": snap})
+			fmt.Fprintf(w, "data: %s\n\n", payload)
+			flusher.Flush()
+		}
+
+		ch := h.subscribe()
+		defer h.unsubscribe(ch)
+
+		for {
+			select {
+			case payload, ok := <-ch:
+				if !ok {
+					return
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				flusher.Flush()
+			case <-r.Context().Done():
+				return
+			}
+		}
+	})
+
+	return mux
+}
+
 func main() {
 	device := flag.String("device", "", "Input device name substring (e.g. BlackHole) or index. Default: system mic.")
 	engine := flag.String("engine", "", "STT engine: 'voxtral' (default, <500ms, 13 languages) or 'whisper' (multilingual incl. Bulgarian, ~1s latency)")
@@ -132,12 +194,7 @@ func main() {
 	listDevices := flag.Bool("list-devices", false, "List available input devices and exit")
 	flag.Parse()
 
-	resolvedPython := *pythonPath
-	if resolvedPython == "" {
-		resolvedPython = filepath.Join(*voxtralDir, ".venv", "bin", "python3")
-	}
-
-	client := voxtral.NewClient(resolvedPython, *voxtralDir)
+	client := voxtral.NewClient(resolvePythonPath(*pythonPath, *voxtralDir), *voxtralDir)
 
 	if *listDevices {
 		out, err := client.ListInputDevices()
@@ -155,7 +212,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "❌ Failed to create /tmp/voice-input: %v\n", err)
 			os.Exit(1)
 		}
-		resolvedLog = filepath.Join("/tmp/voice-input", fmt.Sprintf("transcript-%s.txt", time.Now().Format("20060102-150405")))
+		resolvedLog = defaultLogPath("/tmp/voice-input", time.Now())
 	}
 
 	logFile, err := os.OpenFile(resolvedLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -204,49 +261,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(indexHTML))
-	})
-
-	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.WriteHeader(http.StatusOK)
-		flusher.Flush() // send headers now so the browser's EventSource fires onopen immediately, not on the first delta
-
-		if snap := h.snapshot(); snap != "" {
-			payload, _ := json.Marshal(map[string]string{"text": snap})
-			fmt.Fprintf(w, "data: %s\n\n", payload)
-			flusher.Flush()
-		}
-
-		ch := h.subscribe()
-		defer h.unsubscribe(ch)
-
-		for {
-			select {
-			case payload, ok := <-ch:
-				if !ok {
-					return
-				}
-				fmt.Fprintf(w, "data: %s\n\n", payload)
-				flusher.Flush()
-			case <-r.Context().Done():
-				return
-			}
-		}
-	})
-
-	server := &http.Server{Addr: fmt.Sprintf(":%d", *port), Handler: mux}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", *port), Handler: newMux(h)}
 
 	procutil.OnInterrupt(func() {
 		fmt.Println("\n⏹️  Stopping...")

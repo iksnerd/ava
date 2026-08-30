@@ -23,12 +23,17 @@ tracking and idle shutdown:
 ../scripts/voxtral-server.sh start   # or stop / status
 ```
 
-Both models load **lazily**, on first request to their respective endpoint
-— starting the server is instant, and a pure-TTS call doesn't pay for
-loading the STT model (or vice versa). The server shuts itself down after
-15 minutes of no `/transcribe` or `/speak` activity to free the RAM (`/health`
-polls don't count as activity, so a monitoring UI polling every few seconds
-won't keep it pinned open).
+The STT model loads **lazily**, on first `/transcribe` request, so starting
+the server doesn't pay for the 4B Voxtral model when only TTS is needed.
+TTS loads and warms up (a throwaway synthesis to pay MLX's one-time JIT
+compile cost) eagerly at startup instead — measured on an M3 Pro, that
+warmup takes a few seconds once, in exchange for every real `/speak`
+request afterward staying at Kokoro's steady-state ~230-290ms instead of
+one of them randomly paying an extra ~2.6s. `/health` won't respond until
+that warmup finishes. The server shuts itself down after 15 minutes of no
+`/transcribe` or `/speak` activity to free the RAM (`/health` polls don't
+count as activity, so a monitoring UI polling every few seconds won't keep
+it pinned open) — the next `/speak` after that pays the warmup again.
 
 ## Endpoints
 
@@ -44,6 +49,24 @@ curl -X POST http://127.0.0.1:8765/speak \
   -d '{"text": "Hello from the local voice server.", "voice": "af_heart", "speed": 1.0}' \
   -o out.wav
 ```
+
+### Getting more out of Kokoro
+
+No model swap needed for any of these — they're request-level knobs Kokoro
+(via `mlx-audio`) already supports:
+
+- **Correct accent per voice**: `lang_code` is derived server-side from
+  `voice`'s first letter (`af_`/`am_` → American English, `bf_`/`bm_` →
+  British English, and so on for Kokoro's other-locale voices) — so a
+  British voice actually gets phonemized with British rules instead of
+  defaulting to American English.
+- **Voice blending**: pass a comma-separated `voice`, e.g.
+  `"af_heart,af_sky"` — Kokoro averages the two voices' embeddings into a
+  blended one.
+- **Per-word pronunciation/stress overrides**: inline markdown-link-style
+  markup in `text` — `` [Kokoro](/kˈOkəɹO/) `` for an explicit IPA
+  pronunciation, `` [word](+0.5) `` / `` [word](-0.5) `` to shift stress —
+  useful for names, acronyms, or jargon Kokoro would otherwise mispronounce.
 
 ## Models
 
