@@ -97,7 +97,7 @@ present in that file come from `../scripts/voice-defaults.json`.
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |
 | "On finish" / "Notification" length | Character cap before a spoken message gets shortened; a "∞" toggle disables the cap entirely for that message type |
-| Summarize with local LLM | When a message exceeds its length cap, summarize it with the local Ollama daemon instead of cutting it off mid-sentence (off by default — see `../scripts/hook-stop.sh`) |
+| Summarize with local LLM | When a message exceeds its length cap, summarize it with the local Ollama daemon instead of cutting it off mid-sentence (off by default — see `../scripts/hook-stop.sh` and `../scripts/voice_hooks/`) |
 | Server status / Start / Stop | Live status of `mlx-engine`, with a manual override — the hooks already auto-start it on demand, this is just visibility |
 | Read Aloud with Claude Voice (Services menu) | Speaks the text selected in any app, via the same TTS pipeline and current voice settings — see above |
 | Speaking indicator (menu bar icon) | The waveform icon fills in (`waveform.circle.fill`) while anything is actively being synthesized or played, and reverts once it's done |

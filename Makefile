@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test vet fmt fmt-check lint install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-blackhole clean help
+.PHONY: build build-voice-monitor test vet fmt fmt-check lint install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -16,6 +16,7 @@ help:
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make setup-voxtral      - Create Python venv and install Voxtral MLX primitives"
+	@echo "  make setup-voice-hooks  - Create Python venv for the voice-hook text/summarization CLIs"
 	@echo "  make setup-blackhole    - Install BlackHole loopback driver to capture system/call audio"
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make build-voice-monitor - Build the realtime transcript monitor (localhost + log file)"
@@ -23,7 +24,7 @@ help:
 	@echo "  make vet                - go vet the Go code"
 	@echo "  make fmt                - Format Go (gofmt) and Python (ruff format), in place"
 	@echo "  make fmt-check          - Check formatting without modifying files (CI-safe)"
-	@echo "  make lint               - vet + fmt-check + ruff check (mlx-engine/, voxtral/)"
+	@echo "  make lint               - vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)"
 	@echo "  make start-engine       - Start the Voxtral MLX background server"
 	@echo "  make stop-engine        - Stop the Voxtral MLX background server"
 	@echo "  make status-engine      - Check if the Voxtral MLX server is running"
@@ -56,6 +57,7 @@ build-voice-monitor:
 test:
 	@echo "🧪 Running tests..."
 	@go test -v ./...
+	@cd scripts/voice_hooks && uv run pytest
 	@echo "✅ Tests passed"
 
 vet:
@@ -66,23 +68,26 @@ vet:
 fmt:
 	@echo "🎨 Formatting Go code..."
 	@gofmt -w .
-	@echo "🎨 Formatting Python code (mlx-engine, voxtral)..."
+	@echo "🎨 Formatting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff format .
 	@cd voxtral && uv run ruff format .
+	@cd scripts/voice_hooks && uv run ruff format .
 	@echo "✅ Formatted"
 
 fmt-check:
 	@echo "🎨 Checking Go formatting..."
 	@test -z "$$(gofmt -l .)" || (echo "❌ Not gofmt'd:" && gofmt -l . && exit 1)
-	@echo "🎨 Checking Python formatting (mlx-engine, voxtral)..."
+	@echo "🎨 Checking Python formatting (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff format --check .
 	@cd voxtral && uv run ruff format --check .
+	@cd scripts/voice_hooks && uv run ruff format --check .
 	@echo "✅ Formatting clean"
 
 lint: vet fmt-check
-	@echo "🔍 Linting Python code (mlx-engine, voxtral)..."
+	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff check .
 	@cd voxtral && uv run ruff check .
+	@cd scripts/voice_hooks && uv run ruff check .
 	@echo "✅ Lint passed"
 
 setup-deps:
@@ -97,6 +102,9 @@ setup: setup-deps setup-model
 
 setup-voxtral:
 	@bash scripts/setup-voxtral.sh
+
+setup-voice-hooks:
+	@bash scripts/setup-voice-hooks.sh
 
 setup-blackhole:
 	@bash scripts/setup-blackhole.sh

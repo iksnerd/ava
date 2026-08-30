@@ -12,7 +12,11 @@ if [ -z "$MSG" ]; then
     MSG="Claude needs your attention."
 fi
 if [ "$MAX_CHARS" -gt 0 ] && [ "${#MSG}" -gt "$MAX_CHARS" ]; then
-    MSG="${MSG:0:$MAX_CHARS}..."
+    TRUNCATED=$(printf '%s' "$MSG" | voice_hooks_run notify.py --max-chars "$MAX_CHARS" 2>/dev/null)
+    # Only replace MSG on success — a failed voice_hooks CLI (unsynced venv,
+    # uv off PATH) should fall through to speaking the untruncated message,
+    # never nothing.
+    [ $? -eq 0 ] && [ -n "$TRUNCATED" ] && MSG="$TRUNCATED"
 fi
 
 speak_hook_message "$MSG"

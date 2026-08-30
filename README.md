@@ -201,6 +201,8 @@ pkg/voxtral/            - voxtral/ Python primitives subprocess wrapper (cmd/voi
 mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
 voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
 scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)
+scripts/voice_hooks/    - text processing for the voice hooks: markdown stripping, sentence-aware
+                          truncation, Ollama summarization (Python, uv-managed)
 ClaudeVoiceMenuBar/     - menu bar app for tuning voice settings (Swift)
 Makefile                - build automation
 ```
@@ -213,7 +215,7 @@ make test              # Run tests
 make vet                # go vet the Go code
 make fmt                # Format Go (gofmt) and Python (ruff format), in place
 make fmt-check          # Same, check-only (CI-safe)
-make lint               # vet + fmt-check + ruff check (mlx-engine/, voxtral/)
+make lint               # vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
 make clean             # Remove bin/
 go run ./cmd/local-whisper [flags]  # Run without building
 ```

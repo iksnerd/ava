@@ -10,7 +10,7 @@ guide covers the Go CLI; see each component's own README for the others —
 
 ## Build Commands
 - `make build` - Compile binary to `bin/local-whisper`
-- `make test` - Run all unit tests (11 test functions across 4 packages)
+- `make test` - Run all Go tests plus the `scripts/voice_hooks/` pytest suite
 - `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin

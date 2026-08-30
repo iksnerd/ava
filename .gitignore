@@ -15,6 +15,13 @@ ClaudeVoiceMenuBar/.build/
 voxtral/.venv/
 voxtral/__pycache__/
 
+# Python (scripts/voice_hooks/)
+scripts/voice_hooks/.venv/
+scripts/voice_hooks/__pycache__/
+scripts/voice_hooks/**/__pycache__/
+scripts/voice_hooks/.pytest_cache/
+scripts/voice_hooks/.ruff_cache/
+
 # IDE
 .idea/
 *.swp
