@@ -275,7 +275,9 @@ struct SettingsView: View {
         guard let bin = VoicePaths.dictateBinary else { return }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: bin)
-        task.arguments = ["-engine", "voxtral"]
+        // No -engine flag: local-whisper's own default (whisper) works on
+        // any Mac with zero extra setup, unlike voxtral (Apple Silicon +
+        // mlx-engine's 1.3GB venv + a 2.9GB model download).
         task.environment = VoicePaths.hardenedEnvironment
         try? task.run()
     }

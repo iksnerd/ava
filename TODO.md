@@ -5,37 +5,43 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Open
 
-- **Shippable `.dmg` for `ClaudeVoiceMenuBar`** (currently only installable by
-  building from this exact checkout — see `docs/claude-code-voice-hooks.md`
-  and the app's own README). Today the app hard-fails on any other Mac
-  because `Paths.swift:6-7` compiles in this literal absolute checkout path
-  (`/Users/user/GolandProjects/local-whisper`) with no bundle-relative
-  resolution, and `build-app.sh` only ad-hoc-signs (`codesign -s -`, no
-  Developer ID, not notarized) and installs straight to `/Applications` —
-  there's no `hdiutil`/`create-dmg` step at all. A real path to a
-  distributable `.dmg` needs, roughly:
-  - `Paths.swift` resolving `scriptsDir`/`repoRoot` relative to
-    `Bundle.main` (or a first-run "where's your local-whisper checkout"
-    prompt) instead of a compiled-in literal.
-  - Either bundling `scripts/`, `mlx-engine/`, and a built `local-whisper`
-    binary into the `.app`'s `Resources/`, or a first-run installer step
-    that clones/sets them up (plus `sox`/`whisper-cli`/`uv`/Go via Homebrew
-    if missing).
-  - Deciding the Voxtral/MLX story for non-Apple-Silicon recipients — the
-    default `whisper` engine has no such requirement, so a bundled build
-    could ship whisper-only and treat `-engine voxtral` (and its `uv`/MLX/
-    multi-GB model download) as an optional, Apple-Silicon-gated add-on
-    rather than a hard dependency of the app itself.
-  - **Ollama should stay optional, not bundled** — `scripts/voice_hooks/`'s
-    `ollama_summarize` already degrades gracefully when it's unreachable
-    (`ollama_client.py`, covered by `test_ollama_summarize_connection_refused`),
-    so the installer/DMG just needs to leave `llmSummary` off by default and
-    document Ollama as a manual opt-in, not try to ship/install it.
-  - Real Developer ID signing + notarization (`codesign --sign
-    "Developer ID Application: ..."`, `xcrun notarytool`) instead of
-    ad-hoc, or Gatekeeper blocks it on first launch for any recipient.
+- **Real Developer ID signing + notarization for `ClaudeVoiceMenuBar`**
+  (`codesign --sign "Developer ID Application: ..."`, `xcrun notarytool`)
+  — no Apple Developer Program membership available to do this now. Until
+  then, `.build/Claude Voice.dmg` stays ad-hoc signed (`codesign -s -`):
+  Gatekeeper calls it "damaged" on another Mac (the quarantine flag on an
+  unnotarized app), and the recipient needs
+  `xattr -cr "/Applications/Claude Voice.app"`. Fine for sharing with
+  yourself/friends; not for wide public distribution.
 
 ## Done (2026-09-01)
+
+- **Shippable `.dmg` for `ClaudeVoiceMenuBar`**, stage 1 (bundling +
+  packaging; real signing/notarization above is what's left):
+  - `Paths.swift` no longer hard-fails on another Mac — it resolves
+    `scriptsDir`/`dictateBinary` from the app's own bundled `Resources/`
+    when running as a packaged `.app`, falling back to this dev checkout's
+    literal path only when running unbundled (`swift run`). Verified this
+    isn't a silent no-op: added temporary debug instrumentation, rebuilt,
+    launched the real installed `.app`, and confirmed both paths resolved
+    to `/Applications/Claude Voice.app/Contents/Resources/...`, not the
+    dev checkout — then reverted the instrumentation.
+  - `build-app.sh` now also builds `local-whisper` and bundles it +
+    `scripts/` (excluding `.venv`/`__pycache__`) into `Resources/`, then
+    produces `.build/Claude Voice.dmg` via `hdiutil`.
+  - Decided against bundling `mlx-engine/` — its venv alone is 1.3GB, plus
+    a 2.9GB Voxtral model download. Confirmed the only thing that actually
+    depends on its location is `voxtral-server.sh` (the Server section's
+    Start/Stop button); `speak.sh`/hooks/`voice_hooks/` don't touch it and
+    `speak.sh` already falls back to macOS `say` when the server's
+    unreachable, so the packaged app is fully functional without it.
+  - Dictate (`SettingsView.swift`) no longer hardcodes `-engine voxtral` —
+    it now uses `local-whisper`'s own default (`whisper`, 141MB model,
+    any Mac), so a fresh packaged install's Dictate button works with zero
+    extra setup instead of requiring Apple Silicon + a separate
+    `make setup-voxtral`.
+  - Ollama was already optional/opt-in by default (`llmSummary: false`) —
+    no change needed there.
 
 - **Investigated, no change made**: `checkDependencies`'s voxtral health
   check (`cmd/local-whisper/main.go`) — the TODO's premise (a TCP dial

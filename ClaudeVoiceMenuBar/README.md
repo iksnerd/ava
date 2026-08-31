@@ -2,14 +2,18 @@
 
 A menu bar app for the local voice stack (`../mlx-engine/`, `../scripts/`,
 `../` itself): a **Dictate** button for recording/transcribing/pasting at
-your cursor (via `local-whisper -engine voxtral` — the same dictation tool
-this whole repo started as, just triggerable from here instead of only
-Raycast), a system-wide **Read Aloud with Claude Voice** right-click action
-for any selected text, a global **Mute** switch (also reachable outside the
-app as the **Toggle Claude Voice Mute** Service — see below), plus live
-tuning for everything Claude Code's Stop/Notification hooks speak through —
-speed, volume, voice, spoken-message length, and whether to summarize long
+your cursor (via `local-whisper` — the same dictation tool this whole repo
+started as, just triggerable from here instead of only Raycast), a
+system-wide **Read Aloud with Claude Voice** right-click action for any
+selected text, a global **Mute** switch (also reachable outside the app as
+the **Toggle Claude Voice Mute** Service — see below), plus live tuning for
+everything Claude Code's Stop/Notification hooks speak through — speed,
+volume, voice, spoken-message length, and whether to summarize long
 messages with a local LLM instead of cutting them off mid-sentence.
+
+Packaged via `scripts/build-app.sh` into a real `.app` (and a `.dmg`) that
+runs from any checkout, not just this one — see "Run it" and "Packaging for
+distribution" below.
 
 ## Mute
 
@@ -117,6 +121,34 @@ pointing `ProgramArguments` at `open -a "Claude Voice"` with `RunAtLoad`
 set, then `launchctl bootstrap gui/$(id -u) <path-to-plist>`. Not included
 in this repo since it's a per-machine login item, not project config.
 
+### Packaging for distribution
+
+`build-app.sh` also bundles `scripts/` (36MB) and a built `local-whisper`
+binary (8.3MB) into `Contents/Resources/`, and produces `.build/Claude
+Voice.dmg` — so the resulting `.app` runs from *any* checkout, not just
+this one. `Paths.swift` resolves `scriptsDir`/`dictateBinary` from that
+bundled `Resources/` at runtime when present, falling back to this dev
+checkout's paths only when running unbundled (`swift run`).
+
+`mlx-engine/` is deliberately **not** bundled — its venv alone is 1.3GB,
+plus a 2.9GB Voxtral model download, not something to freeze into a
+distributable app. This has two consequences on a machine that hasn't
+separately run `make setup-voxtral`:
+- Dictate uses `local-whisper`'s own default `whisper` engine instead of
+  Voxtral, so it works with zero extra setup.
+- The Server section's Start/Stop button won't find `mlx-engine/`, and
+  `speak.sh` already falls back to macOS's built-in `say` when the server's
+  unreachable — so the app is fully functional, just with `say`/whisper
+  instead of Kokoro/Voxtral's higher quality, until `mlx-engine/` is set up.
+
+**No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
+(`codesign -s -`), not notarized. On another Mac, Gatekeeper will likely
+call the app "damaged" (the quarantine flag on an unnotarized app), not
+just show a warning. The recipient needs
+`xattr -cr "/Applications/Claude Voice.app"` (right-click → Open alone
+sometimes isn't enough). Real signing/notarization needs a paid Apple
+Developer Program membership — tracked as still-open in `../TODO.md`.
+
 ## What it controls
 
 Every change is written (debounced) to
@@ -129,7 +161,7 @@ present in that file come from `../scripts/voice-defaults.json`.
 |---|---|
 | Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Claude Voice Mute" Service. See "Mute" above. |
 | Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
-| Dictate (button) | Runs `local-whisper -engine voxtral` — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build` or `make install-bin` in the repo root). |
+| Dictate (button) | Runs `local-whisper` (its own default `whisper` engine — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |
@@ -157,9 +189,11 @@ Sources/ClaudeVoiceMenuBar/
   SpeechService.swift                   - NSServices provider behind "Read Aloud with Claude
                                           Voice" and "Toggle Claude Voice Mute"
   SpeechActivityMonitor.swift           - polls speak.sh's activity marker for the speaking indicator
-  Paths.swift                           - where the companion shell scripts/binary live, PATH hardening
+  Paths.swift                           - resolves scripts/binary from the bundled Resources/ (packaged
+                                          build) or this dev checkout (swift run); PATH hardening
 Resources/AppIcon.icns
-scripts/build-app.sh                    - packages + installs the release build
+scripts/build-app.sh                    - builds local-whisper + bundles scripts/ into Resources/,
+                                          packages + installs the release build, produces a .dmg
 ```
 
 `ServerController`'s periodic health poll deliberately backs off while a

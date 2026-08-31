@@ -3,8 +3,29 @@ import Foundation
 /// Single source of truth for where the shell side of this stack lives, so a
 /// repo move only needs updating here instead of in every file that shells out.
 enum VoicePaths {
-    static let scriptsDir = "/Users/user/GolandProjects/local-whisper/scripts"
-    static let repoRoot = "/Users/user/GolandProjects/local-whisper"
+    // Only used as a dev-checkout fallback (below) when this isn't running
+    // from a properly packaged .app — e.g. `swift run` during development.
+    // A packaged build resolves scriptsDir/dictateBinary from its own
+    // bundled Resources/ instead (see bundleResourcesDir).
+    private static let devRepoRoot = "/Users/user/GolandProjects/local-whisper"
+
+    // Bundle.main.resourceURL when running from a real .app with a bundled
+    // Resources/scripts (build-app.sh copies scripts/ + local-whisper there)
+    // — nil for `swift run`, whose Bundle.main has no such Resources/, so
+    // callers below fall through to the dev-checkout paths instead.
+    private static let bundleResourcesDir: URL? = {
+        guard let url = Bundle.main.resourceURL,
+            FileManager.default.fileExists(atPath: url.appendingPathComponent("scripts").path)
+        else { return nil }
+        return url
+    }()
+
+    static var scriptsDir: String {
+        if let dir = bundleResourcesDir {
+            return dir.appendingPathComponent("scripts").path
+        }
+        return "\(devRepoRoot)/scripts"
+    }
 
     /// A GUI app launched via LaunchServices/launchd inherits a minimal PATH
     /// (just /usr/bin:/bin:/usr/sbin:/sbin — confirmed via `ps eww`/`launchctl
@@ -20,13 +41,18 @@ enum VoicePaths {
         return env
     }
 
-    /// Prefers the repo-local `bin/` build output (`make build`) over the
-    /// `make install-bin` location (~/.local/bin) — this app lives in the
-    /// same repo, so its own sibling build is more likely to be current;
-    /// an `~/.local/bin` install can silently go stale (predating a flag
-    /// this app passes, for instance) since nothing prompts a rebuild of it.
+    /// Prefers a packaged build's own bundled binary (build-app.sh copies it
+    /// into Resources/), then the repo-local `bin/` build output (`make
+    /// build`, for `swift run` dev usage), then the `make install-bin`
+    /// location (~/.local/bin) — an `~/.local/bin` install can silently go
+    /// stale (predating a flag this app passes, for instance) since nothing
+    /// prompts a rebuild of it, so it's only ever the last resort.
     static var dictateBinary: String? {
-        let local = "\(repoRoot)/bin/local-whisper"
+        if let dir = bundleResourcesDir {
+            let bundled = dir.appendingPathComponent("local-whisper").path
+            if FileManager.default.isExecutableFile(atPath: bundled) { return bundled }
+        }
+        let local = "\(devRepoRoot)/bin/local-whisper"
         if FileManager.default.isExecutableFile(atPath: local) { return local }
         let installed = NSString(string: "~/.local/bin/local-whisper").expandingTildeInPath
         if FileManager.default.isExecutableFile(atPath: installed) { return installed }
