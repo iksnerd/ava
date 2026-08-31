@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Setup script for Voxtral MLX primitives (Mini 3B STT, Mini 4B Realtime STT, 4B TTS)
+# Setup script for Voxtral MLX primitives (Mini 3B STT, Mini 4B Realtime STT)
 # Uses uv to create voxtral/.venv from voxtral/pyproject.toml. uv caches
 # downloaded packages globally, so re-running this after editing
 # pyproject.toml only re-fetches what actually changed.
@@ -42,9 +42,8 @@ echo ""
 echo "✅ Voxtral environment ready: $VOXTRAL_DIR/.venv"
 echo ""
 echo "Try it:"
-echo "  cd voxtral && uv run tts.py --text \"Hello from Voxtral\" --output /tmp/hello.wav && afplay /tmp/hello.wav"
+echo "  cd voxtral && uv run realtime.py --list-devices"
 echo ""
 echo "Notes:"
 echo "  - Model weights download automatically on first use (a few GB each)."
-echo "  - Voxtral TTS weights are licensed CC-BY-NC (non-commercial use only)."
 exit 0

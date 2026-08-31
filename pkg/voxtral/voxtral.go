@@ -1,8 +1,8 @@
 // Package voxtral wraps realtime.py, the Python/MLX realtime-transcription
 // primitive under voxtral/, the same way pkg/whisper wraps whisper-cli.
-// (voxtral/ also has one-shot stt.py/tts.py scripts, invoked directly by
-// developers per SETUP.md — nothing in this repo calls them through Go, so
-// there's no wrapper for them here.)
+// (voxtral/ also has a one-shot stt.py script, invoked directly by
+// developers per SETUP.md — nothing in this repo calls it through Go, so
+// there's no wrapper for it here.)
 package voxtral
 
 import (
@@ -19,7 +19,7 @@ import (
 // Client shells out to the Voxtral MLX primitives.
 type Client struct {
 	PythonPath string // path to the venv's python3, e.g. voxtral/.venv/bin/python3 (see: uv sync in voxtral/)
-	ScriptDir  string // path to the voxtral/ directory containing stt.py, realtime.py, tts.py
+	ScriptDir  string // path to the voxtral/ directory containing stt.py, realtime.py
 }
 
 // NewClient creates a new Voxtral client.

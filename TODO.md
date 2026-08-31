@@ -19,6 +19,18 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Removed `voxtral/tts.py` too (follow-up to the `Client.Transcribe`/`Speak`
+  removal below, which had left it as "untouched, still independently
+  runnable"). Confirmed Kokoro (via `mlx-engine`) is the only TTS engine
+  actually in the live pipeline — every speaking path (hooks, Read Aloud,
+  Mute Service confirmation, Test/Preview) goes through `speak.sh` →
+  `mlx-engine`'s `/speak`, falling back to macOS `say`, never anything in
+  `voxtral/`. `tts.py`'s only reachability was the now-removed Go wrapper
+  and a manual smoke-test line in `setup-voxtral.sh` (updated to demo
+  `realtime.py --list-devices` instead). `stt.py` is unaffected and still
+  there, still manually runnable, still not wrapped in Go (only
+  `realtime.py` is, via `StreamRealtime`/`ListInputDevices`).
+
 - **Shippable `.dmg` for `ClaudeVoiceMenuBar`**, stage 1 (bundling +
   packaging; real signing/notarization above is what's left):
   - `Paths.swift` no longer hard-fails on another Mac — it resolves
