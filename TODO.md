@@ -5,6 +5,35 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Open
 
+- **Shippable `.dmg` for `ClaudeVoiceMenuBar`** (currently only installable by
+  building from this exact checkout — see `docs/claude-code-voice-hooks.md`
+  and the app's own README). Today the app hard-fails on any other Mac
+  because `Paths.swift:6-7` compiles in this literal absolute checkout path
+  (`/Users/user/GolandProjects/local-whisper`) with no bundle-relative
+  resolution, and `build-app.sh` only ad-hoc-signs (`codesign -s -`, no
+  Developer ID, not notarized) and installs straight to `/Applications` —
+  there's no `hdiutil`/`create-dmg` step at all. A real path to a
+  distributable `.dmg` needs, roughly:
+  - `Paths.swift` resolving `scriptsDir`/`repoRoot` relative to
+    `Bundle.main` (or a first-run "where's your local-whisper checkout"
+    prompt) instead of a compiled-in literal.
+  - Either bundling `scripts/`, `mlx-engine/`, and a built `local-whisper`
+    binary into the `.app`'s `Resources/`, or a first-run installer step
+    that clones/sets them up (plus `sox`/`whisper-cli`/`uv`/Go via Homebrew
+    if missing).
+  - Deciding the Voxtral/MLX story for non-Apple-Silicon recipients — the
+    default `whisper` engine has no such requirement, so a bundled build
+    could ship whisper-only and treat `-engine voxtral` (and its `uv`/MLX/
+    multi-GB model download) as an optional, Apple-Silicon-gated add-on
+    rather than a hard dependency of the app itself.
+  - **Ollama should stay optional, not bundled** — `scripts/voice_hooks/`'s
+    `ollama_summarize` already degrades gracefully when it's unreachable
+    (`ollama_client.py`, covered by `test_ollama_summarize_connection_refused`),
+    so the installer/DMG just needs to leave `llmSummary` off by default and
+    document Ollama as a manual opt-in, not try to ship/install it.
+  - Real Developer ID signing + notarization (`codesign --sign
+    "Developer ID Application: ..."`, `xcrun notarytool`) instead of
+    ad-hoc, or Gatekeeper blocks it on first launch for any recipient.
 - **`pkg/voxtral.Client.Transcribe`/`Speak`** (the one-shot `stt.py`/`tts.py`
   wrappers) aren't called by any command today — `cmd/voice-monitor` only
   uses `StreamRealtime` and `ListInputDevices`, and `cmd/local-whisper`'s
