@@ -34,14 +34,23 @@ urgent — see CLAUDE.md for the project overview.
   - Real Developer ID signing + notarization (`codesign --sign
     "Developer ID Application: ..."`, `xcrun notarytool`) instead of
     ad-hoc, or Gatekeeper blocks it on first launch for any recipient.
-- **`checkDependencies`'s voxtral health check** (`cmd/local-whisper/main.go`)
-  has a 1s HTTP timeout, so every `-engine voxtral` run pays up to 1s of
-  startup latency when the server happens to be down. Fine today; a cheap
-  TCP dial before the HTTP GET would shorten the common "server not running
-  at all" case if it ever matters.
 
 ## Done (2026-09-01)
 
+- **Investigated, no change made**: `checkDependencies`'s voxtral health
+  check (`cmd/local-whisper/main.go`) — the TODO's premise (a TCP dial
+  before the HTTP GET would shorten the "server down" case) doesn't hold.
+  Measured directly: a `client.Get` against a closed local port returns
+  `connection refused` in ~1ms, not anywhere near the 1s timeout — a
+  refused TCP connection is already near-instant on this OS, so a
+  preliminary dial saves nothing. The only way to actually burn the full
+  1s is a process that's listening but never responds (still loading, a
+  hung handler) — and a TCP dial can't distinguish that from "healthy"
+  either, since `accept()` succeeds instantly either way; you still need
+  the HTTP-level timeout to catch it. No proxy env vars were set to test
+  that alternate theory, but even under a misconfigured `HTTP_PROXY`,
+  `client.Timeout` still bounds the whole round trip at 1s regardless, so
+  it can't be a way to exceed the current behavior. Leaving the code as-is.
 - Removed `pkg/voxtral.Client.Transcribe`/`Speak` (and `TranscribeOptions`/
   `SpeakOptions`) — decided against keeping them as speculative public API.
   Nothing in the repo called them: `cmd/voice-monitor` only ever used
