@@ -22,6 +22,13 @@ if [ -z "$TEXT" ]; then
     exit 1
 fi
 
+# Global mute (menu bar app) — the one choke point every caller goes
+# through (hooks, Read Aloud, Test/Preview), so muting is absolute rather
+# than something each caller has to remember to check.
+if voice_is_muted; then
+    exit 0
+fi
+
 # One marker file per in-flight speak, present for the whole synth+playback
 # duration below (removed on any exit path via the trap) — polled by
 # ClaudeVoiceMenuBar's SpeechActivityMonitor to show a "speaking" indicator,

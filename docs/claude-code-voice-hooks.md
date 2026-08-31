@@ -36,7 +36,7 @@ regardless of how long the actual speech takes.
 
 | Script | Role |
 |---|---|
-| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`) |
+| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`) |
 | `speak.sh` | The actual "say this" entry point — starts the server on demand, calls `/speak`, plays via `afplay` with a cross-process lock so concurrent sessions queue instead of talking over each other, falls back to macOS `say` if the server's unreachable |
 | `hook-notify.sh` | Speaks the Notification hook's `message` field verbatim (truncated per `notifyMaxChars`) |
 | `hook-stop.sh` | Extracts Claude's last message from the transcript, then speaks it — see below for the length/summary logic |
@@ -57,6 +57,7 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 
 | Config key | Env override | Default | Meaning |
 |---|---|---|---|
+| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Claude Voice Mute` Service (see `../ClaudeVoiceMenuBar/README.md`). |
 | `speed` | `TTS_SPEED` | 1.3 | Kokoro playback speed |
 | `volume` | `TTS_VOLUME` | 1.0 | `afplay` volume |
 | `voice` | — (2nd positional arg to `speak.sh`) | `af_heart` | Kokoro voice name |

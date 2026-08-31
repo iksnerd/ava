@@ -20,7 +20,7 @@ that speak session status out loud, and a menu bar app to tune it all.
 - **Real-time call transcription**: `voice-monitor` streams a live transcript (with optional speaker diarization) from the mic or a loopback device like BlackHole, to a browser tab and a log file — see [`SETUP.md`](SETUP.md).
 - **Text-to-speech**: a local Kokoro TTS server for anything that wants to speak, not just this CLI — see [`mlx-engine/`](mlx-engine/README.md).
 - **Spoken Claude Code notifications**: hooks that speak when Claude finishes a turn or needs a decision — see [Claude Code voice hooks](docs/claude-code-voice-hooks.md).
-- **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
+- **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), a global Mute switch (also a system-wide keyboard-shortcut Service), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
 
 ## Getting Started
 

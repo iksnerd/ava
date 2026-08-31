@@ -67,6 +67,17 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
                 <string>NSStringPboardType</string>
             </array>
         </dict>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Toggle Claude Voice Mute</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>toggleMute</string>
+            <key>NSPortName</key>
+            <string>$APP_NAME</string>
+        </dict>
     </array>
 </dict>
 </plist>

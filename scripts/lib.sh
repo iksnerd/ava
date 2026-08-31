@@ -66,6 +66,15 @@ config_get_bool() {
     esac
 }
 
+# voice_is_muted -> true if the menu bar app's global mute switch is on.
+# Single source of truth for "is voice output allowed" so hooks can skip
+# their expensive work early (transcript parsing, Ollama summarization) and
+# speak.sh can still gate every path that shells out to it directly
+# (Read Aloud, Test/Preview) even if a caller forgets to check first.
+voice_is_muted() {
+    [ "$(config_get_bool muted false)" = "true" ]
+}
+
 VOICE_HOOKS_PROJECT="$SCRIPT_DIR/voice_hooks"
 
 # voice_hooks_run <script.py> [args...] -> runs a scripts/voice_hooks/ CLI

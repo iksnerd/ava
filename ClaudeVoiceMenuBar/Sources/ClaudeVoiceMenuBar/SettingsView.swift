@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -8,6 +9,36 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+
+            Button {
+                toggleMute()
+            } label: {
+                Label(
+                    settings.config.muted ? "Unmute Claude Voice" : "Mute Claude Voice",
+                    systemImage: settings.config.muted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(settings.config.muted ? .red : .indigo)
+            .help(
+                settings.config.muted
+                    ? "Hooks, Read Aloud, and Test/Preview are all silenced — this is the same switch as the \"Toggle Claude Voice Mute\" Service"
+                    : "Silences Claude Code hooks, Read Aloud, and Test/Preview — also available system-wide as the \"Toggle Claude Voice Mute\" Service"
+            )
+
+            Button {
+                openServicesSettings()
+            } label: {
+                Label("Open Keyboard Settings", systemImage: "arrow.up.forward.square")
+                    .font(.system(size: 10))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .help(
+                "From there, open Keyboard Shortcuts → Services to enable \"Toggle Claude Voice Mute\" and \"Read Aloud with Claude Voice\" and optionally bind each to a global keyboard shortcut — macOS doesn't currently support deep-linking straight to that screen"
+            )
 
             Button {
                 dictate()
@@ -56,6 +87,8 @@ struct SettingsView: View {
                         .accessibilityLabel("Preview \(settings.config.voice) voice")
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .disabled(settings.config.muted)
+                        .help(settings.config.muted ? "Unmute to preview a voice" : "Preview \(settings.config.voice)")
                     }
                 }
             }
@@ -122,6 +155,8 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .disabled(settings.config.muted)
+                .help(settings.config.muted ? "Unmute to hear a test phrase" : "")
 
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
@@ -200,6 +235,30 @@ struct SettingsView: View {
                     .controlSize(.mini)
             }
         }
+    }
+
+    // Mirrors the "Toggle Claude Voice Mute" Service (SpeechService.swift) —
+    // both flip the same config.json field, so muting from either place
+    // stays in sync (the Service's own writes are picked up here via
+    // VoiceSettings' external-change poll).
+    private func toggleMute() {
+        settings.config.muted.toggle()
+        if settings.config.muted { Speech.stop() }
+    }
+
+    // No anchor fragment (?Shortcuts, ?KeyboardShortcuts, ?Services) reliably
+    // lands on the Keyboard Shortcuts screen as of macOS 26 — all three were
+    // tried and each fell back to the pane's default view ("Modifier Keys"),
+    // confirmed via `log stream` showing `OpenBundleArguments skipReveal:true`
+    // for the request (i.e. the anchor wasn't recognized, so it didn't
+    // navigate anywhere in particular). Rather than ship a link that
+    // confidently lands on the wrong screen, this just opens the Keyboard
+    // pane itself — the tooltip above tells the user the one extra click.
+    private func openServicesSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     private func runTest() {

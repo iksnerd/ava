@@ -13,9 +13,18 @@ struct ClaudeVoiceMenuBarApp: App {
                 .environmentObject(settings)
                 .environmentObject(activity)
         } label: {
-            Label("Claude Voice", systemImage: activity.isSpeaking ? "waveform.circle.fill" : "waveform")
+            Label("Claude Voice", systemImage: menuBarIcon)
         }
         .menuBarExtraStyle(.window)
+    }
+
+    // Muted wins over the speaking indicator — actively-in-flight speech
+    // shouldn't be possible while muted (both toggle paths call Speech.stop()
+    // when muting), but showing the mute state unconditionally rather than
+    // only when idle keeps the icon truthful even in that edge case.
+    private var menuBarIcon: String {
+        if settings.config.muted { return "speaker.slash.fill" }
+        return activity.isSpeaking ? "waveform.circle.fill" : "waveform"
     }
 }
 

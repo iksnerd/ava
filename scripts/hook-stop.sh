@@ -8,6 +8,11 @@ read_hook_input
 # inference call), so it all runs backgrounded — the hook itself returns to
 # Claude Code immediately regardless of which path is taken.
 (
+    # Skip the transcript parsing/summarization work entirely while muted —
+    # speak.sh would silence it anyway, but there's no point paying for an
+    # Ollama call whose result will never be heard.
+    voice_is_muted && exit 0
+
     TRANSCRIPT=$(echo "$HOOK_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
 
     if [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ]; then

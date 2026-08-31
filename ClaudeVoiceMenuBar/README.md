@@ -5,10 +5,45 @@ A menu bar app for the local voice stack (`../mlx-engine/`, `../scripts/`,
 your cursor (via `local-whisper -engine voxtral` — the same dictation tool
 this whole repo started as, just triggerable from here instead of only
 Raycast), a system-wide **Read Aloud with Claude Voice** right-click action
-for any selected text, plus live tuning for everything Claude Code's
-Stop/Notification hooks speak through — speed, volume, voice,
-spoken-message length, and whether to summarize long messages with a local
-LLM instead of cutting them off mid-sentence.
+for any selected text, a global **Mute** switch (also reachable outside the
+app as the **Toggle Claude Voice Mute** Service — see below), plus live
+tuning for everything Claude Code's Stop/Notification hooks speak through —
+speed, volume, voice, spoken-message length, and whether to summarize long
+messages with a local LLM instead of cutting them off mid-sentence.
+
+## Mute
+
+The **Mute Claude Voice** button at the top of the panel is a single global
+switch: while it's on, `speak.sh` exits immediately for every caller —
+both Claude Code hooks, Read Aloud, and this panel's own Test/Preview
+buttons — rather than each one having to remember to check. Muting also
+stops anything already playing, and the menu bar icon itself turns into a
+muted speaker so you can tell at a glance without opening the panel.
+
+It's also registered as a Service — **Toggle Claude Voice Mute** — with no
+selected-text requirement (unlike Read Aloud), so instead of the **Services
+→ Text** category below it shows up under System Settings → Keyboard →
+Keyboard Shortcuts → Services → **General**, where the same one-time
+"new Services start disabled" step applies (turn it on, then optionally
+bind a global keyboard shortcut) — but since it needs no selection, that
+shortcut works from anywhere, not just apps with classic Services support.
+Toggling it that way writes straight to `config.json`; the running app
+picks the change up within a second via its own poll (`VoiceSettings.swift`)
+rather than only ever trusting its own writes, so the panel and menu bar
+icon stay accurate even when muted from outside the app. A system sound
+(not speech, deliberately) confirms the toggle when it fires this way.
+
+The small **"Open Keyboard Settings"** link under the Mute button opens
+System Settings' Keyboard pane
+(`x-apple.systempreferences:com.apple.preference.keyboard`), one click short
+of the **Keyboard Shortcuts → Services** screen above. It doesn't jump
+straight there: as of macOS 26, none of the documented anchor fragments
+(`?Shortcuts`, `?KeyboardShortcuts`, `?Services`) actually navigate anymore
+— `log stream` while opening each one shows `System_Settings.OpenBundleArguments
+skipReveal:true`, i.e. the anchor goes unrecognized and it just falls back
+to the pane's default view ("Modifier Keys"). Rather than ship a link that
+confidently lands on the wrong screen, it stops at the Keyboard pane and
+leaves the last click to the user.
 
 ## Read Aloud with Claude Voice
 
@@ -92,6 +127,8 @@ present in that file come from `../scripts/voice-defaults.json`.
 
 | Setting | Effect |
 |---|---|
+| Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Claude Voice Mute" Service. See "Mute" above. |
+| Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
 | Dictate (button) | Runs `local-whisper -engine voxtral` — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build` or `make install-bin` in the repo root). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
@@ -100,7 +137,8 @@ present in that file come from `../scripts/voice-defaults.json`.
 | Summarize with local LLM | When a message exceeds its length cap, summarize it with the local Ollama daemon instead of cutting it off mid-sentence (off by default — see `../scripts/hook-stop.sh` and `../scripts/voice_hooks/`) |
 | Server status / Start / Stop | Live status of `mlx-engine`, with a manual override — the hooks already auto-start it on demand, this is just visibility |
 | Read Aloud with Claude Voice (Services menu) | Speaks the text selected in any app, via the same TTS pipeline and current voice settings — see above |
-| Speaking indicator (menu bar icon) | The waveform icon fills in (`waveform.circle.fill`) while anything is actively being synthesized or played, and reverts once it's done |
+| Toggle Claude Voice Mute (Services menu / global shortcut) | Flips the same Mute switch from outside the app entirely — see "Mute" above |
+| Speaking indicator (menu bar icon) | The waveform icon fills in (`waveform.circle.fill`) while anything is actively being synthesized or played, and reverts once it's done; a muted speaker (`speaker.slash.fill`) takes priority over both states while Mute is on |
 
 ## Structure
 
@@ -111,10 +149,13 @@ Sources/ClaudeVoiceMenuBar/
                                           NSApp.setActivationPolicy(.accessory)
   SettingsView.swift                    - the dropdown UI
   Components.swift                      - SettingsRow / SectionCard / StatusBadge
-  VoiceSettings.swift                   - config load/save/merge with voice-defaults.json
+  VoiceSettings.swift                   - config load/save/merge with voice-defaults.json;
+                                          polls config.json for external changes (e.g. the
+                                          mute Service) and exposes toggleMutedOnDisk()
   ServerController.swift                - polls mlx-engine's /health, drives start/stop
   Speech.swift                          - shells out to scripts/speak.sh
-  SpeechService.swift                   - NSServices provider behind "Read Aloud with Claude Voice"
+  SpeechService.swift                   - NSServices provider behind "Read Aloud with Claude
+                                          Voice" and "Toggle Claude Voice Mute"
   SpeechActivityMonitor.swift           - polls speak.sh's activity marker for the speaking indicator
   Paths.swift                           - where the companion shell scripts/binary live, PATH hardening
 Resources/AppIcon.icns
