@@ -142,12 +142,19 @@ separately run `make setup-voxtral`:
   instead of Kokoro/Voxtral's higher quality, until `mlx-engine/` is set up.
 
 **No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
-(`codesign -s -`), not notarized. On another Mac, Gatekeeper will likely
-call the app "damaged" (the quarantine flag on an unnotarized app), not
-just show a warning. The recipient needs
-`xattr -cr "/Applications/Claude Voice.app"` (right-click → Open alone
-sometimes isn't enough). Real signing/notarization needs a paid Apple
-Developer Program membership — tracked as still-open in `../TODO.md`.
+(`codesign -s -`), not notarized. Verified directly (mounted the `.dmg`,
+copied the `.app` out, applied a real quarantine attribute the way a
+download would, then tried to launch it): opening a quarantined copy of
+this exact build is blocked by Gatekeeper's standard "Apple could not
+verify ... is free of malware that may harm your Mac" warning — not the
+harsher "is damaged and can't be opened" some ad-hoc-signed apps get. The
+recipient can either use System Settings → Privacy & Security → scroll
+down → "Open Anyway" next to the blocked-app notice (confirm once more in
+the follow-up prompt), or run `xattr -cr "/Applications/Claude Voice.app"`
+to clear the quarantine attribute directly — also verified: the app
+launches clean afterward, no further prompt. Real signing/notarization
+needs a paid Apple Developer Program membership — tracked as still-open in
+`../TODO.md`.
 
 ## What it controls
 

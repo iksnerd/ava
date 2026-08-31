@@ -8,11 +8,14 @@ urgent — see CLAUDE.md for the project overview.
 - **Real Developer ID signing + notarization for `ClaudeVoiceMenuBar`**
   (`codesign --sign "Developer ID Application: ..."`, `xcrun notarytool`)
   — no Apple Developer Program membership available to do this now. Until
-  then, `.build/Claude Voice.dmg` stays ad-hoc signed (`codesign -s -`):
-  Gatekeeper calls it "damaged" on another Mac (the quarantine flag on an
-  unnotarized app), and the recipient needs
-  `xattr -cr "/Applications/Claude Voice.app"`. Fine for sharing with
-  yourself/friends; not for wide public distribution.
+  then, `.build/Claude Voice.dmg` stays ad-hoc signed (`codesign -s -`).
+  Verified directly (mounted the `.dmg`, applied a real quarantine
+  attribute, tried to launch it): a recipient hits Gatekeeper's standard
+  "Apple could not verify ... is free of malware" warning, not the harsher
+  "is damaged" message — fixable via System Settings → Privacy & Security
+  → "Open Anyway", or `xattr -cr "/Applications/Claude Voice.app"` (also
+  verified: launches clean afterward, no further prompt). Fine for sharing
+  with yourself/friends; not for wide public distribution.
 
 ## Done (2026-09-01)
 
