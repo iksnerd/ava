@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestOrDefault(t *testing.T) {
@@ -91,6 +92,29 @@ func TestHubBroadcastAndSnapshot(t *testing.T) {
 
 	if snap := h.snapshot(); snap != "hello world" {
 		t.Errorf("snapshot = %q, want %q", snap, "hello world")
+	}
+}
+
+func TestHubHistoryIsBounded(t *testing.T) {
+	h := newHub()
+
+	// Multi-byte UTF-8 text (é is 2 bytes) so a naive byte-offset trim would
+	// risk starting the kept snapshot mid-character.
+	chunk := strings.Repeat("café ", 200) // 1200 bytes/chunk
+	const chunks = 1200                   // ~1.4MB total, well past maxHistoryBytes
+	for range chunks {
+		h.broadcast(chunk)
+	}
+
+	snap := h.snapshot()
+	if len(snap) > maxHistoryBytes {
+		t.Fatalf("snapshot len = %d, want <= %d (maxHistoryBytes)", len(snap), maxHistoryBytes)
+	}
+	if len(snap) == 0 {
+		t.Fatal("snapshot is empty after broadcasting well past the cap")
+	}
+	if !utf8.ValidString(snap) {
+		t.Fatalf("snapshot is not valid UTF-8 after trimming (mid-rune cut): %q", snap[:50])
 	}
 }
 

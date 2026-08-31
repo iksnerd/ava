@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"local-whisper/internal/procutil"
 	"local-whisper/pkg/voxtral"
@@ -30,6 +31,11 @@ func languageSuffix(language string) string {
 	}
 	return ", language: " + language
 }
+
+// maxHistoryBytes bounds the in-memory transcript kept for newly opened
+// tabs — well beyond any realistic single session, but without a cap it
+// grows for as long as voice-monitor is left running unattended.
+const maxHistoryBytes = 1 << 20 // 1 MiB
 
 // hub fans transcript deltas out to any connected /events (SSE) clients and
 // keeps the full transcript so far so a newly opened tab sees history.
@@ -63,6 +69,18 @@ func (h *hub) broadcast(text string) {
 
 	h.mu.Lock()
 	h.history = append(h.history, text...)
+	if len(h.history) > maxHistoryBytes {
+		trim := len(h.history) - maxHistoryBytes
+		// Advance to the next rune boundary so a trimmed snapshot never
+		// starts mid-character (transcripts can be non-ASCII: Bulgarian via
+		// the whisper engine, diarization labels, etc.).
+		for trim < len(h.history) && !utf8.RuneStart(h.history[trim]) {
+			trim++
+		}
+		kept := make([]byte, len(h.history)-trim)
+		copy(kept, h.history[trim:])
+		h.history = kept
+	}
 	for ch := range h.clients {
 		select {
 		case ch <- payload:

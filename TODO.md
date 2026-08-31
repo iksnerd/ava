@@ -40,15 +40,19 @@ urgent — see CLAUDE.md for the project overview.
   `-engine voxtral` goes through `pkg/mlxengine` instead. Decide whether
   they're kept as public API for a future one-shot voxtral CLI path, or
   removed if nothing will call them.
-- **`cmd/voice-monitor`'s `hub.history`** grows unbounded for the lifetime of
-  a session (`h.history = append(h.history, text...)` in `main.go`). Harmless
-  at call-transcript text volumes, but there's no cap — worth a bound if
-  voice-monitor is ever left running for very long unattended sessions.
 - **`checkDependencies`'s voxtral health check** (`cmd/local-whisper/main.go`)
   has a 1s HTTP timeout, so every `-engine voxtral` run pays up to 1s of
   startup latency when the server happens to be down. Fine today; a cheap
   TCP dial before the HTTP GET would shorten the common "server not running
   at all" case if it ever matters.
+
+## Done (2026-09-01)
+
+- Bounded `cmd/voice-monitor`'s `hub.history` at 1MiB (`maxHistoryBytes`) so
+  it no longer grows unbounded for the lifetime of a session — trims from
+  the front on overflow, advancing to the next UTF-8 rune boundary so a
+  trimmed snapshot never starts mid-character (transcripts can be non-ASCII:
+  Bulgarian via the whisper engine, diarization labels, etc.).
 
 ## Done (2026-08-30)
 
