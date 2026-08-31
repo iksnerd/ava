@@ -58,8 +58,10 @@ The Go CLI acts as a thin client when the `--engine=voxtral` flag is used.
 *   [x] Documentation updated (`README.md`, `mlx-engine/README.md`, and the two docs above).
 *   [x] `scripts/setup-deps.sh` installs `uv`.
 
-### Known limitation: `.whisper-context` doesn't work under `--engine=voxtral`
-Not a missing wire-up — the model itself can't take it. `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit`
+### Known limitation
+
+`.whisper-context` doesn't work under `-engine voxtral`. Not a missing
+wire-up — the model itself can't take it. `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit`
 is `mlx_audio`'s `voxtral_realtime` implementation, whose `generate()` has no
 prompt/context parameter at all: its input to the decoder is a hardcoded
 `[BOS] + [STREAMING_PAD]*n + audio embeddings` sequence with no slot for

@@ -11,7 +11,7 @@ that speak session status out loud, and a menu bar app to tune it all.
 ## Features
 
 - **Local & Private**: transcription and speech synthesis both run on-device — no cloud, no external data transmission.
-- **Two transcription engines**: `whisper.cpp` (default, zero extra setup) or Voxtral via a local MLX server (`--engine=voxtral`, higher accuracy — see [Voice Engines](#voice-engines) below).
+- **Two transcription engines**: `whisper.cpp` (default, zero extra setup) or Voxtral via a local MLX server (`-engine voxtral`, higher accuracy — see [Voice Engines](#voice-engines) below).
 - **Instant Recording**: starts recording immediately with audio feedback.
 - **Silence Detection**: stops after 2 seconds of silence (3% threshold).
 - **Context Awareness**: reads `.whisper-context` files for vocabulary hints (whisper engine).
@@ -118,7 +118,7 @@ and its HTTP API: [`mlx-engine/README.md`](mlx-engine/README.md).
 
 **Known gap**: `.whisper-context` vocabulary hints work under `-engine
 whisper` but aren't sent to the Voxtral server yet — see
-[`voxtral-migration.md`](voxtral-migration.md#known-gap).
+[`voxtral-migration.md`](voxtral-migration.md#known-limitation).
 
 ## Context Files
 
