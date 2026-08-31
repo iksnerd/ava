@@ -12,8 +12,72 @@ volume, voice, spoken-message length, and whether to summarize long
 messages with a local LLM instead of cutting them off mid-sentence.
 
 Packaged via `scripts/build-app.sh` into a real `.app` (and a `.dmg`) that
-runs from any checkout, not just this one — see "Run it" and "Packaging for
-distribution" below.
+runs from any checkout, not just this one — see "Run it" below.
+
+## Run it
+
+A SwiftUI `MenuBarExtra` app, built as a bare Swift Package — there's no
+Xcode project, `open Package.swift` (or File → Open in Xcode) gives you a
+working scheme directly.
+
+**Prerequisites**: Xcode Command Line Tools (or full Xcode) for
+`swift`/`swift build` — confirm with `xcode-select -p`. For `swift run`
+during development, this needs to stay inside the parent repo checkout (it
+shells out to `../scripts/` and, for Dictate, a built `local-whisper`
+binary); a packaged `.app` doesn't have that requirement — see "Packaging
+for distribution" below.
+
+```bash
+swift run ClaudeVoiceMenuBar          # dev build, runs until you quit or close the terminal
+```
+
+For something that survives quitting/reboots, package it as a real `.app`:
+
+```bash
+scripts/build-app.sh                  # release build → installs to /Applications/Claude Voice.app
+open -a "Claude Voice"
+```
+
+To have it launch automatically at login, add a
+[LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
+pointing `ProgramArguments` at `open -a "Claude Voice"` with `RunAtLoad`
+set, then `launchctl bootstrap gui/$(id -u) <path-to-plist>`. Not included
+in this repo since it's a per-machine login item, not project config.
+
+### Packaging for distribution
+
+`build-app.sh` also bundles `scripts/` (36MB) and a built `local-whisper`
+binary (8.3MB) into `Contents/Resources/`, and produces `.build/Claude
+Voice.dmg` — so the resulting `.app` runs from *any* checkout, not just
+this one. `Paths.swift` resolves `scriptsDir`/`dictateBinary` from that
+bundled `Resources/` at runtime when present, falling back to this dev
+checkout's paths only when running unbundled (`swift run`).
+
+`mlx-engine/` is deliberately **not** bundled — its venv alone is 1.3GB,
+plus a 2.9GB Voxtral model download, not something to freeze into a
+distributable app. This has two consequences on a machine that hasn't
+separately run `make setup-voxtral`:
+- Dictate uses `local-whisper`'s own default `whisper` engine instead of
+  Voxtral, so it works with zero extra setup.
+- The Server section's Start/Stop button won't find `mlx-engine/`, and
+  `speak.sh` already falls back to macOS's built-in `say` when the server's
+  unreachable — so the app is fully functional, just with `say`/whisper
+  instead of Kokoro/Voxtral's higher quality, until `mlx-engine/` is set up.
+
+**No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
+(`codesign -s -`), not notarized. Verified directly (mounted the `.dmg`,
+copied the `.app` out, applied a real quarantine attribute the way a
+download would, then tried to launch it): opening a quarantined copy of
+this exact build is blocked by Gatekeeper's standard "Apple could not
+verify ... is free of malware that may harm your Mac" warning — not the
+harsher "is damaged and can't be opened" some ad-hoc-signed apps get. The
+recipient can either use System Settings → Privacy & Security → scroll
+down → "Open Anyway" next to the blocked-app notice (confirm once more in
+the follow-up prompt), or run `xattr -cr "/Applications/Claude Voice.app"`
+to clear the quarantine attribute directly — also verified: the app
+launches clean afterward, no further prompt. Real signing/notarization
+needs a paid Apple Developer Program membership — tracked as still-open in
+`../TODO.md`.
 
 ## Mute
 
@@ -97,64 +161,6 @@ which works off the same per-invocation markers under
 speech from any source (Read Aloud, a Claude Code hook, Test/Preview) —
 including one still queued behind another because only one thing plays at
 a time.
-
-A SwiftUI `MenuBarExtra` app, built as a bare Swift Package — there's no
-Xcode project, `open Package.swift` (or File → Open in Xcode) gives you a
-working scheme directly.
-
-## Run it
-
-```bash
-swift run ClaudeVoiceMenuBar          # dev build, runs until you quit or close the terminal
-```
-
-For something that survives quitting/reboots, package it as a real `.app`:
-
-```bash
-scripts/build-app.sh                  # release build → installs to /Applications/Claude Voice.app
-open -a "Claude Voice"
-```
-
-To have it launch automatically at login, add a
-[LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
-pointing `ProgramArguments` at `open -a "Claude Voice"` with `RunAtLoad`
-set, then `launchctl bootstrap gui/$(id -u) <path-to-plist>`. Not included
-in this repo since it's a per-machine login item, not project config.
-
-### Packaging for distribution
-
-`build-app.sh` also bundles `scripts/` (36MB) and a built `local-whisper`
-binary (8.3MB) into `Contents/Resources/`, and produces `.build/Claude
-Voice.dmg` — so the resulting `.app` runs from *any* checkout, not just
-this one. `Paths.swift` resolves `scriptsDir`/`dictateBinary` from that
-bundled `Resources/` at runtime when present, falling back to this dev
-checkout's paths only when running unbundled (`swift run`).
-
-`mlx-engine/` is deliberately **not** bundled — its venv alone is 1.3GB,
-plus a 2.9GB Voxtral model download, not something to freeze into a
-distributable app. This has two consequences on a machine that hasn't
-separately run `make setup-voxtral`:
-- Dictate uses `local-whisper`'s own default `whisper` engine instead of
-  Voxtral, so it works with zero extra setup.
-- The Server section's Start/Stop button won't find `mlx-engine/`, and
-  `speak.sh` already falls back to macOS's built-in `say` when the server's
-  unreachable — so the app is fully functional, just with `say`/whisper
-  instead of Kokoro/Voxtral's higher quality, until `mlx-engine/` is set up.
-
-**No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
-(`codesign -s -`), not notarized. Verified directly (mounted the `.dmg`,
-copied the `.app` out, applied a real quarantine attribute the way a
-download would, then tried to launch it): opening a quarantined copy of
-this exact build is blocked by Gatekeeper's standard "Apple could not
-verify ... is free of malware that may harm your Mac" warning — not the
-harsher "is damaged and can't be opened" some ad-hoc-signed apps get. The
-recipient can either use System Settings → Privacy & Security → scroll
-down → "Open Anyway" next to the blocked-app notice (confirm once more in
-the follow-up prompt), or run `xattr -cr "/Applications/Claude Voice.app"`
-to clear the quarantine attribute directly — also verified: the app
-launches clean afterward, no further prompt. Real signing/notarization
-needs a paid Apple Developer Program membership — tracked as still-open in
-`../TODO.md`.
 
 ## What it controls
 
