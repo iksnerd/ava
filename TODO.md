@@ -34,12 +34,6 @@ urgent — see CLAUDE.md for the project overview.
   - Real Developer ID signing + notarization (`codesign --sign
     "Developer ID Application: ..."`, `xcrun notarytool`) instead of
     ad-hoc, or Gatekeeper blocks it on first launch for any recipient.
-- **`pkg/voxtral.Client.Transcribe`/`Speak`** (the one-shot `stt.py`/`tts.py`
-  wrappers) aren't called by any command today — `cmd/voice-monitor` only
-  uses `StreamRealtime` and `ListInputDevices`, and `cmd/local-whisper`'s
-  `-engine voxtral` goes through `pkg/mlxengine` instead. Decide whether
-  they're kept as public API for a future one-shot voxtral CLI path, or
-  removed if nothing will call them.
 - **`checkDependencies`'s voxtral health check** (`cmd/local-whisper/main.go`)
   has a 1s HTTP timeout, so every `-engine voxtral` run pays up to 1s of
   startup latency when the server happens to be down. Fine today; a cheap
@@ -48,6 +42,16 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Removed `pkg/voxtral.Client.Transcribe`/`Speak` (and `TranscribeOptions`/
+  `SpeakOptions`) — decided against keeping them as speculative public API.
+  Nothing in the repo called them: `cmd/voice-monitor` only ever used
+  `StreamRealtime`/`ListInputDevices`, and `cmd/local-whisper`'s
+  `-engine voxtral` goes through `pkg/mlxengine` instead. The underlying
+  `stt.py`/`tts.py` scripts are untouched and still independently runnable
+  (see `SETUP.md`'s manual smoke-test note) — only the unused Go wrapper and
+  its 8 tests are gone. Recreating it later, if a one-shot voxtral CLI is
+  ever actually built, is a trivial ~50-line addition following the same
+  pattern already established twice (`pkg/whisper`, `pkg/mlxengine`).
 - Bounded `cmd/voice-monitor`'s `hub.history` at 1MiB (`maxHistoryBytes`) so
   it no longer grows unbounded for the lifetime of a session — trims from
   the front on overflow, advancing to the next UTF-8 rune boundary so a

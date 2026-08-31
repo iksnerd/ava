@@ -1,5 +1,8 @@
-// Package voxtral wraps the Python/MLX primitive scripts under voxtral/
-// (stt.py, realtime.py, tts.py), the same way pkg/whisper wraps whisper-cli.
+// Package voxtral wraps realtime.py, the Python/MLX realtime-transcription
+// primitive under voxtral/, the same way pkg/whisper wraps whisper-cli.
+// (voxtral/ also has one-shot stt.py/tts.py scripts, invoked directly by
+// developers per SETUP.md — nothing in this repo calls them through Go, so
+// there's no wrapper for them here.)
 package voxtral
 
 import (
@@ -33,64 +36,6 @@ func (c *Client) checkPython() error {
 	if _, err := os.Stat(c.PythonPath); err != nil {
 		return fmt.Errorf("voxtral venv python not found at %s. Run: make setup-voxtral", c.PythonPath)
 	}
-	return nil
-}
-
-// TranscribeOptions configures a one-shot Voxtral Mini 3B transcription.
-type TranscribeOptions struct {
-	AudioPath string
-	Language  string
-}
-
-// Transcribe runs Voxtral Mini 3B (stt.py) on a recorded audio file.
-func (c *Client) Transcribe(opts TranscribeOptions) (string, error) {
-	if err := c.checkPython(); err != nil {
-		return "", err
-	}
-
-	cmd := exec.Command(c.PythonPath, filepath.Join(c.ScriptDir, "stt.py"),
-		"--audio", opts.AudioPath,
-		"--language", opts.Language,
-	)
-	cmd.Stderr = os.Stderr
-
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("voxtral stt failed: %w", err)
-	}
-
-	return strings.TrimSpace(string(out)), nil
-}
-
-// SpeakOptions configures Voxtral TTS synthesis.
-type SpeakOptions struct {
-	Text       string
-	Voice      string
-	OutputPath string
-}
-
-// Speak runs Voxtral TTS (tts.py), writing a wav file to opts.OutputPath.
-func (c *Client) Speak(opts SpeakOptions) error {
-	if err := c.checkPython(); err != nil {
-		return err
-	}
-
-	voice := opts.Voice
-	if voice == "" {
-		voice = "casual_male"
-	}
-
-	cmd := exec.Command(c.PythonPath, filepath.Join(c.ScriptDir, "tts.py"),
-		"--text", opts.Text,
-		"--voice", voice,
-		"--output", opts.OutputPath,
-	)
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("voxtral tts failed: %w", err)
-	}
-
 	return nil
 }
 

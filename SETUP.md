@@ -3,7 +3,7 @@
 See `docs/voxtral-architecture.mmd` for the full architecture this fits into.
 
 ## Done
-- [x] `pkg/voxtral` (Go wrapper) + `voxtral/` (MLX primitives: `stt.py`, `realtime.py`, `tts.py`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
+- [x] `pkg/voxtral` (Go wrapper around `realtime.py`) + `voxtral/` (MLX primitives: `stt.py`, `realtime.py`, `tts.py` — `stt.py`/`tts.py` are one-shot scripts run directly, not wrapped in Go; nothing here calls them through `pkg/voxtral`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
 - [x] `cmd/voice-monitor` — serves live transcript at `localhost:8765` (SSE) and logs it to `/tmp/voice-input/transcript-<timestamp>.txt`
 - [x] BlackHole 2ch installed (`brew list --cask blackhole-2ch`) + Multi-Output Device ("Meet Recording") in Audio MIDI Setup, built from **MacBook Pro Speakers + BlackHole 2ch** (not Bluetooth/AirPods — see gotcha below)
 - [x] Dual STT engine in `realtime.py`/`pkg/voxtral`: `--engine voxtral` (default, <500ms, 13 languages) or `--engine whisper` (multilingual, 99+ languages, ~1s latency)

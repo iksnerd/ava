@@ -1,32 +1,11 @@
 #!/bin/sh
 # Fixture "python3" standing in for the voxtral/ venv: dispatches on the
-# basename of the script it was asked to run (stt.py / tts.py / realtime.py),
-# the same three entry points pkg/voxtral shells out to.
+# basename of the script it was asked to run (realtime.py, the only entry
+# point pkg/voxtral shells out to).
 script="$1"
 shift
 
 case "$script" in
-  */stt.py)
-    if [ -n "$STT_LOG" ]; then
-      printf '%s\n' "$@" > "$STT_LOG"
-    fi
-    echo "${STT_FIXTURE_TEXT:-fixture voxtral transcript}"
-    ;;
-  */tts.py)
-    out=""
-    voice=""
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --output) out="$2"; shift 2 ;;
-        --voice) voice="$2"; shift 2 ;;
-        *) shift ;;
-      esac
-    done
-    if [ -n "$TTS_VOICE_LOG" ]; then
-      echo "$voice" > "$TTS_VOICE_LOG"
-    fi
-    echo "fixture wav bytes" > "$out"
-    ;;
   */realtime.py)
     if [ "$1" = "--list-devices" ]; then
       echo "0: Fixture Mic"
