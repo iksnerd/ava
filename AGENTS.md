@@ -23,7 +23,7 @@ specifically; see each other component's own docs — `SETUP.md`
 ## Architecture
 Multi-package CLI tool for local voice transcription, with two interchangeable
 engines: `whisper.cpp` via subprocess (default, zero extra setup), or Voxtral
-via a local HTTP server (`-engine voxtral`, see `pkg/stt/mlx/` and
+via a local HTTP server (`-engine voxtral`, see `pkg/mlx/` and
 `mlx-engine/` — advanced/opt-in, needs `make setup-voxtral`). Both engines
 satisfy the shared `pkg/stt.Client` interface so `cmd/local-whisper` picks
 one at runtime without branching on engine-specific types.
@@ -36,9 +36,12 @@ internal/recording/recorder.go  - Audio recording, silence detection, and peak
 internal/audio/audio.go         - shared sox format constants (SampleRateHz, Channels)
 internal/clipboard/clipboard.go - Clipboard & auto-paste operations
 internal/procutil/              - shared subprocess/signal helpers
-pkg/stt/stt.go                  - Options/Client shapes shared by the two engines below
+pkg/stt/stt.go                  - Options/Client shapes shared by the two engines below,
+                                  plus WriteOutputIfRequested() they both call
 pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper (-engine whisper)
-pkg/stt/mlx/mlx.go              - mlx-engine HTTP client (-engine voxtral)
+pkg/mlx/mlx.go                  - mlx-engine HTTP client (-engine voxtral) — lives at
+                                  the top level, not nested under pkg/stt, since
+                                  mlx-engine itself serves TTS as much as STT
 mlx-engine/                     - the local STT/TTS server (separate Python/uv project)
 scripts/setup-model.sh          - Auto-download whisper model script
 scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine
@@ -57,7 +60,7 @@ own package doc comment for why).
 - `sox` - Audio recording with silence detection
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
-- `uv` - runs `mlx-engine`, needed for `-engine voxtral` (auto-started on first use via `pkg/stt/mlx`'s health check + `scripts/mlx-engine-server.sh`)
+- `uv` - runs `mlx-engine`, needed for `-engine voxtral` (auto-started on first use via `pkg/mlx`'s health check + `scripts/mlx-engine-server.sh`)
 
 **Model location** (whisper engine): `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, auto-downloaded by `make setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)
@@ -97,13 +100,13 @@ own package doc comment for why).
 ## Key Functions
 - `recording.Recorder.Record()` - Records with sox, 2s silence detection (3% threshold) and peak normalization (norm -3) in the same invocation, plays Blow.aiff in background
 - `whisper.Client.Transcribe()` (pkg/stt/whisper) - Runs whisper-cli with model/language selection, reads transcript
-- `mlx.Client.Transcribe()` (pkg/stt/mlx) - POSTs audio (multipart) to mlx-engine's `/transcribe`, returns text — satisfies `stt.Client` alongside `whisper.Client`
+- `mlx.Client.Transcribe()` (pkg/mlx) - POSTs audio (multipart) to mlx-engine's `/transcribe`, returns text — satisfies `stt.Client` alongside `whisper.Client`
 - `clipboard.CopyToClipboard()` - Uses pbcopy (macOS)
 - `clipboard.PasteWithAppleScript()` - Auto-pastes via osascript (requires Accessibility permissions)
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- ~37 test functions across `cmd/local-whisper`, `pkg/stt/whisper`, `pkg/stt/mlx`, `internal/clipboard`, `internal/recording`, `internal/procutil` (fixture-driven: `testdata/bin/` fake executables + `httptest`) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
+- ~37 test functions across `cmd/local-whisper`, `pkg/stt/whisper`, `pkg/mlx`, `internal/clipboard`, `internal/recording`, `internal/procutil` (fixture-driven: `testdata/bin/` fake executables + `httptest`) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations, HTTP client behavior, subprocess/signal helpers
 

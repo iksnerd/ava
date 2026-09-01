@@ -19,6 +19,32 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Follow-up refinements to the `pkg/stt/` restructuring above, same day:
+  - Moved `pkg/stt/mlx` → top-level `pkg/mlx`. `mlx-engine` (the server it
+    wraps) serves TTS (Kokoro `/speak`) as much as STT (`/transcribe`), so
+    nesting the Go client under `pkg/stt/` mis-scoped it as STT-only. It
+    still satisfies `stt.Client` today (structurally, via `Transcribe()`),
+    it just doesn't live inside that package anymore — if a real Go TTS
+    caller ever shows up, a `Speak()` method belongs on this same client,
+    not a new package.
+  - Extracted the near-identical "write text to `opts.OutputPath` if set,
+    warn-don't-error on failure" block that both `pkg/stt/whisper` and
+    `pkg/mlx` had duplicated (same 5 lines, same comment) into
+    `stt.WriteOutputIfRequested(opts, text)` in `pkg/stt/stt.go`. Both
+    engines call it now instead of repeating the block.
+  - Removed `voxtral-migration.md`. Read it in full first: most of it
+    (the "why Voxtral" rationale, the Phase 1-5 changelog) was superseded
+    by current docs and had no remaining operational value. The one
+    genuinely still-relevant piece — the technical explanation of why
+    `.whisper-context` doesn't work under `-engine voxtral` — was moved
+    into `mlx-engine/README.md`'s Models section (a more natural home,
+    verified the new heading's exact GitHub anchor with `github-slugger`
+    rather than guess) before deleting the file, and `README.md`'s two
+    live references (the Known gap link, the Documentation index entry)
+    were updated/removed accordingly. `voxtral-migration.md`'s own Phase 3
+    description of `pkg/voxtral/voxtral.go` as an HTTP client was accurate
+    history either way, but the file as a whole wasn't worth keeping just
+    for that.
 - Restructured the Go STT engines under a single `pkg/stt/` hierarchy:
   `pkg/transcribe`→`pkg/stt` (the shared `Options`/`Client` contract),
   `pkg/whisper`→`pkg/stt/whisper`, `pkg/mlxengine`→`pkg/stt/mlx`,

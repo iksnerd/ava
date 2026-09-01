@@ -12,8 +12,8 @@ import (
 	"local-whisper/internal/clipboard"
 	"local-whisper/internal/procutil"
 	"local-whisper/internal/recording"
+	"local-whisper/pkg/mlx"
 	"local-whisper/pkg/stt"
-	"local-whisper/pkg/stt/mlx"
 	"local-whisper/pkg/stt/whisper"
 )
 

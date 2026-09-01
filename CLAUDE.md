@@ -43,8 +43,8 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
 - `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` since nothing in this repo speaks Go to a TTS engine directly (see `pkg/stt`'s own doc comment)
 - `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper -engine whisper`, default)
-- `pkg/stt/mlx/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`)
-- `pkg/stt/realtime/` - a *different*, independent client from `pkg/stt/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
+- `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
+- `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
 - `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
 - `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `SETUP.md`
 - `scripts/` - dependency/model setup, plus the Claude Code voice hooks (see `docs/claude-code-voice-hooks.md`); `scripts/voice_hooks/` is its own `uv` project (flat scripts, no nested package, matching `voxtral/`'s pattern) holding the hooks' text processing (markdown stripping, sentence-aware truncation, Ollama summarization) — `hook-stop.sh`/`hook-notify.sh` stay thin bash entry points that shell out to it once per firing

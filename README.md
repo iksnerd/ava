@@ -123,7 +123,7 @@ and its HTTP API: [`mlx-engine/README.md`](mlx-engine/README.md).
 
 **Known gap**: `.whisper-context` vocabulary hints work under `-engine
 whisper` but aren't sent to the Voxtral server yet — see
-[`voxtral-migration.md`](voxtral-migration.md#known-limitation).
+[`mlx-engine/README.md`](mlx-engine/README.md#known-limitation-whisper-context-doesnt-work-under--engine-voxtral).
 
 ## Context Files
 
@@ -185,7 +185,6 @@ Check `/tmp/mlx-engine-server.log` if it doesn't come up. Full troubleshooting: 
 - [`SETUP.md`](SETUP.md) — `voice-monitor` (real-time call transcription): BlackHole loopback setup, engine/diarization options, known gaps.
 - [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken Claude Code notifications: setup, settings, how message length/summarization work.
 - [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar app for tuning the above live.
-- [`voxtral-migration.md`](voxtral-migration.md) — design record for why/how the Voxtral engine was added.
 - [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or agent) working on this repo.
 
 ## Development
@@ -202,8 +201,9 @@ internal/
   └── procutil/        - shared subprocess/signal helpers
 pkg/stt/                - Options/Client shape shared by the one-shot engines below
 pkg/stt/whisper/        - whisper.cpp subprocess wrapper (-engine whisper)
-pkg/stt/mlx/            - mlx-engine HTTP client (-engine voxtral)
 pkg/stt/realtime/       - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
+pkg/mlx/                - mlx-engine HTTP client (-engine voxtral) — not nested under
+                          pkg/stt since mlx-engine serves TTS as much as STT
 mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
 voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
 scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)

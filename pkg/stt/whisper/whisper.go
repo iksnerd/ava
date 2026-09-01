@@ -56,15 +56,6 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	}
 
 	text := strings.TrimSpace(string(out))
-
-	// Writing OutputPath is for debugging/caching; a failure here doesn't
-	// invalidate an otherwise-successful transcription, so it's reported
-	// rather than returned as an error (matching pkg/stt/mlx).
-	if opts.OutputPath != "" {
-		if err := os.WriteFile(opts.OutputPath, []byte(text), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)
-		}
-	}
-
+	stt.WriteOutputIfRequested(opts, text)
 	return text, nil
 }

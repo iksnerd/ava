@@ -1,7 +1,7 @@
 // Package realtime wraps realtime.py, the Python/MLX realtime
 // transcription primitive under voxtral/, the same way pkg/stt/whisper
 // wraps whisper-cli. Used only by cmd/voice-monitor — a different,
-// independent thing from pkg/stt/mlx (the HTTP client for local-whisper
+// independent thing from pkg/mlx (the HTTP client for local-whisper
 // -engine voxtral): same underlying model family, different local
 // architecture. Don't confuse the two.
 package realtime

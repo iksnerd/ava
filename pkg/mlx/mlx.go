@@ -1,9 +1,12 @@
 // Package mlx is an HTTP client for the local mlx-engine server
-// (../../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device
-// via MLX. Not to be confused with pkg/stt/realtime, a different,
-// independent client that shells out to voxtral/realtime.py directly
-// (used by cmd/voice-monitor) — same underlying model family, two
-// different local architectures depending on which command you're
+// (../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device via
+// MLX. Lives at the top level, not nested under pkg/stt, because the
+// server it wraps serves TTS as much as STT — this package just happens
+// to only expose Transcribe() today; a future Speak() would belong here
+// too, not in a new package. Not to be confused with pkg/stt/realtime, a
+// different, independent client that shells out to voxtral/realtime.py
+// directly (used by cmd/voice-monitor) — same underlying model family,
+// two different local architectures depending on which command you're
 // looking at.
 package mlx
 
@@ -107,14 +110,6 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 		return "", fmt.Errorf("failed to parse server response: %w", err)
 	}
 
-	// Write the output to OutputPath for debugging/caching if requested. A
-	// write failure here doesn't invalidate an otherwise-successful
-	// transcription, so it's reported rather than returned as an error.
-	if opts.OutputPath != "" {
-		if err := os.WriteFile(opts.OutputPath, []byte(response.Text), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)
-		}
-	}
-
+	stt.WriteOutputIfRequested(opts, response.Text)
 	return response.Text, nil
 }
