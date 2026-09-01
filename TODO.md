@@ -19,6 +19,29 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Removed `voxtral/stt.py` too — same dead-code profile as `tts.py` below:
+  confirmed zero callers anywhere (not wrapped in Go since the earlier
+  `Client.Transcribe` removal, no shell script invokes it, no doc gave it
+  as a real workflow). Its underlying one-shot Voxtral Mini 3B model was a
+  road not taken for `local-whisper -engine voxtral`, which went with
+  `pkg/mlxengine`'s HTTP-server architecture instead (see
+  `voxtral-migration.md`) — same reasoning as `tts.py`.
+- Renamed `pkg/voxtral` → `pkg/realtimestt`. Its only remaining surface
+  after the `Transcribe`/`Speak` and now `stt.py` removals is
+  `StreamRealtime`/`ListInputDevices` — a subprocess wrapper around
+  `voxtral/realtime.py`, used only by `cmd/voice-monitor`. The old name
+  was actively causing bugs: `AGENTS.md` had it backwards in ~4 places,
+  describing `pkg/voxtral` as "the mlx-engine HTTP client" — that's
+  actually `pkg/mlxengine`'s job (confirmed via `pkg/mlxengine.Client`'s
+  actual methods). Rename was well-contained: only one Go file imports
+  each of `pkg/realtimestt` (`cmd/voice-monitor/main.go`) and
+  `pkg/mlxengine` (`cmd/local-whisper/main.go`). `voxtral-migration.md`'s
+  own "Phase 3" line describing `pkg/voxtral/voxtral.go` as "HTTP client
+  posting audio to /transcribe" was **not** touched — that's accurate
+  history (that package really was the HTTP client at that phase, before
+  it was renamed to `pkg/mlxengine` and `voxtral` got reused for
+  `cmd/voice-monitor`'s later, differently-purposed package) — not a bug
+  to retroactively fix in a design record.
 - Removed `voxtral/tts.py` too (follow-up to the `Client.Transcribe`/`Speak`
   removal below, which had left it as "untouched, still independently
   runnable"). Confirmed Kokoro (via `mlx-engine`) is the only TTS engine

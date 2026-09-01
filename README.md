@@ -197,7 +197,7 @@ internal/
   └── procutil/        - shared subprocess/signal helpers
 pkg/whisper/            - whisper.cpp subprocess wrapper (-engine whisper)
 pkg/mlxengine/          - mlx-engine HTTP client (-engine voxtral)
-pkg/voxtral/            - voxtral/ Python primitives subprocess wrapper (cmd/voice-monitor)
+pkg/realtimestt/        - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
 mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
 voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
 scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)

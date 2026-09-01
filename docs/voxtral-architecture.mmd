@@ -17,31 +17,26 @@ flowchart TB
     subgraph new["New this change - Voxtral MLX primitives"]
         direction TB
 
-        subgraph go_new["pkg/voxtral (Go, stdlib only)"]
+        subgraph go_new["pkg/realtimestt (Go, stdlib only)"]
             grt["StreamRealtime()\nlong-lived exec realtime.py,\nstdout JSON lines"]
         end
 
         subgraph py_new["voxtral/ (Python uv project, MLX)"]
-            stt_py["stt.py\nVoxtral Mini 3B\none-shot transcribe"]
             hpf["HighPassFilter\n(--highpass-hz, default 80Hz)\nstateful scipy sosfilt"]
             rt_py["realtime.py\n--engine voxtral|whisper\nstreaming transcribe"]
             diar_py["Sortformer diarization\n(--diarize, whisper engine only)"]
         end
 
-        mic2[("🎤 Mic\n(push-to-talk\nvia internal/recording)")]
         mic3[("🎤 Mic (default)\nor BlackHole loopback\n(--device, captures call audio\n- remote participants only)")]
 
-        mw3b[("mlx-community/\nVoxtral-Mini-3B-2507-bf16")]
         mw4brt[("mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit\nOR whisper-large-v3-turbo\n(--engine, 99+ languages incl. Bulgarian)")]
         mdiar[("mlx-community/\ndiar_sortformer_4spk-v1-fp32")]
 
         grt --> rt_py
 
-        mic2 --> stt_py
         mic3 -.->|sd.InputStream, --device| hpf --> rt_py
         rt_py -.->|same filtered chunk| diar_py
 
-        mw3b -.-> stt_py
         mw4brt -.-> rt_py
         mdiar -.-> diar_py
 

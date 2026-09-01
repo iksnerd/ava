@@ -1,4 +1,4 @@
-package voxtral
+package realtimestt
 
 import (
 	"os"

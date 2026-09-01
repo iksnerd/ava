@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 
 	"local-whisper/internal/procutil"
-	"local-whisper/pkg/voxtral"
+	"local-whisper/pkg/realtimestt"
 )
 
 func orDefault(s, def string) string {
@@ -212,7 +212,7 @@ func main() {
 	listDevices := flag.Bool("list-devices", false, "List available input devices and exit")
 	flag.Parse()
 
-	client := voxtral.NewClient(resolvePythonPath(*pythonPath, *voxtralDir), *voxtralDir)
+	client := realtimestt.NewClient(resolvePythonPath(*pythonPath, *voxtralDir), *voxtralDir)
 
 	if *listDevices {
 		out, err := client.ListInputDevices()
@@ -245,7 +245,7 @@ func main() {
 	fmt.Println("🎧 Starting Voxtral Realtime monitor...")
 	fmt.Printf("📝 Logging transcript to: %s\n", resolvedLog)
 
-	realtimeOpts := voxtral.RealtimeOptions{
+	realtimeOpts := realtimestt.RealtimeOptions{
 		Device:     *device,
 		Engine:     *engine,
 		Model:      *sttModel,
@@ -256,7 +256,7 @@ func main() {
 
 	var lastSpeaker string
 
-	stop, err := client.StreamRealtime(realtimeOpts, func(delta voxtral.RealtimeDelta) {
+	stop, err := client.StreamRealtime(realtimeOpts, func(delta realtimestt.RealtimeDelta) {
 		switch delta.Event {
 		case "ready":
 			fmt.Printf("✅ Listening on: %s (engine: %s%s)\n", delta.Device, orDefault(delta.Engine, "voxtral"), languageSuffix(delta.Language))

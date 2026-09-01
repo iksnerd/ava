@@ -1,7 +1,7 @@
 // Package mlxengine is an HTTP client for the local mlx-engine server
 // (../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device via
-// MLX. Not to be confused with pkg/voxtral, a different, independent client
-// that shells out to the voxtral/ Python primitives directly (used by
+// MLX. Not to be confused with pkg/realtimestt, a different, independent
+// client that shells out to voxtral/realtime.py directly (used by
 // cmd/voice-monitor) — same underlying model family, two different local
 // architectures depending on which command you're looking at.
 package mlxengine

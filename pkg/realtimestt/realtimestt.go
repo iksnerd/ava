@@ -1,9 +1,10 @@
-// Package voxtral wraps realtime.py, the Python/MLX realtime-transcription
-// primitive under voxtral/, the same way pkg/whisper wraps whisper-cli.
-// (voxtral/ also has a one-shot stt.py script, invoked directly by
-// developers per SETUP.md — nothing in this repo calls it through Go, so
-// there's no wrapper for it here.)
-package voxtral
+// Package realtimestt wraps realtime.py, the Python/MLX realtime
+// transcription primitive under voxtral/, the same way pkg/whisper wraps
+// whisper-cli. Used only by cmd/voice-monitor — a different, independent
+// thing from pkg/mlxengine (the HTTP client for local-whisper -engine
+// voxtral): same underlying model family, different local architecture.
+// Don't confuse the two.
+package realtimestt
 
 import (
 	"bufio"
@@ -16,13 +17,13 @@ import (
 	"strings"
 )
 
-// Client shells out to the Voxtral MLX primitives.
+// Client shells out to voxtral/realtime.py.
 type Client struct {
 	PythonPath string // path to the venv's python3, e.g. voxtral/.venv/bin/python3 (see: uv sync in voxtral/)
-	ScriptDir  string // path to the voxtral/ directory containing stt.py, realtime.py
+	ScriptDir  string // path to the voxtral/ directory containing realtime.py
 }
 
-// NewClient creates a new Voxtral client.
+// NewClient creates a new realtime STT client.
 func NewClient(pythonPath, scriptDir string) *Client {
 	return &Client{
 		PythonPath: pythonPath,
