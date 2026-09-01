@@ -8,6 +8,15 @@ below), `cmd/voice-monitor` (realtime call-transcript monitor, see
 See each one's own README/SETUP for build/run instructions specific to it —
 this file covers the Go side.
 
+**Basic vs. advanced engines**: `whisper.cpp` (STT) and Kokoro (TTS, via
+`mlx-engine/`) are the default, zero-extra-setup path — nothing to
+download beyond `make setup-model`/`make setup-deps`. Voxtral models
+(`-engine voxtral` for `local-whisper`, and `voice-monitor`'s realtime
+Voxtral path) are the advanced, opt-in tier: separately set up via `make
+setup-voxtral`, and even then only actually downloaded on first real use
+(`mlx-engine` lazy-loads its STT model per-endpoint). Don't assume Voxtral
+is available; the basic path always is.
+
 ## Build & Run
 
 ```bash
@@ -32,10 +41,10 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `internal/recording/` - Audio recording via sox, including peak normalization (`norm -3`) as part of the same sox invocation — capture already happens at `internal/audio`'s target rate/channels, so there's no separate resample/normalize pass
 - `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
-- `pkg/transcribe/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types
-- `pkg/whisper/` - whisper-cli subprocess wrapper (`local-whisper -engine whisper`, default)
-- `pkg/mlxengine/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`)
-- `pkg/realtimestt/` - a *different*, independent client from `pkg/mlxengine`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
+- `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` since nothing in this repo speaks Go to a TTS engine directly (see `pkg/stt`'s own doc comment)
+- `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper -engine whisper`, default)
+- `pkg/stt/mlx/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`)
+- `pkg/stt/realtime/` - a *different*, independent client from `pkg/stt/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
 - `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
 - `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `SETUP.md`
 - `scripts/` - dependency/model setup, plus the Claude Code voice hooks (see `docs/claude-code-voice-hooks.md`); `scripts/voice_hooks/` is its own `uv` project (flat scripts, no nested package, matching `voxtral/`'s pattern) holding the hooks' text processing (markdown stripping, sentence-aware truncation, Ollama summarization) — `hook-stop.sh`/`hook-notify.sh` stay thin bash entry points that shell out to it once per firing

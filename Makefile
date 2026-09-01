@@ -34,13 +34,13 @@ help:
 	@echo ""
 
 start-engine:
-	@bash scripts/voxtral-server.sh start
+	@bash scripts/mlx-engine-server.sh start
 
 stop-engine:
-	@bash scripts/voxtral-server.sh stop
+	@bash scripts/mlx-engine-server.sh stop
 
 status-engine:
-	@bash scripts/voxtral-server.sh status
+	@bash scripts/mlx-engine-server.sh status
 
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."
@@ -143,7 +143,7 @@ install-raycast: build setup-model
 	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
 	@echo "" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
 	@echo "cd \"$(abspath .)\" || exit 1" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
-	@echo "bash scripts/voxtral-server.sh start" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
+	@echo "bash scripts/mlx-engine-server.sh start" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
 	@echo "exec $(abspath $(BINARY_PATH)) --engine=voxtral" >> $(RAYCAST_DIR)/voxtral-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/voxtral-transcribe.sh
 
@@ -159,10 +159,10 @@ install-raycast: build setup-model
 	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/voxtral-toggle.sh
 	@echo "" >> $(RAYCAST_DIR)/voxtral-toggle.sh
 	@echo "cd \"$(abspath .)\" || exit 1" >> $(RAYCAST_DIR)/voxtral-toggle.sh
-	@echo "if [ -f /tmp/voxtral-server.pid ] && kill -0 \$$(cat /tmp/voxtral-server.pid) 2>/dev/null; then" >> $(RAYCAST_DIR)/voxtral-toggle.sh
-	@echo "  bash scripts/voxtral-server.sh stop > /dev/null && echo '🛑 Voxtral Server Stopped'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "if [ -f /tmp/mlx-engine-server.pid ] && kill -0 \$$(cat /tmp/mlx-engine-server.pid) 2>/dev/null; then" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "  bash scripts/mlx-engine-server.sh stop > /dev/null && echo '🛑 Voxtral Server Stopped'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
 	@echo "else" >> $(RAYCAST_DIR)/voxtral-toggle.sh
-	@echo "  bash scripts/voxtral-server.sh start > /dev/null && echo '🚀 Voxtral Server Started'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
+	@echo "  bash scripts/mlx-engine-server.sh start > /dev/null && echo '🚀 Voxtral Server Started'" >> $(RAYCAST_DIR)/voxtral-toggle.sh
 	@echo "fi" >> $(RAYCAST_DIR)/voxtral-toggle.sh
 	@chmod +x $(RAYCAST_DIR)/voxtral-toggle.sh
 

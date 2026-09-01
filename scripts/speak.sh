@@ -1,5 +1,5 @@
 #!/bin/bash
-# Speak text using the local Voxtral/Kokoro MLX server (scripts/voxtral-server.sh),
+# Speak text using the local Voxtral/Kokoro MLX server (scripts/mlx-engine-server.sh),
 # falling back to macOS's built-in `say` if the server can't be reached.
 #
 # Usage: speak.sh "text to speak" [voice]
@@ -128,7 +128,7 @@ speak_with_say_fallback() {
 
     if curl -s -f -m 2 "$SERVER/health" >/dev/null 2>&1; then
         speak_with_server || { [ "$STOPPED" = 1 ] || speak_with_say_fallback; }
-    elif bash "$SCRIPT_DIR/voxtral-server.sh" start >/tmp/claude-tts-server-start.log 2>&1; then
+    elif bash "$SCRIPT_DIR/mlx-engine-server.sh" start >/tmp/claude-tts-server-start.log 2>&1; then
         speak_with_server || { [ "$STOPPED" = 1 ] || speak_with_say_fallback; }
     else
         speak_with_say_fallback

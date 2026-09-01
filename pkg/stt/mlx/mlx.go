@@ -1,10 +1,11 @@
-// Package mlxengine is an HTTP client for the local mlx-engine server
-// (../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device via
-// MLX. Not to be confused with pkg/realtimestt, a different, independent
-// client that shells out to voxtral/realtime.py directly (used by
-// cmd/voice-monitor) — same underlying model family, two different local
-// architectures depending on which command you're looking at.
-package mlxengine
+// Package mlx is an HTTP client for the local mlx-engine server
+// (../../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device
+// via MLX. Not to be confused with pkg/stt/realtime, a different,
+// independent client that shells out to voxtral/realtime.py directly
+// (used by cmd/voice-monitor) — same underlying model family, two
+// different local architectures depending on which command you're
+// looking at.
+package mlx
 
 import (
 	"bytes"
@@ -17,7 +18,7 @@ import (
 	"os"
 	"time"
 
-	"local-whisper/pkg/transcribe"
+	"local-whisper/pkg/stt"
 )
 
 // Client wraps the local mlx-engine HTTP server.
@@ -42,7 +43,7 @@ type TranscribeResponse struct {
 }
 
 // Transcribe transcribes audio by sending it to the MLX Voxtral server
-func (c *Client) Transcribe(opts transcribe.Options) (string, error) {
+func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	// Open the audio file
 	file, err := os.Open(opts.AudioPath)
 	if err != nil {

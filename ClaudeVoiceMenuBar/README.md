@@ -220,7 +220,7 @@ A GUI app launched via LaunchServices/launchd (as this one is, once packaged
 — see the LaunchAgent note above) inherits a minimal PATH: just
 `/usr/bin:/bin:/usr/sbin:/sbin`, not Homebrew's `/opt/homebrew/bin` where
 `sox` lives. `Dictate` shells out to the `local-whisper` binary directly (no
-wrapping script to fix this the way `speak.sh`/`voxtral-server.sh` do via
+wrapping script to fix this the way `speak.sh`/`mlx-engine-server.sh` do via
 `lib.sh`), so it failed silently — the binary launched, its own dependency
 check couldn't find `sox` on `PATH`, and it exited immediately, with nothing
 surfaced since `Process.run()`'s error wasn't being read. `VoicePaths.hardenedEnvironment`

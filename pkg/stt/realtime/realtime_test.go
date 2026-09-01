@@ -1,4 +1,4 @@
-package realtimestt
+package realtime
 
 import (
 	"os"

@@ -12,9 +12,9 @@ import (
 	"local-whisper/internal/clipboard"
 	"local-whisper/internal/procutil"
 	"local-whisper/internal/recording"
-	"local-whisper/pkg/mlxengine"
-	"local-whisper/pkg/transcribe"
-	"local-whisper/pkg/whisper"
+	"local-whisper/pkg/stt"
+	"local-whisper/pkg/stt/mlx"
+	"local-whisper/pkg/stt/whisper"
 )
 
 const (
@@ -123,9 +123,9 @@ func main() {
 		fmt.Println("🧠 Transcribing audio...")
 	}
 
-	var transcriber transcribe.Client
+	var transcriber stt.Client
 	if *engine == "voxtral" {
-		transcriber = mlxengine.NewClient("") // Defaults to http://127.0.0.1:8765
+		transcriber = mlx.NewClient("") // Defaults to http://127.0.0.1:8765
 	} else {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
@@ -136,7 +136,7 @@ func main() {
 		transcriber = whisper.NewClient(modelPath)
 	}
 
-	text, transcribeErr := transcriber.Transcribe(transcribe.Options{
+	text, transcribeErr := transcriber.Transcribe(stt.Options{
 		AudioPath:     audioPath,
 		OutputPath:    filepath.Join(tmpDir, "prompt.txt"),
 		ContextPrompt: contextPrompt,
@@ -250,11 +250,11 @@ func checkDependencies(engine, voxtralHealthURL string) error {
 		client := &http.Client{Timeout: 1 * time.Second}
 		res, err := client.Get(voxtralHealthURL)
 		if err != nil {
-			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/voxtral-server.sh start")
+			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/mlx-engine-server.sh start")
 		}
 		defer res.Body.Close()
 		if res.StatusCode != 200 {
-			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/voxtral-server.sh start")
+			return fmt.Errorf("voxtral server is not running or model failed to load. Start it by running: bash scripts/mlx-engine-server.sh start")
 		}
 	}
 

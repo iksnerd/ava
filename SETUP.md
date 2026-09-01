@@ -3,10 +3,10 @@
 See `docs/voxtral-architecture.mmd` for the full architecture this fits into.
 
 ## Done
-- [x] `pkg/realtimestt` (Go wrapper around `realtime.py`) + `voxtral/` (MLX primitives: `realtime.py`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
+- [x] `pkg/stt/realtime` (Go wrapper around `realtime.py`) + `voxtral/` (MLX primitives: `realtime.py`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
 - [x] `cmd/voice-monitor` — serves live transcript at `localhost:8765` (SSE) and logs it to `/tmp/voice-input/transcript-<timestamp>.txt`
 - [x] BlackHole 2ch installed (`brew list --cask blackhole-2ch`) + Multi-Output Device ("Meet Recording") in Audio MIDI Setup, built from **MacBook Pro Speakers + BlackHole 2ch** (not Bluetooth/AirPods — see gotcha below)
-- [x] Dual STT engine in `realtime.py`/`pkg/realtimestt`: `--engine voxtral` (default, <500ms, 13 languages) or `--engine whisper` (multilingual, 99+ languages, ~1s latency)
+- [x] Dual STT engine in `realtime.py`/`pkg/stt/realtime`: `--engine voxtral` (default, <500ms, 13 languages) or `--engine whisper` (multilingual, 99+ languages, ~1s latency)
 - [x] `--diarize` — tags transcript deltas with `[Speaker N]` via Sortformer (mlx-audio, no extra dep), whisper engine only
 - [x] `--highpass-hz` (default 80Hz) — cuts low-frequency rumble/bass before STT/diarization; important because BlackHole loopback audio runs much quieter than mic input, so noise floor matters more
 - [x] End-to-end confirmed working against a real Bulgarian Meet call, with speaker labels

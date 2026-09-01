@@ -103,6 +103,11 @@ local-whisper -dir ~/projects/app -lang en -model base -output transcript.txt
 
 ## Voice Engines
 
+`whisper` is the basic, default path — zero extra setup beyond
+[Getting Started](#getting-started) above. `voxtral` is the advanced,
+opt-in tier: separately set up (`make setup-voxtral`), and its model only
+actually downloads on first real use.
+
 | | `whisper` (default) | `voxtral` |
 |---|---|---|
 | Setup | `brew install whisper-cpp`, nothing else | Needs `mlx-engine/` running — see below |
@@ -111,7 +116,7 @@ local-whisper -dir ~/projects/app -lang en -model base -output transcript.txt
 | Accuracy | ~10% WER (Whisper Large-v3-class) | ~4% WER, better with technical vocabulary |
 | `.whisper-context` vocabulary hints | Yes | Not yet — see Known gap |
 
-To use Voxtral: start the server once (`bash scripts/voxtral-server.sh start`,
+To use Voxtral: start the server once (`bash scripts/mlx-engine-server.sh start`,
 or just run `local-whisper -engine voxtral` — it starts automatically),
 then `local-whisper -engine voxtral`. Full detail on the server, its models,
 and its HTTP API: [`mlx-engine/README.md`](mlx-engine/README.md).
@@ -170,9 +175,9 @@ make setup-model
 
 **"voxtral server is not running or model failed to load"**
 ```bash
-bash scripts/voxtral-server.sh start   # or: status / stop
+bash scripts/mlx-engine-server.sh start   # or: status / stop
 ```
-Check `/tmp/voxtral-server.log` if it doesn't come up. Full troubleshooting: [`mlx-engine/README.md`](mlx-engine/README.md).
+Check `/tmp/mlx-engine-server.log` if it doesn't come up. Full troubleshooting: [`mlx-engine/README.md`](mlx-engine/README.md).
 
 ## Documentation
 
@@ -195,9 +200,10 @@ internal/
   ├── clipboard/       - Clipboard & paste operations
   ├── recording/       - Audio recording
   └── procutil/        - shared subprocess/signal helpers
-pkg/whisper/            - whisper.cpp subprocess wrapper (-engine whisper)
-pkg/mlxengine/          - mlx-engine HTTP client (-engine voxtral)
-pkg/realtimestt/        - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
+pkg/stt/                - Options/Client shape shared by the one-shot engines below
+pkg/stt/whisper/        - whisper.cpp subprocess wrapper (-engine whisper)
+pkg/stt/mlx/            - mlx-engine HTTP client (-engine voxtral)
+pkg/stt/realtime/       - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
 mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
 voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
 scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)

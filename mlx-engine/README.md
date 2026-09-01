@@ -20,7 +20,7 @@ Or via the parent project's process manager, which also handles PID
 tracking and idle shutdown:
 
 ```bash
-../scripts/voxtral-server.sh start   # or stop / status
+../scripts/mlx-engine-server.sh start   # or stop / status
 ```
 
 The STT model loads **lazily**, on first `/transcribe` request, so starting

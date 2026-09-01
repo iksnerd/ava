@@ -1,9 +1,9 @@
 #!/bin/bash
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 DIR="$ROOT_DIR"
-PID_FILE="/tmp/voxtral-server.pid"
-LOG_FILE="/tmp/voxtral-server.log"
-START_LOCKDIR="/tmp/voxtral-server-start.lockdir"
+PID_FILE="/tmp/mlx-engine-server.pid"
+LOG_FILE="/tmp/mlx-engine-server.log"
+START_LOCKDIR="/tmp/mlx-engine-server-start.lockdir"
 START_LOCK_STALE_SEC=30
 
 # Multiple Claude Code sessions can all find the server down at once and race
@@ -43,7 +43,7 @@ case "$1" in
         trap release_start_lock EXIT
 
         if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-            echo "✅ Voxtral server is already running (PID: $(cat "$PID_FILE"))"
+            echo "✅ mlx-engine server is already running (PID: $(cat "$PID_FILE"))"
             exit 0
         fi
         if curl -s -f http://127.0.0.1:8765/health > /dev/null 2>&1; then
@@ -77,7 +77,7 @@ case "$1" in
     stop)
         if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
             PID=$(cat "$PID_FILE")
-            echo "🛑 Stopping Voxtral server (PID: $PID)..."
+            echo "🛑 Stopping mlx-engine server (PID: $PID)..."
             kill -9 "$PID"
         else
             echo "⚠️ Server is not running (per PID file)."
@@ -92,9 +92,9 @@ case "$1" in
         ;;
     status)
         if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-            echo "🟢 Voxtral server is RUNNING (PID: $(cat "$PID_FILE"))"
+            echo "🟢 mlx-engine server is RUNNING (PID: $(cat "$PID_FILE"))"
         else
-            echo "🔴 Voxtral server is STOPPED"
+            echo "🔴 mlx-engine server is STOPPED"
         fi
         ;;
     *)

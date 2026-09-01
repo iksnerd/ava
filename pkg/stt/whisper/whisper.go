@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"local-whisper/pkg/transcribe"
+	"local-whisper/pkg/stt"
 )
 
 // Client wraps the whisper-cli command-line tool
@@ -26,7 +26,7 @@ func NewClient(modelPath string) *Client {
 // Transcribe transcribes audio using whisper-cli. With -nt (no timestamps)
 // and no -otxt/-of, whisper-cli's stdout is exactly the transcript, so it's
 // captured directly rather than round-tripped through a file on disk.
-func (c *Client) Transcribe(opts transcribe.Options) (string, error) {
+func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	// Check if model exists
 	if _, err := os.Stat(c.ModelPath); err != nil {
 		modelFile := filepath.Base(c.ModelPath)
@@ -59,7 +59,7 @@ func (c *Client) Transcribe(opts transcribe.Options) (string, error) {
 
 	// Writing OutputPath is for debugging/caching; a failure here doesn't
 	// invalidate an otherwise-successful transcription, so it's reported
-	// rather than returned as an error (matching pkg/mlxengine).
+	// rather than returned as an error (matching pkg/stt/mlx).
 	if opts.OutputPath != "" {
 		if err := os.WriteFile(opts.OutputPath, []byte(text), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)

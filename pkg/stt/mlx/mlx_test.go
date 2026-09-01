@@ -1,4 +1,4 @@
-package mlxengine
+package mlx
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/pkg/transcribe"
+	"local-whisper/pkg/stt"
 )
 
 const fixtureAudioPath = "testdata/audio.wav"
@@ -78,7 +78,7 @@ func TestTranscribeSuccess(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "out.txt")
 	c := NewClient(srv.URL)
 
-	text, err := c.Transcribe(transcribe.Options{
+	text, err := c.Transcribe(stt.Options{
 		AudioPath:  fixtureAudioPath,
 		OutputPath: outputPath,
 		Language:   "en",
@@ -126,7 +126,7 @@ func TestTranscribeOmitsLanguageQueryParamWhenEmpty(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	if _, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath}); err != nil {
+	if _, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath}); err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestTranscribeServerNon200(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	_, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath})
+	_, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath})
 	if err == nil {
 		t.Fatal("expected an error for a non-200 response")
 	}
@@ -160,7 +160,7 @@ func TestTranscribeMalformedJSON(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	_, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath})
+	_, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath})
 	if err == nil || !strings.Contains(err.Error(), "failed to parse server response") {
 		t.Errorf("err = %v, want a JSON parse error", err)
 	}
@@ -172,7 +172,7 @@ func TestTranscribeServerUnreachable(t *testing.T) {
 	srv.Close() // nothing listens here anymore
 
 	c := NewClient(url)
-	_, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath})
+	_, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath})
 	if err == nil || !strings.Contains(err.Error(), "is the mlx-engine running") {
 		t.Errorf("err = %v, want a connection-failure hint", err)
 	}
@@ -180,7 +180,7 @@ func TestTranscribeServerUnreachable(t *testing.T) {
 
 func TestTranscribeMissingAudioFile(t *testing.T) {
 	c := NewClient("http://127.0.0.1:0")
-	_, err := c.Transcribe(transcribe.Options{AudioPath: filepath.Join(t.TempDir(), "missing.wav")})
+	_, err := c.Transcribe(stt.Options{AudioPath: filepath.Join(t.TempDir(), "missing.wav")})
 	if err == nil || !strings.Contains(err.Error(), "failed to open audio file") {
 		t.Errorf("err = %v, want a file-open error", err)
 	}
@@ -198,7 +198,7 @@ func TestTranscribeOutputWriteFailureIsNonFatal(t *testing.T) {
 	// A path under a nonexistent directory: os.WriteFile can't create it.
 	badOutputPath := filepath.Join(t.TempDir(), "no-such-dir", "out.txt")
 
-	text, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath, OutputPath: badOutputPath})
+	text, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath, OutputPath: badOutputPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v, want nil despite the bad OutputPath", err)
 	}
@@ -214,7 +214,7 @@ func TestTranscribeNoOutputPathSkipsWrite(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	text, err := c.Transcribe(transcribe.Options{AudioPath: fixtureAudioPath})
+	text, err := c.Transcribe(stt.Options{AudioPath: fixtureAudioPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
 	}

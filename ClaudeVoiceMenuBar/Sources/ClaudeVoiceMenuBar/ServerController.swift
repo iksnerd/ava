@@ -1,6 +1,6 @@
 import Foundation
 
-/// Talks to the mlx-engine server (scripts/voxtral-server.sh) purely to show
+/// Talks to the mlx-engine server (scripts/mlx-engine-server.sh) purely to show
 /// status and offer start/stop from the menu — the hooks/speak.sh already
 /// auto-start it on demand, this is just visibility + a manual override.
 @MainActor
@@ -53,14 +53,14 @@ final class ServerController: ObservableObject {
 
     func start() {
         status = .starting
-        runScript("voxtral-server.sh", "start") { [weak self] _ in
+        runScript("mlx-engine-server.sh", "start") { [weak self] _ in
             Task { @MainActor in await self?.forceRefresh() }
         }
     }
 
     func stop() {
         status = .stopping
-        runScript("voxtral-server.sh", "stop") { [weak self] _ in
+        runScript("mlx-engine-server.sh", "stop") { [weak self] _ in
             Task { @MainActor in await self?.forceRefresh() }
         }
     }

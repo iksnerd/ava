@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"local-whisper/internal/testutil"
-	"local-whisper/pkg/transcribe"
+	"local-whisper/pkg/stt"
 )
 
 const fixtureModelPath = "testdata/model.bin"
@@ -24,7 +24,7 @@ func TestNewClient(t *testing.T) {
 func TestTranscribeModelNotFound(t *testing.T) {
 	client := NewClient("/nonexistent/model.bin")
 
-	_, err := client.Transcribe(transcribe.Options{
+	_, err := client.Transcribe(stt.Options{
 		AudioPath:     "/tmp/audio.wav",
 		OutputPath:    "/tmp/output.txt",
 		ContextPrompt: ".",
@@ -51,7 +51,7 @@ func TestTranscribeSuccess(t *testing.T) {
 	t.Setenv("WHISPER_LOG", logPath)
 
 	client := NewClient(fixtureModelPath)
-	text, err := client.Transcribe(transcribe.Options{
+	text, err := client.Transcribe(stt.Options{
 		AudioPath:     audioPath,
 		OutputPath:    outputPath,
 		ContextPrompt: "some context",
@@ -96,7 +96,7 @@ func TestTranscribeTrimsWhisperCliOutput(t *testing.T) {
 	t.Setenv("WHISPER_FIXTURE_TEXT", "\n  padded transcript  \n")
 
 	client := NewClient(fixtureModelPath)
-	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath})
+	text, err := client.Transcribe(stt.Options{AudioPath: audioPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
 	}
@@ -113,7 +113,7 @@ func TestTranscribeNoOutputPathSkipsWrite(t *testing.T) {
 	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
 
 	client := NewClient(fixtureModelPath)
-	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath})
+	text, err := client.Transcribe(stt.Options{AudioPath: audioPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
 	}
@@ -135,7 +135,7 @@ func TestTranscribeOutputWriteFailureIsNonFatal(t *testing.T) {
 	badOutputPath := filepath.Join(dir, "no-such-dir", "out.txt")
 
 	client := NewClient(fixtureModelPath)
-	text, err := client.Transcribe(transcribe.Options{AudioPath: audioPath, OutputPath: badOutputPath})
+	text, err := client.Transcribe(stt.Options{AudioPath: audioPath, OutputPath: badOutputPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v, want nil despite the bad OutputPath", err)
 	}
@@ -152,7 +152,7 @@ func TestTranscribeCommandFailure(t *testing.T) {
 	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
 
 	client := NewClient(fixtureModelPath)
-	_, err := client.Transcribe(transcribe.Options{
+	_, err := client.Transcribe(stt.Options{
 		AudioPath:  audioPath,
 		OutputPath: filepath.Join(dir, "prompt.txt"),
 	})

@@ -19,6 +19,43 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Restructured the Go STT engines under a single `pkg/stt/` hierarchy:
+  `pkg/transcribe`→`pkg/stt` (the shared `Options`/`Client` contract),
+  `pkg/whisper`→`pkg/stt/whisper`, `pkg/mlxengine`→`pkg/stt/mlx`,
+  `pkg/realtimestt`→`pkg/stt/realtime` (that one was `pkg/voxtral` just
+  two commits ago — this consolidates it further now that the domain
+  grouping exists). No `pkg/tts` created: confirmed zero Go TTS/synthesis
+  code exists (`internal/ttscontrol` only cancels in-flight speech, a Go
+  port of `stop-speaking.sh`'s marker protocol — it never synthesizes
+  anything; all real TTS goes through `scripts/speak.sh` curling
+  `mlx-engine`'s `/speak`), so an empty package would've been speculative
+  structure — documented instead, in `pkg/stt`'s own doc comment.
+- Renamed `scripts/voxtral-server.sh` → `scripts/mlx-engine-server.sh` —
+  another instance of the same bug class as the `pkg/voxtral` rename: the
+  script never touched `voxtral/` at all, it manages **`mlx-engine`**
+  (`cd`s into `mlx-engine/`; its own PID/log files were literally
+  `voxtral-server.pid`/`.log`). Updated every referrer: `Makefile`
+  (`start-engine`/`stop-engine`/`status-engine` targets, and the
+  generated Raycast `voxtral-toggle.sh`'s PID-file check — that generated
+  script's own name/title stay put, they're about the `-engine voxtral`
+  choice, not this server script), `scripts/speak.sh`,
+  `cmd/local-whisper/main.go`'s error strings, `ServerController.swift`,
+  and doc mentions (`README.md` — including a log-path reference in
+  Troubleshooting that would've silently gone stale — `AGENTS.md`,
+  `mlx-engine/README.md`, `ClaudeVoiceMenuBar/README.md`,
+  `docs/claude-code-voice-hooks.md`).
+- Left `voxtral/` (the Python directory), `--voxtral-dir`,
+  `make setup-voxtral`, and `scripts/setup-voxtral.sh` alone, deliberately
+  — decided the basic/advanced framing below makes "voxtral" a *correct*
+  label for these (the thing you opt into for the advanced tier), unlike
+  the server script, which was actively wrong. Renaming these would've
+  been pure churn fixing nothing.
+- Made the "basic vs. advanced" engine framing explicit in `CLAUDE.md`,
+  `AGENTS.md`, and `README.md`'s Voice Engines section: `whisper.cpp` +
+  Kokoro are the default, zero-setup path; Voxtral models are the
+  opt-in advanced tier (`make setup-voxtral`, lazy-loaded on first real
+  use). This was already true mechanically before today — this pass
+  just says so in the docs instead of leaving it implicit.
 - Removed `voxtral/stt.py` too — same dead-code profile as `tts.py` below:
   confirmed zero callers anywhere (not wrapped in Go since the earlier
   `Client.Transcribe` removal, no shell script invokes it, no doc gave it

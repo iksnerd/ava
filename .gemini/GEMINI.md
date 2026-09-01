@@ -15,7 +15,7 @@ make clean        # Remove bin/
 - `internal/recording/` - Audio recording via sox
 - `internal/audio/` - Audio normalization/processing
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
-- `pkg/whisper/` - whisper-cli wrapper
+- `pkg/stt/whisper/` - whisper-cli wrapper
 - `scripts/` - Setup scripts for dependencies and model download
 
 ## Conventions

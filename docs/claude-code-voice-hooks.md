@@ -42,7 +42,7 @@ regardless of how long the actual speech takes.
 | `hook-stop.sh` | Extracts Claude's last message from the transcript, then speaks it — see below for the length/summary logic |
 | `voice_hooks/` | `uv`-managed Python package (flat scripts, no nested package — same pattern as `../voxtral/`): markdown stripping, `pysbd`-based sentence-boundary truncation, and Ollama summarization (`httpx`). `hook-stop.sh`/`hook-notify.sh` each shell out to it exactly once per firing via `lib.sh`'s `voice_hooks_run`. First-time setup: `make setup-voice-hooks`. |
 | `repo-name.sh` | Resolves a `cwd` to a short repo/folder name |
-| `voxtral-server.sh` | Start/stop/status for the `mlx-engine` server — atomic start-lock so concurrent sessions can't double-spawn it |
+| `mlx-engine-server.sh` | Start/stop/status for the `mlx-engine` server — atomic start-lock so concurrent sessions can't double-spawn it |
 
 ## Settings
 
