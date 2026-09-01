@@ -106,3 +106,42 @@ speak_hook_message() {
     fi
     "$SPEAK" "$msg"
 }
+
+# server_pidfile_alive <pidfile> -> 0 if <pidfile> exists and names a live
+# process, 1 otherwise. Shared by any script that tracks a background
+# server via a PID file (currently mlx-engine-server.sh's start/stop/status,
+# which each need this exact check — previously repeated inline 3 times).
+server_pidfile_alive() {
+    local pidfile="$1"
+    [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null
+}
+
+# server_lock_acquire <lockdir> <stale_sec> -> atomically acquires a mutual-
+# exclusion lock via mkdir (atomic on POSIX filesystems), waiting up to ~10s
+# for a concurrent holder to finish. A lock older than <stale_sec> is
+# assumed abandoned (e.g. the process holding it crashed) and reclaimed.
+# Pair with server_lock_release <lockdir> — ideally via `trap ... EXIT` so a
+# crash mid-critical-section doesn't wedge it forever.
+server_lock_acquire() {
+    local lockdir="$1" stale_sec="$2"
+    local waited=0
+    while ! mkdir "$lockdir" 2>/dev/null; do
+        if [ -d "$lockdir" ]; then
+            local mtime age
+            mtime=$(stat -f %m "$lockdir" 2>/dev/null || echo 0)
+            age=$(( $(date +%s) - mtime ))
+            if [ "$age" -gt "$stale_sec" ]; then
+                rmdir "$lockdir" 2>/dev/null
+                continue
+            fi
+        fi
+        waited=$((waited + 1))
+        [ "$waited" -gt 50 ] && return 1 # ~10s
+        sleep 0.2
+    done
+    return 0
+}
+
+server_lock_release() {
+    rmdir "$1" 2>/dev/null
+}

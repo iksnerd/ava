@@ -19,6 +19,17 @@ urgent — see CLAUDE.md for the project overview.
 
 ## Done (2026-09-01)
 
+- Extracted `scripts/mlx-engine-server.sh`'s PID-file-alive check (the
+  exact `[ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null`
+  pattern was repeated identically in its `start`/`stop`/`status` cases —
+  real, present duplication within one file, not just hypothetical future
+  reuse) and its mkdir-based start lock into `scripts/lib.sh` as
+  `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release`,
+  following the repo's existing "one shared lib every script sources"
+  pattern rather than a new file. Verified the extraction safely against
+  fake PID files/lockdirs (alive PID, dead PID, missing file, stale-lock
+  reclaim) rather than against the real running mlx-engine server, since
+  a live one was already up and likely backing real TTS use.
 - Follow-up refinements to the `pkg/stt/` restructuring above, same day:
   - Moved `pkg/stt/mlx` → top-level `pkg/mlx`. `mlx-engine` (the server it
     wraps) serves TTS (Kokoro `/speak`) as much as STT (`/transcribe`), so
