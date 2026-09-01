@@ -26,7 +26,7 @@ sd.wait()
 print(f'peak={np.abs(rec).max():.6f} rms={np.sqrt(np.mean(rec**2)):.6f} non-zero={np.count_nonzero(rec)}/{rec.size}')
 "
 ```
-(Get `<blackhole-index>` from `bin/voice-monitor --list-devices` — it shifts when devices are added/removed, e.g. after unplugging/disconnecting AirPods.)
+(Get `<blackhole-index>` from `bin/voice-monitor devices` — it shifts when devices are added/removed, e.g. after unplugging/disconnecting AirPods.)
 
 ## Known finding: Bulgarian is not covered by any Voxtral model
 Checked all three model cards - none list Bulgarian:

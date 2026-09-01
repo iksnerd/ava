@@ -11,7 +11,7 @@ that speak session status out loud, and a menu bar app to tune it all.
 ## Features
 
 - **Local & Private**: transcription and speech synthesis both run on-device — no cloud, no external data transmission.
-- **Two transcription engines**: `whisper.cpp` (default, zero extra setup) or Voxtral via a local MLX server (`-engine voxtral`, higher accuracy — see [Voice Engines](#voice-engines) below).
+- **Two transcription engines**: `whisper.cpp` (default, zero extra setup) or Voxtral via a local MLX server (`--engine voxtral`, higher accuracy — see [Voice Engines](#voice-engines) below).
 - **Instant Recording**: starts recording immediately with audio feedback.
 - **Silence Detection**: stops after 2 seconds of silence (3% threshold).
 - **Context Awareness**: reads `.whisper-context` files for vocabulary hints (whisper engine).
@@ -58,7 +58,7 @@ Then in Raycast Settings:
 
 System Settings → Privacy & Security → Accessibility → add Terminal (or
 Raycast, or your editor). Without this, transcripts still land on the
-clipboard, they just won't auto-paste — `local-whisper -no-paste` skips this
+clipboard, they just won't auto-paste — `local-whisper --no-paste` skips this
 entirely.
 
 That's it — say something, it lands wherever your cursor is.
@@ -82,23 +82,31 @@ local-whisper
 ### Flags
 
 ```bash
-local-whisper -help
+local-whisper --help
 
-local-whisper -engine voxtral      # Use the Voxtral MLX engine instead of whisper.cpp
-local-whisper -model tiny          # Faster, ~74MB (whisper engine only)
-local-whisper -lang es             # Language code (en, es, fr, de, etc.)
-local-whisper -output file.txt     # Save to file
-local-whisper -no-paste            # Skip auto-paste
-local-whisper -no-sound            # Disable audio cues
-local-whisper -verbose=false       # No status messages
-local-whisper -context custom.txt  # Custom context file (whisper engine only — see Known gap below)
-local-whisper -dir /path/to/dir    # Change working directory
+local-whisper --engine voxtral      # Use the Voxtral MLX engine instead of whisper.cpp
+local-whisper --model tiny          # Faster, ~74MB (whisper engine only)
+local-whisper --lang es             # Language code (en, es, fr, de, etc.)
+local-whisper --output file.txt     # Save to file
+local-whisper --no-paste            # Skip auto-paste
+local-whisper --no-sound            # Disable audio cues
+local-whisper --verbose=false       # No status messages
+local-whisper --context custom.txt  # Custom context file (whisper engine only — see Known gap below)
+local-whisper --dir /path/to/dir    # Change working directory
 ```
 
 ### Combine Flags
 
 ```bash
-local-whisper -dir ~/projects/app -lang en -model base -output transcript.txt
+local-whisper --dir ~/projects/app --lang en --model base --output transcript.txt
+```
+
+### Engine server
+
+```bash
+local-whisper engine start   # Start the mlx-engine STT/TTS server in the background
+local-whisper engine status  # Check whether it's running
+local-whisper engine stop    # Stop it
 ```
 
 ## Voice Engines
@@ -116,12 +124,12 @@ actually downloads on first real use.
 | Accuracy | ~10% WER (Whisper Large-v3-class) | ~4% WER, better with technical vocabulary |
 | `.whisper-context` vocabulary hints | Yes | Not yet — see Known gap |
 
-To use Voxtral: start the server once (`bash scripts/mlx-engine-server.sh start`,
-or just run `local-whisper -engine voxtral` — it starts automatically),
-then `local-whisper -engine voxtral`. Full detail on the server, its models,
+To use Voxtral: start the server once (`local-whisper engine start`, or
+just run `local-whisper --engine voxtral` — it starts automatically),
+then `local-whisper --engine voxtral`. Full detail on the server, its models,
 and its HTTP API: [`mlx-engine/README.md`](mlx-engine/README.md).
 
-**Known gap**: `.whisper-context` vocabulary hints work under `-engine
+**Known gap**: `.whisper-context` vocabulary hints work under `--engine
 whisper` but aren't sent to the Voxtral server yet — see
 [`mlx-engine/README.md`](mlx-engine/README.md#known-limitation-whisper-context-doesnt-work-under--engine-voxtral).
 
@@ -157,7 +165,7 @@ echo "useEffect, useState, Redux, async, await" > .whisper-context
 
 **Sound/auto-paste not working**
 - Check Accessibility permissions (System Settings → Privacy & Security → Accessibility)
-- Try without auto-paste: `local-whisper -no-paste`
+- Try without auto-paste: `local-whisper --no-paste`
 
 **"Command not found: whisper-cli"**
 ```bash
@@ -171,11 +179,11 @@ make setup-model
 
 **Slow transcription**
 - First run loads the model (~5-10 seconds). Subsequent runs are faster.
-- Use tiny model for speed: `-model tiny` (whisper engine)
+- Use tiny model for speed: `--model tiny` (whisper engine)
 
 **"voxtral server is not running or model failed to load"**
 ```bash
-bash scripts/mlx-engine-server.sh start   # or: status / stop
+local-whisper engine start   # or: status / stop
 ```
 Check `/tmp/mlx-engine-server.log` if it doesn't come up. Full troubleshooting: [`mlx-engine/README.md`](mlx-engine/README.md).
 
@@ -200,9 +208,9 @@ internal/
   ├── recording/       - Audio recording
   └── procutil/        - shared subprocess/signal helpers
 pkg/stt/                - Options/Client shape shared by the one-shot engines below
-pkg/stt/whisper/        - whisper.cpp subprocess wrapper (-engine whisper)
+pkg/stt/whisper/        - whisper.cpp subprocess wrapper (--engine whisper)
 pkg/stt/realtime/       - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
-pkg/mlx/                - mlx-engine HTTP client (-engine voxtral) — not nested under
+pkg/mlx/                - mlx-engine HTTP client (--engine voxtral) — not nested under
                           pkg/stt since mlx-engine serves TTS as much as STT
 mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
 voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)

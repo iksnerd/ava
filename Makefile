@@ -33,14 +33,14 @@ help:
 	@echo "  make clean              - Remove bin/ directory"
 	@echo ""
 
-start-engine:
-	@bash scripts/mlx-engine-server.sh start
+start-engine: build
+	@$(BINARY_PATH) engine start
 
-stop-engine:
-	@bash scripts/mlx-engine-server.sh stop
+stop-engine: build
+	@$(BINARY_PATH) engine stop
 
-status-engine:
-	@bash scripts/mlx-engine-server.sh status
+status-engine: build
+	@$(BINARY_PATH) engine status
 
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."

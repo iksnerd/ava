@@ -11,11 +11,13 @@ this file covers the Go side.
 **Basic vs. advanced engines**: `whisper.cpp` (STT) and Kokoro (TTS, via
 `mlx-engine/`) are the default, zero-extra-setup path — nothing to
 download beyond `make setup-model`/`make setup-deps`. Voxtral models
-(`-engine voxtral` for `local-whisper`, and `voice-monitor`'s realtime
+(`--engine voxtral` for `local-whisper`, and `voice-monitor`'s realtime
 Voxtral path) are the advanced, opt-in tier: separately set up via `make
 setup-voxtral`, and even then only actually downloaded on first real use
 (`mlx-engine` lazy-loads its STT model per-endpoint). Don't assume Voxtral
-is available; the basic path always is.
+is available; the basic path always is. Start/stop/check the mlx-engine
+server with `local-whisper engine start`/`stop`/`status` (or the
+equivalent `make start-engine`/`stop-engine`/`status-engine` targets).
 
 ## Build & Run
 
@@ -28,7 +30,7 @@ make fmt                  # gofmt + ruff format (mlx-engine/, voxtral/, scripts/
 make fmt-check            # Same, but check-only — no writes (CI-safe)
 make lint                  # vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
 make clean                # Remove bin/
-make start-engine          # Start mlx-engine (needed for local-whisper -engine voxtral)
+make start-engine          # Start mlx-engine (needed for local-whisper --engine voxtral)
 make setup-voice-hooks     # Create the venv for scripts/voice_hooks/ (needed before hook-stop.sh/hook-notify.sh can summarize/truncate)
 ```
 
@@ -42,8 +44,8 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
 - `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` since nothing in this repo speaks Go to a TTS engine directly (see `pkg/stt`'s own doc comment)
-- `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper -engine whisper`, default)
-- `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper -engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
+- `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper --engine whisper`, default)
+- `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper --engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
 - `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
 - `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
 - `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `SETUP.md`
@@ -52,7 +54,7 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 ## Conventions
 
-- **stdlib only** - No third-party Go dependencies. `voxtral/` is external Python/MLX tooling shelled out to via `os/exec`, same as whisper-cli/sox — not a Go dependency. (The Python/Swift components have their own dependency managers — `uv` and SwiftPM respectively.)
+- **Minimal Go dependencies** - `github.com/spf13/cobra` (CLI command/flag framework) is the only third-party Go dependency, used by both `cmd/local-whisper` and `cmd/voice-monitor` for their command trees. `voxtral/` is external Python/MLX tooling shelled out to via `os/exec`, same as whisper-cli/sox — not a Go dependency. (The Python/Swift components have their own dependency managers — `uv` and SwiftPM respectively.) Each binary's cobra wiring lives in its own `cmd/<binary>/` directory: `main.go` just calls `Execute()`, `root.go` builds the root command, and each subcommand (e.g. `engine.go`, `devices.go`) is its own file with a `newXCmd()` constructor.
 - **macOS-specific** - Uses `afplay`, `pbcopy`, AppleScript, sox, whisper-cli, MLX (Apple Silicon only)
 - **Error handling** - Return errors up; `fmt.Fprintf(os.Stderr, ...)` + `os.Exit(1)` at top level
 - **Resource cleanup** - Always check `os.Open`/HTTP response errors and `defer Close()`

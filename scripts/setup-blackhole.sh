@@ -44,7 +44,7 @@ echo "     (this is what lets you still HEAR the call while BlackHole captures i
 echo "  5. Leave Google Meet's audio output on System Default so it plays through it"
 echo ""
 echo "Find BlackHole's device index/name with:"
-echo "  make build-voice-monitor && bin/voice-monitor --list-devices"
+echo "  make build-voice-monitor && bin/voice-monitor devices"
 echo ""
 echo "Then watch a call live at http://localhost:8765 with:"
 echo "  bin/voice-monitor --device BlackHole"
