@@ -75,6 +75,38 @@ voice_is_muted() {
     [ "$(config_get_bool muted false)" = "true" ]
 }
 
+# config_set_bool <jsonKey> <true|false> -> persists a bool into the live
+# config file, merging with whatever's already there (creating the file/its
+# parent dir on first write) so unrelated keys are untouched. The shell-side
+# counterpart to VoiceSettings.swift's save() — lets mlx-engine-server.sh
+# flip engineAutoStart without any help from the Swift app, and
+# VoiceSettings picks the change up on its own via its external-change poll.
+config_set_bool() {
+    local key="$1" value="$2"
+    python3 -c "
+import json, os, sys
+path, key, value = sys.argv[1], sys.argv[2], sys.argv[3] == 'true'
+os.makedirs(os.path.dirname(path), exist_ok=True)
+try:
+    with open(path) as f:
+        cfg = json.load(f)
+except Exception:
+    cfg = {}
+cfg[key] = value
+with open(path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+" "$VOICE_CONFIG_FILE" "$key" "$value"
+}
+
+# voice_engine_autostart_enabled -> false once the user has explicitly
+# stopped the mlx-engine server (menu bar Stop, or `local-whisper engine
+# stop`), until they explicitly start it again. Lets speak.sh's on-demand
+# auto-start (see below) tell "never started" apart from "user turned it
+# off" instead of always reviving the server the instant a hook fires.
+voice_engine_autostart_enabled() {
+    [ "$(config_get_bool engineAutoStart true)" = "true" ]
+}
+
 VOICE_HOOKS_PROJECT="$SCRIPT_DIR/voice_hooks"
 
 # voice_hooks_run <script.py> [args...] -> runs a scripts/voice_hooks/ CLI

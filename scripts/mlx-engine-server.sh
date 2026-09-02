@@ -8,6 +8,13 @@ START_LOCK_STALE_SEC=30
 
 case "$1" in
     start)
+        # An explicit start (menu bar Start, or `local-whisper engine
+        # start`) re-arms speak.sh's on-demand auto-start for future hook
+        # firings — see voice_engine_autostart_enabled in lib.sh. Set
+        # unconditionally, before any of this case's early exits, since
+        # every one of them means "the server is/will be up" in some form.
+        config_set_bool engineAutoStart true
+
         # Multiple Claude Code sessions can all find the server down at once
         # and race to start it — this lock ensures only one actually does,
         # while the rest wait for it to finish instead of double-spawning or
@@ -51,6 +58,12 @@ case "$1" in
         exit 1
         ;;
     stop)
+        # A deliberate stop means "keep it off" — disarm speak.sh's
+        # on-demand auto-start so the next Notification/Stop hook doesn't
+        # silently bring the server right back up. See
+        # voice_engine_autostart_enabled in lib.sh.
+        config_set_bool engineAutoStart false
+
         if server_pidfile_alive "$PID_FILE"; then
             PID=$(cat "$PID_FILE")
             echo "🛑 Stopping mlx-engine server (PID: $PID)..."

@@ -11,6 +11,15 @@ struct VoiceConfig: Codable, Equatable {
     var stopMaxChars: Int = 600
     var notifyMaxChars: Int = 500
     var llmSummary: Bool = false
+    // False once the user has explicitly stopped the mlx-engine server
+    // (Stop below, or `local-whisper engine stop`) — until they explicitly
+    // start it again, this tells speak.sh's on-demand auto-start (hooks)
+    // not to silently bring the server back up. Flipped by
+    // scripts/mlx-engine-server.sh itself (see config_set_bool in lib.sh),
+    // not by this app directly — ServerController.stop()/start() just run
+    // that script, and VoiceSettings picks the resulting change up like any
+    // other external edit (reloadIfChangedOnDisk).
+    var engineAutoStart: Bool = true
 }
 
 /// English Kokoro voices bundled in the already-downloaded

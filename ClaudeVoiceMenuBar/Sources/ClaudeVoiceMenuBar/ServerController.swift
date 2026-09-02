@@ -3,6 +3,9 @@ import Foundation
 /// Talks to the mlx-engine server (scripts/mlx-engine-server.sh) purely to show
 /// status and offer start/stop from the menu — the hooks/speak.sh already
 /// auto-start it on demand, this is just visibility + a manual override.
+/// stop() is sticky: mlx-engine-server.sh itself disarms that on-demand
+/// auto-start (engineAutoStart in VoiceConfig) so a hook firing right after
+/// doesn't silently bring the server back up; start() re-arms it.
 @MainActor
 final class ServerController: ObservableObject {
     enum Status: Equatable {

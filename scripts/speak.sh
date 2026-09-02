@@ -128,7 +128,7 @@ speak_with_say_fallback() {
 
     if curl -s -f -m 2 "$SERVER/health" >/dev/null 2>&1; then
         speak_with_server || { [ "$STOPPED" = 1 ] || speak_with_say_fallback; }
-    elif bash "$SCRIPT_DIR/mlx-engine-server.sh" start >/tmp/claude-tts-server-start.log 2>&1; then
+    elif voice_engine_autostart_enabled && bash "$SCRIPT_DIR/mlx-engine-server.sh" start >/tmp/claude-tts-server-start.log 2>&1; then
         speak_with_server || { [ "$STOPPED" = 1 ] || speak_with_say_fallback; }
     else
         speak_with_say_fallback

@@ -130,7 +130,18 @@ struct SettingsView: View {
                         }
                         .controlSize(.small)
                         .disabled(server.status == .starting || server.status == .stopping)
+                        .help(
+                            server.status == .running
+                                ? "Stopping also keeps Claude Code hooks from silently restarting it, until you press Start again"
+                                : "Start again to let Claude Code hooks auto-start the server on demand"
+                        )
                     }
+                }
+                if server.status == .stopped && !settings.config.engineAutoStart {
+                    Text("Hooks won't auto-restart the server until you press Start.")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
