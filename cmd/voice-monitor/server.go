@@ -67,14 +67,17 @@ func newMux(h *hub) *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 		flusher.Flush() // send headers now so the browser's EventSource fires onopen immediately, not on the first delta
 
-		if snap := h.snapshot(); snap != "" {
+		// Snapshot and subscribe together — see subscribeWithSnapshot. Taking
+		// the snapshot first and subscribing after loses anything broadcast in
+		// between.
+		snap, ch := h.subscribeWithSnapshot()
+		defer h.unsubscribe(ch)
+
+		if snap != "" {
 			payload, _ := json.Marshal(map[string]string{"text": snap})
 			fmt.Fprintf(w, "data: %s\n\n", payload)
 			flusher.Flush()
 		}
-
-		ch := h.subscribe()
-		defer h.unsubscribe(ch)
 
 		for {
 			select {

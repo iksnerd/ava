@@ -24,11 +24,26 @@ func newHub() *hub {
 }
 
 func (h *hub) subscribe() chan []byte {
+	_, ch := h.subscribeWithSnapshot()
+	return ch
+}
+
+// subscribeWithSnapshot registers a client and reads the transcript so far in
+// one critical section. Doing the two separately drops any delta broadcast in
+// the gap between them: it is already too late to appear in the snapshot and
+// too early to reach the channel. A reader then sits waiting for a line that
+// has already been and gone.
+// subscribeWithSnapshot registers a client and reads the transcript so far in
+// one critical section. Doing the two separately drops any delta broadcast in
+// the gap between them: it is already too late to appear in the snapshot and
+// too early to reach the channel. A reader then sits waiting for a line that
+// has already been and gone.
+func (h *hub) subscribeWithSnapshot() (string, chan []byte) {
 	ch := make(chan []byte, 16)
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	h.clients[ch] = true
-	h.mu.Unlock()
-	return ch
+	return string(h.history), ch
 }
 
 func (h *hub) unsubscribe(ch chan []byte) {
