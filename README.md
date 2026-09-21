@@ -141,6 +141,53 @@ holds them to the same answers: see
 [`internal/voiceconfig`](internal/voiceconfig/contract_test.go) and `make
 check-swift-config`.
 
+## Privacy and permissions
+
+Nothing is sent anywhere. Both engines run on your machine, `mlx-engine` binds
+`127.0.0.1`, and there is no account, no telemetry and no server component. The
+one network access is downloading model weights at setup time.
+
+That still leaves artifacts on disk and two powerful macOS permissions, so
+here is the whole of it.
+
+**What gets written, and when it goes away**
+
+| What | Where | Cleaned up |
+| --- | --- | --- |
+| Recorded dictation audio | `/tmp/voice-input/` | Deleted when the command exits. A crash or `kill -9` leaves the `.wav` behind. |
+| Synthesis + playback temp files | `/tmp/ava-tts-*` | Deleted after playback. |
+| **`voice-monitor` transcripts** | `/tmp/voice-input/transcript-<timestamp>.txt` | **Never.** Written mode `0644`, appended, and kept until you delete them or the OS clears `/tmp`. |
+
+That last row is the one to know about. If you use `voice-monitor` on a call,
+the full transcript stays on disk, world-readable, indefinitely. Pass `--log` to
+choose the path, and delete it yourself when you're done.
+
+**Permissions it asks for**
+
+- **Microphone** — to record. If you deny it, recording still appears to work
+  and produces silence.
+- **Accessibility** — only for auto-paste, which drives Cmd+V through
+  AppleScript. This permission allows synthesising *any* keystroke, not just
+  Cmd+V, so grant it to something you trust. `local-whisper --no-paste` skips
+  the attempt and leaves the transcript on your clipboard.
+- **Reading other apps' accessibility trees** — `local-whisper a11y` and the
+  `speak_accessibility_tree` MCP tool parse a snapshot you hand them. They read
+  what you pass in; they don't scrape your screen on their own.
+
+**Recording other people**
+
+`make setup-blackhole` sets up a loopback device so `voice-monitor` can capture
+a call — which means capturing the other participants. Recording-consent law
+varies by jurisdiction and some require every party to agree. That's on you,
+not on this tool.
+
+**One local network hop worth naming**
+
+The voice hooks can optionally shorten a notification through a local
+[Ollama](https://ollama.com) model before speaking it. That sends the text to
+`127.0.0.1:11434` on your machine — still local, but it is a second process
+seeing the content. It's off unless you enable `llmSummary`.
+
 ## Common commands
 
 ```bash

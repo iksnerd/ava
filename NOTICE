@@ -1,0 +1,80 @@
+local-whisper
+Copyright (c) 2025 iksnerd
+Licensed under the MIT License. See LICENSE.
+
+This file records third-party components that local-whisper installs, invokes or
+downloads but does not redistribute. Their licences are their own, and two of
+them are more restrictive than this project's — read the two headed WARNING if
+you are doing commercial work or redistributing a bundle.
+
+
+Go dependencies (vendored by the module graph, all permissive)
+--------------------------------------------------------------
+github.com/spf13/cobra                       Apache-2.0
+github.com/spf13/pflag                       BSD-3-Clause
+github.com/inconshreveable/mousetrap          Apache-2.0
+github.com/modelcontextprotocol/go-sdk        MIT
+github.com/google/jsonschema-go               MIT
+github.com/segmentio/encoding                 MIT
+github.com/segmentio/asm                      MIT
+github.com/yosida95/uritemplate/v3            BSD-3-Clause
+golang.org/x/{oauth2,sync,sys,time}           BSD-3-Clause
+
+The Swift package (AvaMenuBar) has no third-party dependencies.
+
+
+External programs invoked as subprocesses
+-----------------------------------------
+sox                  GPL-2.0-or-later   Recording. Required by the default
+                                        engine; installed via Homebrew by
+                                        `make setup-deps`.
+whisper.cpp          MIT                Speech-to-text (`whisper-cli`).
+ffmpeg/afplay/say    system             macOS-provided.
+
+These run as separate processes over a command-line boundary and are not linked
+into any binary here.
+
+
+WARNING: GPL-3.0 in the mlx-engine Python environment
+-----------------------------------------------------
+`make setup-deps` runs `uv sync` in mlx-engine/, which installs:
+
+  phonemizer-fork      GPL-3.0     pulled in by misaki[en]
+  espeakng-loader      GPL-3.0     bundles an eSpeak NG build
+
+Both are hard requirements of `misaki[en]`, which Kokoro needs for English
+phonemisation. They live in a virtualenv, are invoked by the local server, and
+are not redistributed by this project — the `.app` bundle deliberately does not
+embed the mlx-engine environment. If you bundle that virtualenv, or link this
+code against it, GPL-3.0 applies to what you ship.
+
+
+WARNING: BlackHole is GPL-3.0
+-----------------------------
+`scripts/setup-blackhole.sh` automates `brew install --cask blackhole-2ch`.
+BlackHole is a separate GPL-3.0 audio driver, installed by Homebrew, not
+distributed here. It is optional and only needed for loopback capture.
+
+
+Model weights — downloaded at setup or first use, never redistributed
+---------------------------------------------------------------------
+ggml-base.en.bin (whisper.cpp)                        MIT
+  huggingface.co/ggerganov/whisper.cpp
+
+mlx-community/Kokoro-82M-bf16                         Apache-2.0
+  Text-to-speech. Derived from hexgrad/Kokoro-82M.
+
+mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit      Apache-2.0
+  Speech-to-text. Derived from mistralai/Voxtral-Mini-4B-Realtime-2602.
+
+mlx-community/whisper-large-v3-turbo-asr-fp16         MIT
+  Multilingual speech-to-text fallback.
+
+WARNING: mlx-community/diar_sortformer_4spk-v1-fp32   CC-BY-NC-4.0
+  Speaker diarization, used only by `voice-monitor --diarize`.
+  Derived from nvidia/diar_sortformer_4spk-v1, whose model card states the
+  licence covers use of the model and is accepted on download.
+
+  CC-BY-NC-4.0 prohibits commercial use. Every other model here is permissive.
+  If you are transcribing calls for commercial work, do not pass --diarize
+  without reading that licence yourself. The flag is off by default.

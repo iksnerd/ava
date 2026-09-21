@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The Go code shells out to macOS tools but imports nothing platform-specific:
+  # no cgo, no build tags, no *_darwin.go. Running it on Linux keeps that true —
+  # every test stubs its subprocesses through testdata/bin or httptest.
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed for:"; echo "$unformatted"; exit 1
+          fi
+
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test -count=1 ./...
+      - name: No hardcoded home directories
+        run: bash scripts/check-portable-paths.sh
+
+  # Swift and the Python hooks. Xcode is preinstalled on the macOS runner, so
+  # building the app needs no toolchain setup — only *running* it would need a
+  # TCC grant, which a headless runner cannot give.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: astral-sh/setup-uv@v10
+
+      - run: go test -count=1 ./...
+
+      - name: Build the menu bar app
+        run: swift build --package-path AvaMenuBar
+
+      - name: Config contract — Swift agrees with Go and bash
+        run: make check-swift-config
+
+      - name: voice-hooks tests
+        working-directory: scripts/voice_hooks
+        run: uv run --frozen pytest -q
+
+      # Deliberately not `make lint`: that runs ruff through `uv run` inside
+      # mlx-engine/, which resolves a 146-package lock including torch and the
+      # CUDA stack. uvx gets the same linting without the multi-gigabyte sync.
+      - name: Lint Python
+        run: uvx ruff check mlx-engine/ voxtral/ scripts/voice_hooks/
