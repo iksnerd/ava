@@ -85,7 +85,7 @@ bundles a considerably longer list of STT/TTS models beyond what this
 server currently wires up — worth a look if a different accuracy/speed/voice
 tradeoff is ever needed.
 
-### Known limitation: `.whisper-context` doesn't work under `-engine voxtral`
+### Known limitation: `.whisper-context` doesn't work under `--engine voxtral`
 
 Not a missing wire-up — the model itself can't take it.
 `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit` is `mlx_audio`'s

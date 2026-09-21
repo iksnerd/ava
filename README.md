@@ -1,286 +1,192 @@
 # local-whisper
 
-Local voice tools for your Mac: dictation, text-to-speech, and spoken Claude
-Code notifications — everything runs on-device, nothing leaves your machine.
+Dictation, speech, and spoken Claude Code notifications for macOS, running
+entirely on-device.
 
-Started as a Go CLI wrapping `whisper.cpp` for dictation. It's grown into a
-small local-voice stack: two interchangeable transcription engines, a
-real-time call-transcription monitor, a local TTS server, Claude Code hooks
-that speak session status out loud, a menu bar app to tune it all, and an
-MCP server so anything else can use the same voice.
+Cloud voice tools are a non-starter for anything you wouldn't paste into a
+stranger's web form. Client calls, mostly. This keeps the loop local instead:
+whisper.cpp or Voxtral for speech-to-text, Kokoro for speech. No audio and no
+transcript leaves the machine.
 
-## Features
+It started as a Go CLI for dictation and grew into the stack around it: a menu
+bar app, Claude Code hooks that speak session status out loud, and an MCP
+server so other programs can use the same voice.
 
-- **Local & Private**: transcription and speech synthesis both run on-device — no cloud, no external data transmission.
-- **Two transcription engines**: `whisper.cpp` (default, zero extra setup) or Voxtral via a local MLX server (`--engine voxtral`, higher accuracy — see [Voice Engines](#voice-engines) below).
-- **Instant Recording**: starts recording immediately with audio feedback.
-- **Silence Detection**: stops after 2 seconds of silence (3% threshold).
-- **Context Awareness**: reads `.whisper-context` files for vocabulary hints (whisper engine).
-- **Clipboard Integration**: copies to clipboard and optionally pastes via Cmd+V.
-- **Raycast Integration**: available as a Raycast command.
-- **Real-time call transcription**: `voice-monitor` streams a live transcript (with optional speaker diarization) from the mic or a loopback device like BlackHole, to a browser tab and a log file — see [`SETUP.md`](SETUP.md).
-- **Text-to-speech**: a local Kokoro TTS server for anything that wants to speak, not just this CLI — see [`mlx-engine/`](mlx-engine/README.md).
-- **Spoken Claude Code notifications**: hooks that speak when Claude finishes a turn or needs a decision — see [Claude Code voice hooks](docs/claude-code-voice-hooks.md).
-- **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), a global Mute switch (also a system-wide keyboard-shortcut Service), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
-- **MCP server**: `local-whisper mcp` serves speech, transcription and accessibility-tree narration to any MCP client (Claude Code in any repo, Claude Desktop, another agent) — `claude mcp add -s user local-whisper -- local-whisper mcp`; see [`docs/mcp.md`](docs/mcp.md).
-- **Hear a web page**: paired with [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), it reads a page's accessibility tree aloud the way a screen reader announces it — for catching the accessibility problems a rule-based audit can't see (see [`.claude/skills/web-accessibility-audit/`](.claude/skills/web-accessibility-audit/SKILL.md)).
-
-## Getting Started
-
-### Prerequisites
+## Quick start
 
 ```bash
 brew install sox whisper-cpp go
-```
 
-The default `whisper` engine works on any Mac. Voxtral (higher-accuracy
-transcription, TTS, and call monitoring) needs Apple Silicon — it runs
-on-device via [MLX](https://github.com/ml-explore/mlx).
-
-### Install
-
-```bash
 git clone https://github.com/iksnerd/local-whisper.git
 cd local-whisper
-make install-bin       # builds the binary, downloads the model (~141MB), installs to ~/.local/bin
-local-whisper
+make install-bin        # builds, downloads the 141MB model, installs to ~/.local/bin
+
+local-whisper           # speak; it lands wherever your cursor is
 ```
 
-Or as a Raycast command instead of a standalone binary:
+Auto-paste drives Cmd+V through AppleScript, so the first run needs
+Accessibility permission for whatever you ran it from (System Settings →
+Privacy & Security → Accessibility). Without it the transcript still reaches
+your clipboard; `local-whisper --no-paste` skips the attempt.
 
-```bash
-make install-raycast
+Prefer a hotkey? `make install-raycast` installs it as a Raycast script
+command instead: Raycast Settings → Extensions → Add Script Directory →
+`~/raycast-scripts`, reload, then bind "Transcribe Local Whisper".
+
+The default engine works on any Mac. Voxtral, the TTS server and call
+monitoring need Apple Silicon; they run through
+[MLX](https://github.com/ml-explore/mlx).
+
+## What it does
+
+**Dictation** into whatever has focus. It records until you stop talking (2s of
+silence), transcribes, copies, and pastes. Bind it to a hotkey through Raycast
+or the menu bar app if you don't want to reach for a terminal.
+
+Two speech-to-text engines sit behind that. `whisper.cpp` is the default and
+needs nothing installed beyond the brew formula. Voxtral runs on a local MLX
+server and does better on technical vocabulary, at the cost of a setup step.
+
+**Speech** the other direction, from `local-whisper speak`, an MCP tool, a
+shell script, or the menu bar app. They all go through one Kokoro server, one
+global mute, and one playback lock, so two of them never talk over each other.
+
+The rest of what's here:
+
+- Claude Code hooks that say when Claude finishes a turn or needs a decision,
+  optionally summarized down by a local Ollama model first.
+- A menu bar app for one-click dictation, a system-wide mute shortcut, and live
+  tuning of voice, speed, volume and message length.
+- `voice-monitor`, which streams a live call transcript with optional speaker
+  diarization, from the mic or a loopback device.
+- An MCP server. `local-whisper mcp` hands any MCP client the same speech and
+  transcription, plus accessibility-tree narration.
+- Paired with [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp),
+  it reads a web page's accessibility tree the way a screen reader announces
+  it. A rule-based audit won't tell you that six links all say "read more", or
+  that an alt text which passes the linter reads as nonsense out loud.
+
+## How it works
+
+There are four ways in and two engines underneath. The Claude Code hooks don't go
+through the Go binary at all. They're plain bash, so speech still works on a
+machine where the binary was never installed.
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'lineColor':'#64748b','clusterBkg':'#f8fafc','clusterBorder':'#cbd5e1','fontSize':'14px'}}}%%
+flowchart TB
+    subgraph doors["WAYS IN"]
+        direction LR
+        cli["local-whisper<br/>CLI"]
+        mcpc["MCP clients<br/>agents, Claude Code"]
+        hooks["Claude Code hooks<br/>scripts/*.sh"]
+        app["Claude Voice<br/>menu bar app"]
+    end
+
+    subgraph gobin["local-whisper binary · Go"]
+        direction LR
+        speaker["internal/speaker<br/>mute · markers · playback lock"]
+        engsel["pkg/stt · pkg/mlx<br/>engine selection"]
+        a11y["internal/a11y<br/>AX tree to announcements"]
+    end
+
+    speaksh["scripts/speak.sh<br/>same protocol, in bash"]
+    cfg[("config.json<br/>mute, voice, speed")]
+
+    subgraph engines["ON-DEVICE ENGINES"]
+        direction LR
+        whispercpp["whisper.cpp<br/>subprocess per run"]
+        mlx(["mlx-engine 127.0.0.1:8765<br/>Kokoro TTS · Voxtral STT"])
+    end
+
+    cli ==> speaker
+    cli ==> engsel
+    mcpc ==> speaker
+    mcpc ==> a11y
+    a11y ==> speaker
+    hooks ==> speaksh
+    app ==> speaksh
+
+    speaker ==> mlx
+    speaksh ==> mlx
+    engsel ==> whispercpp
+    engsel ==> mlx
+
+    cfg -. "read by all three" .-> speaker
+    cfg -. " " .-> speaksh
+    cfg -. " " .-> app
+
+    classDef door fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe;
+    classDef go fill:#134e4a,stroke:#2dd4bf,color:#ccfbf1;
+    classDef engine fill:#4c1d95,stroke:#a78bfa,color:#ede9fe;
+    classDef store fill:#78350f,stroke:#fbbf24,color:#fef3c7;
+    classDef shell fill:#334155,stroke:#94a3b8,color:#f1f5f9;
+
+    class cli,mcpc,hooks,app door;
+    class speaker,engsel,a11y go;
+    class whispercpp,mlx engine;
+    class cfg store;
+    class speaksh shell;
+    linkStyle default stroke:#64748b,stroke-width:1.5px;
 ```
 
-Then in Raycast Settings:
-1. Extensions → Add Script Directory → Select `~/raycast-scripts`
-2. Reload Raycast (Cmd+Shift+R)
-3. Search "Transcribe Local Whisper" and set a hotkey
+That is also why one JSON file has three readers of its own. A contract test
+holds them to the same answers: see
+[`internal/voiceconfig`](internal/voiceconfig/contract_test.go) and `make
+check-swift-config`.
 
-### Enable auto-paste
-
-System Settings → Privacy & Security → Accessibility → add Terminal (or
-Raycast, or your editor). Without this, transcripts still land on the
-clipboard, they just won't auto-paste — `local-whisper --no-paste` skips this
-entirely.
-
-That's it — say something, it lands wherever your cursor is.
-
-### Manual build (no install)
+## Common commands
 
 ```bash
-make build             # binary to bin/local-whisper
-make setup-model       # download the Whisper model
-./bin/local-whisper
-```
+local-whisper                              # dictate
+local-whisper --engine voxtral             # dictate with the MLX engine
+local-whisper transcribe meeting.wav       # transcribe a file you already have
 
-## Usage
-
-### Basic
-
-```bash
-local-whisper
-```
-
-### Flags
-
-```bash
-local-whisper --help
-
-local-whisper --engine voxtral      # Use the Voxtral MLX engine instead of whisper.cpp
-local-whisper --model tiny          # Faster, ~74MB (whisper engine only)
-local-whisper --lang es             # Language code (en, es, fr, de, etc.)
-local-whisper --output file.txt     # Save to file
-local-whisper --no-paste            # Skip auto-paste
-local-whisper --no-sound            # Disable audio cues
-local-whisper --verbose=false       # No status messages
-local-whisper --context custom.txt  # Custom context file (whisper engine only — see Known gap below)
-local-whisper --dir /path/to/dir    # Change working directory
-```
-
-### Combine Flags
-
-```bash
-local-whisper --dir ~/projects/app --lang en --model base --output transcript.txt
-```
-
-### Engine server
-
-```bash
-local-whisper engine start   # Start the mlx-engine STT/TTS server in the background
-local-whisper engine status  # Check whether it's running
-local-whisper engine stop    # Stop it
-```
-
-### Speech
-
-The same local Kokoro path the voice hooks and the menu bar app use, from the
-terminal. Silent while the menu bar app's global Mute is on — it says so
-rather than pretending to speak.
-
-```bash
 local-whisper speak "build finished"
-git log -1 --format=%s | local-whisper speak      # no arguments: reads stdin
-local-whisper speak --voice bf_emma --speed 0.9 "slower, british"
-local-whisper speak --async "don't wait for playback"
-local-whisper stop                                # cancel whatever is speaking
-local-whisper voices                              # what --voice accepts
+git log -1 --format=%s | local-whisper speak
+local-whisper stop                         # cancel speech from any source
+local-whisper voices                       # what --voice accepts
+
+local-whisper engine start|status|stop     # the mlx-engine STT/TTS server
+local-whisper mcp                          # serve the stack over MCP
+local-whisper a11y snapshot.txt            # narrate an accessibility tree
 ```
 
-### Transcribe an existing file
-
-```bash
-local-whisper transcribe meeting.wav
-local-whisper transcribe --engine voxtral --lang es clip.wav
-local-whisper transcribe --output notes.txt meeting.wav
-```
-
-### Hear a web page
-
-Renders a Chrome accessibility tree as screen-reader announcements. Save
-chrome-devtools MCP's `take_snapshot` output to a file (or pipe it in):
-
-```bash
-local-whisper a11y snapshot.txt
-local-whisper a11y --mode headings --quiet snapshot.txt   # print, don't speak
-pbpaste | local-whisper a11y --mode links
-```
-
-Modes: `reading`, `headings`, `links`, `landmarks`, `forms`. The same
-rendering is available to agents as the `speak_accessibility_tree` MCP tool —
-see [`docs/mcp.md`](docs/mcp.md).
-
-## Voice Engines
-
-`whisper` is the basic, default path — zero extra setup beyond
-[Getting Started](#getting-started) above. `voxtral` is the advanced,
-opt-in tier: separately set up (`make setup-voxtral`), and its model only
-actually downloads on first real use.
-
-| | `whisper` (default) | `voxtral` |
-|---|---|---|
-| Setup | `brew install whisper-cpp`, nothing else | Needs `mlx-engine/` running — see below |
-| Where it runs | Subprocess per transcription | Persistent local server (`127.0.0.1:8765`), started on demand |
-| Cold start | ~2-3s every time | ~2-3s first request, then warm |
-| Accuracy | ~10% WER (Whisper Large-v3-class) | ~4% WER, better with technical vocabulary |
-| `.whisper-context` vocabulary hints | Yes | Not yet — see Known gap |
-
-To use Voxtral: start the server once (`local-whisper engine start`, or
-just run `local-whisper --engine voxtral` — it starts automatically),
-then `local-whisper --engine voxtral`. Full detail on the server, its models,
-and its HTTP API: [`mlx-engine/README.md`](mlx-engine/README.md).
-
-**Known gap**: `.whisper-context` vocabulary hints work under `--engine
-whisper` but aren't sent to the Voxtral server yet — see
-[`mlx-engine/README.md`](mlx-engine/README.md#known-limitation-whisper-context-doesnt-work-under--engine-voxtral).
-
-## Context Files
-
-Create a `.whisper-context` file to provide vocabulary hints for better transcription (whisper engine only — see Known gap above).
-
-### Global Context
-
-```bash
-nano ~/.whisper-context
-```
-
-Example for Go:
-```
-Go, Golang, func, struct, interface, package, import, var, const, defer, goroutine
-```
-
-### Local Context
-
-Create `.whisper-context` in your project directory. Local context takes precedence.
-
-```bash
-echo "useEffect, useState, Redux, async, await" > .whisper-context
-```
-
-## Troubleshooting
-
-**Recording keeps going / No speech detected**
-- Verify microphone (System Settings → Sound)
-- Speak clearly after the audio cue
-- Silence detection requires 2+ seconds of quiet
-
-**Sound/auto-paste not working**
-- Check Accessibility permissions (System Settings → Privacy & Security → Accessibility)
-- Try without auto-paste: `local-whisper --no-paste`
-
-**"Command not found: whisper-cli"**
-```bash
-brew install whisper-cpp
-```
-
-**"Model not found"**
-```bash
-make setup-model
-```
-
-**Slow transcription**
-- First run loads the model (~5-10 seconds). Subsequent runs are faster.
-- Use tiny model for speed: `--model tiny` (whisper engine)
-
-**"voxtral server is not running or model failed to load"**
-```bash
-local-whisper engine start   # or: status / stop
-```
-Check `/tmp/mlx-engine-server.log` if it doesn't come up. Full troubleshooting: [`mlx-engine/README.md`](mlx-engine/README.md).
+Every flag and every command: [`docs/cli.md`](docs/cli.md).
 
 ## Documentation
 
-- [`mlx-engine/README.md`](mlx-engine/README.md) — the local STT/TTS server: endpoints, models, running it standalone.
-- [`SETUP.md`](SETUP.md) — `voice-monitor` (real-time call transcription): BlackHole loopback setup, engine/diarization options, known gaps.
-- [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken Claude Code notifications: setup, settings, how message length/summarization work.
-- [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar app for tuning the above live.
-- [`docs/mcp.md`](docs/mcp.md) — the MCP server: tools, registering it, and pairing it with chrome-devtools MCP for accessibility work.
-- [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or agent) working on this repo.
+- [`docs/cli.md`](docs/cli.md) — full command and flag reference, engine
+  choice, context files.
+- [`docs/mcp.md`](docs/mcp.md) — the MCP server: its tools, registering it, and
+  pairing it with chrome-devtools MCP for accessibility work.
+- [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken
+  Claude Code notifications: setup, settings, message length and summarization.
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — for when nothing
+  pastes, or nothing plays.
+- [`mlx-engine/README.md`](mlx-engine/README.md) — the local STT/TTS server:
+  HTTP endpoints, models, running it standalone.
+- [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar
+  app.
+- [`SETUP.md`](SETUP.md) — `voice-monitor`: BlackHole loopback setup,
+  diarization, known gaps.
+- [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or
+  agent) working on this repo.
 
 ## Development
 
-### Structure
-
-```
-cmd/local-whisper/     - CLI entry point
-cmd/voice-monitor/     - realtime call-transcript monitor (see SETUP.md)
-internal/
-  ├── audio/           - Audio normalization
-  ├── clipboard/       - Clipboard & paste operations
-  ├── recording/       - Audio recording
-  └── procutil/        - shared subprocess/signal helpers
-pkg/stt/                - Options/Client shape shared by the one-shot engines below
-pkg/stt/whisper/        - whisper.cpp subprocess wrapper (--engine whisper)
-pkg/stt/realtime/       - voxtral/realtime.py subprocess wrapper (cmd/voice-monitor)
-pkg/mlx/                - mlx-engine HTTP client (--engine voxtral) — not nested under
-                          pkg/stt since mlx-engine serves TTS as much as STT
-mlx-engine/             - the local STT/TTS server itself (Python, uv-managed)
-voxtral/                - Voxtral MLX primitives for voice-monitor (Python, uv-managed)
-scripts/                - setup, model download, and voice-hook scripts (see docs/claude-code-voice-hooks.md)
-scripts/voice_hooks/    - text processing for the voice hooks: markdown stripping, sentence-aware
-                          truncation, Ollama summarization (Python, uv-managed)
-ClaudeVoiceMenuBar/     - menu bar app for tuning voice settings (Swift)
-Makefile                - build automation
-```
-
-### Build & Test
-
 ```bash
-make build             # Build binary
-make test              # Run tests
-make vet                # go vet the Go code
-make fmt                # Format Go (gofmt) and Python (ruff format), in place
-make fmt-check          # Same, check-only (CI-safe)
-make lint               # vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
-make clean             # Remove bin/
-go run ./cmd/local-whisper [flags]  # Run without building
+make build                 # binary to bin/local-whisper
+make build-voice-monitor
+make test                  # Go tests plus the voice-hooks pytest suite
+make lint                  # vet, format check, ruff. Run before committing
+make check-swift-config    # check the Swift config reader agrees with bash and Go
+make clean
 ```
 
-Run `make lint` before committing.
-
-### Code Guidelines
-
-See `AGENTS.md` for detailed architecture and code style.
+`go run ./cmd/local-whisper [flags]` runs without building. The package layout
+and the conventions behind it are in [`AGENTS.md`](AGENTS.md), which tracks the
+code.
 
 ## License
 

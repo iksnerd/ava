@@ -1,20 +1,19 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
 
-    subgraph existing["Existing today - dictation (cmd/local-whisper)"]
+    subgraph dictation["Dictation - cmd/local-whisper"]
         mic1[("🎤 Mic")]
-        rec["internal/recording\nsox, 16kHz mono,\nstops on silence"]
-        norm["internal/audio\nProcessor.Normalize"]
+        rec["internal/recording\nsox, 16kHz mono, norm -3,\nstops on silence"]
         wcli["pkg/stt/whisper\nexec whisper-cli"]
         model_w[("ggml-base.en.bin\n(whisper.cpp, local)")]
         clip["internal/clipboard\npbcopy + AppleScript paste"]
 
-        mic1 --> rec --> norm --> wcli
+        mic1 --> rec --> wcli
         model_w -.-> wcli
         wcli -->|text| clip
     end
 
-    subgraph new["New this change - Voxtral MLX primitives"]
+    subgraph realtime["Voxtral MLX primitives"]
         direction TB
 
         subgraph go_new["pkg/stt/realtime (Go, stdlib only)"]
@@ -44,7 +43,7 @@ flowchart TB
         diar_py -.->|speaker label per chunk| rt_py
     end
 
-    subgraph monitor["New this change - cmd/voice-monitor"]
+    subgraph monitor["Realtime call transcript - cmd/voice-monitor"]
         meet["Google Meet\n(Settings -> Audio -> Speakers\nmust be set to the Multi-Output Device\nexplicitly - doesn't follow macOS\nsystem-default changes automatically)"]
         moutput["Multi-Output Device\n(Audio MIDI Setup - use built-in\nSpeakers, NOT Bluetooth/AirPods,\nwhich silently drop the 2nd member)"]
         blackhole[("BlackHole 2ch\n(virtual loopback driver)")]
@@ -74,7 +73,7 @@ flowchart TB
         grt -->|transcript text| actions
     end
 
-    style existing fill:#eef2ff,stroke:#4f46e5
-    style new fill:#ecfdf5,stroke:#059669
+    style dictation fill:#eef2ff,stroke:#4f46e5
+    style realtime fill:#ecfdf5,stroke:#059669
     style monitor fill:#ecfdf5,stroke:#059669
     style planned fill:#fef3c7,stroke:#d97706,stroke-dasharray: 5 5
