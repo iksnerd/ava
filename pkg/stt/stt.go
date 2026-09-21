@@ -9,14 +9,12 @@
 // cmd/voice-monitor) but has a genuinely different, streaming shape
 // (StreamRealtime/ListInputDevices) so it doesn't implement Client either.
 //
-// There is no sibling pkg/tts: nothing in this repo speaks Go to a TTS
-// engine directly yet. All synthesis today goes through scripts/speak.sh
-// curling mlx-engine's /speak endpoint; internal/ttscontrol only cancels
-// in-flight speech (a Go port of stop-speaking.sh's marker-file protocol),
-// it never synthesizes anything. If a real Go TTS caller ever shows up,
-// it would most naturally gain a Speak method on pkg/mlx.Client (same
-// server, same HTTP-client scaffolding) rather than a new top-level
-// package.
+// There is still no sibling pkg/tts, and there shouldn't be one:
+// synthesis is pkg/mlx.Client.Speak (same server, same HTTP-client
+// scaffolding), internal/speaker wraps it in the mute/activity-marker/
+// playback-lock protocol scripts/speak.sh established, and
+// internal/ttscontrol cancels speech in flight (a Go port of
+// stop-speaking.sh's marker-file protocol).
 package stt
 
 import (
