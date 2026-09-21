@@ -17,6 +17,102 @@ urgent — see CLAUDE.md for the project overview.
   verified: launches clean afterward, no further prompt). Fine for sharing
   with yourself/friends; not for wide public distribution.
 
+- **`ClaudeVoiceMenuBar` has no test target.** This is why the Swift half of
+  the voice-config contract lives in `make check-swift-config` (a script that
+  extracts `VoiceConfig` out of the source and runs it against
+  `testdata/voice-config-cases.json`) instead of in `make test` — putting
+  `swiftc` on the default test path would break `make test` on any machine
+  without Xcode. It is also not a coincidence that the one config bug that
+  actually shipped (a single wrong-typed value silently unmuting the app, fixed
+  2026-09-21) lived in the one component nothing could test. Adding a target
+  means splitting the package so the logic is importable, which is a real
+  refactor, not a patch.
+
+- **Run the `web-accessibility-audit` skill's trigger evals.** Five cases exist
+  under `.claude/skills/web-accessibility-audit/evals/` (3 should-fire, 2
+  near-miss) and have never been executed, so the skill is capped at
+  `rubric v2: 89, Ready (unverified)`. `claude plugin eval` spawns agents and
+  bills for them, hence deferred rather than run in passing.
+
+- **Nothing has ever heard Kokoro on this machine.** `mlx-engine/server.py`
+  pins `mlx-community/Kokoro-82M-bf16`, which has never been downloaded here
+  (~330MB); the HF cache holds two unrelated models. Every spoken hook
+  notification so far has come from the macOS `say` fallback. Starting the
+  engine once and speaking a sentence is all it takes to close this, and it
+  would also be the first real check of the `internal/speaker` playback path
+  shipped on 2026-09-21, which so far has only been verified muted.
+
+- **Decide whether `web-accessibility-audit` belongs in `iksnerd/skills`.** It
+  lives in this repo's `.claude/skills/`, so it only fires while working here —
+  not in the web projects where a page would actually be audited. Left local on
+  purpose for now; promote with `code-quality:skill-distiller` if it earns it.
+
+## Done (2026-09-22)
+
+- Moved `cmd/voice-monitor` off port 8765 to 8766. It had defaulted to
+  mlx-engine's port, which `CLAUDE.md`'s own Ports convention forbids — the
+  convention exists because the engine was moved off 8000 for the same reason.
+  Whichever server started second failed to bind, and the engine is up whenever
+  anything has used `--engine voxtral` or spoken, so in practice it was
+  `voice-monitor` that lost. Guarded by a test that reads the engine's port out
+  of `pkg/mlx` rather than restating it, so the two cannot drift back together;
+  `SETUP.md`, `setup-blackhole.sh` and the architecture diagram follow, and the
+  convention now names both ports instead of only the one to avoid.
+
+- Removed the two hardcoded home directories from tracked files: a
+  `/Users/user/.local/bin` PATH entry in `scripts/lib.sh` (now `$HOME`) and a
+  hardcoded repo root in `ClaudeVoiceMenuBar/Paths.swift` (now derived from its
+  own `#filePath`, four levels up, verified with a probe at a known depth
+  rather than assumed). This repo is public, and both were correct forever on
+  one machine and broken from the first clone by anyone else — silently, since
+  a PATH entry that does not exist is not an error. Escalated to
+  `scripts/check-portable-paths.sh`, which runs inside `make lint` and was
+  confirmed to fail on a planted violation.
+
+## Done (2026-09-21)
+
+- Gave the local voice stack a Go speech path and exposed it: `pkg/mlx.Speak`
+  (where that package's own doc comment already said a `Speak` belonged),
+  `internal/voiceconfig`, `internal/speaker` and `internal/a11y`, then five CLI
+  verbs (`speak`, `stop`, `voices`, `transcribe`, `a11y`) and
+  `local-whisper mcp` serving the same five capabilities over stdio. Before
+  this, speech was reachable from the bash scripts and the menu bar app but not
+  from the CLI and not at all from another program. `internal/speaker`
+  deliberately joins `speak.sh`'s existing protocol rather than forking it —
+  same mute gate, same activity markers, same `flock(2)` on the shared playback
+  lock (Python's `fcntl.flock` is `flock(2)`, so they genuinely queue) — and
+  writes no `.synth.pid`, because synthesis here is an in-process HTTP call and
+  naming our own PID would have a stop kill the server. Adds
+  `github.com/modelcontextprotocol/go-sdk` as the repo's second third-party Go
+  dependency, on the same terms as the cobra exception.
+
+- Fixed the three readers of `ClaudeVoice/config.json` disagreeing on malformed
+  input, which had shipped. `VoiceSettings.swift` decoded through the
+  synthesized `Codable` init, which is all-or-nothing: one hand-edited
+  `"speed": "fast"` failed the whole decode and fell back to every property
+  default, `muted = false` included — so the menu bar app would show unmuted
+  and speak while the hooks and the CLI stayed correctly silent. `bash` had a
+  separate hole in the same place, passing a non-numeric speed into
+  `float()` and dropping synthesis to the `say` fallback with no error
+  anywhere. Both now degrade per key. The bash hole was found by the new
+  contract test on its first run, not by reading the code — an hour after that
+  reader had been examined and written off as correct. Cases live in
+  `testdata/voice-config-cases.json`; `internal/voiceconfig/contract_test.go`
+  fails when bash and Go *disagree*, not merely when either is wrong alone, and
+  both arms were mutation-checked before being trusted.
+
+- Rewrote the README as a landing page (287 lines → 191) and split the
+  reference into `docs/cli.md`, `docs/troubleshooting.md` and a validated
+  `docs/architecture.mmd`. The package-layout block was deleted rather than
+  moved, since `AGENTS.md` already maintains that map and the README's copy had
+  drifted. Verification caught a claim that was wrong in the project's favour:
+  the engine table credited the default whisper path with "~10% WER (Whisper
+  Large-v3-class)", when the default model is `ggml-base.en` and those figures
+  compare Voxtral against Large-v3. Also fixed a cold-start figure that
+  contradicted itself between two sections, a `-engine voxtral` spelling left
+  over from the Cobra migration, and a diagram node naming a symbol that no
+  longer exists.
+
 ## Done (2026-09-01)
 
 - Extracted `scripts/mlx-engine-server.sh`'s PID-file-alive check (the
