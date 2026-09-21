@@ -46,6 +46,6 @@ echo ""
 echo "Find BlackHole's device index/name with:"
 echo "  make build-voice-monitor && bin/voice-monitor devices"
 echo ""
-echo "Then watch a call live at http://localhost:8765 with:"
+echo "Then watch a call live at http://localhost:8766 with:"
 echo "  bin/voice-monitor --device BlackHole"
 exit 0

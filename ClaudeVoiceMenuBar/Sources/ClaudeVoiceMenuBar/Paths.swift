@@ -7,7 +7,18 @@ enum VoicePaths {
     // from a properly packaged .app — e.g. `swift run` during development.
     // A packaged build resolves scriptsDir/dictateBinary from its own
     // bundled Resources/ instead (see bundleResourcesDir).
-    private static let devRepoRoot = "/Users/user/GolandProjects/local-whisper"
+    //
+    // Derived from this file's own compile-time location rather than written
+    // out, so it follows the checkout it was built from instead of only ever
+    // being right on one machine. #filePath is
+    // <repo>/ClaudeVoiceMenuBar/Sources/ClaudeVoiceMenuBar/Paths.swift, hence
+    // four levels up.
+    private static let devRepoRoot: String = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()  // ClaudeVoiceMenuBar/
+        .deletingLastPathComponent()  // Sources/
+        .deletingLastPathComponent()  // ClaudeVoiceMenuBar/
+        .deletingLastPathComponent()  // repo root
+        .path
 
     // Bundle.main.resourceURL when running from a real .app with a bundled
     // Resources/scripts (build-app.sh copies scripts/ + local-whisper there)

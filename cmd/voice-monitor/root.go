@@ -62,7 +62,9 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.language, "language", "", "Language code, e.g. 'bg' for Bulgarian (--engine whisper only)")
 	flags.BoolVar(&opts.diarize, "diarize", false, "Tag transcript with speaker labels (--engine whisper only; remote participants only, never your own mic)")
 	flags.Float64Var(&opts.highpassHz, "highpass-hz", 0, "High-pass filter cutoff in Hz before STT/diarization (0 = use realtime.py's default of 80Hz)")
-	flags.IntVar(&opts.port, "port", 8765, "Local HTTP port to serve the live transcript on")
+	// Not 8765: that is mlx-engine's, and it is running whenever anything has
+	// used --engine voxtral or spoken (see CLAUDE.md's Ports convention).
+	flags.IntVar(&opts.port, "port", 8766, "Local HTTP port to serve the live transcript on")
 	flags.StringVar(&opts.logPath, "log", "", "Path to write the transcript log (default: /tmp/voice-input/transcript-<timestamp>.txt)")
 
 	cmd.AddCommand(newDevicesCmd(&opts.rootOptions))

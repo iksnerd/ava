@@ -5,7 +5,7 @@
 # Claude Code hooks run with a minimal PATH (no shell rc sourced), so pin the
 # dirs our dependencies actually live in (uv is under ~/.local/bin, not a
 # default system dir) regardless of who invokes us.
-export PATH="/opt/homebrew/bin:/usr/local/bin:/Users/user/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

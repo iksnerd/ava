@@ -15,6 +15,7 @@ component's own docs — `SETUP.md` (`voice-monitor`), `mlx-engine/README.md`,
 - `make build` - Compile binary to `bin/local-whisper`
 - `make test` - Run all Go tests plus the `scripts/voice_hooks/` pytest suite
 - `make check-swift-config` - Check VoiceSettings.swift resolves the voice config the same way bash and Go do (needs swift; not part of `make test`)
+- `make check-paths` - Fail if any tracked file hardcodes a home directory (part of `make lint`)
 - `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin

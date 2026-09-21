@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test vet fmt fmt-check lint check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test vet fmt fmt-check lint check-paths check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -14,6 +14,7 @@ help:
 	@echo "Commands:"
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
 	@echo "  make check-swift-config - Check VoiceSettings.swift resolves the config like bash and Go (needs swift)"
+	@echo "  make check-paths        - Fail if any tracked file hardcodes a home directory"
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make setup-voxtral      - Create Python venv and install Voxtral MLX primitives"
@@ -88,7 +89,10 @@ check-swift-config:
 	@echo "🔍 Checking VoiceSettings.swift against the config contract..."
 	@python3 ClaudeVoiceMenuBar/scripts/check-config-contract.py
 
-lint: vet fmt-check
+check-paths:
+	@bash scripts/check-portable-paths.sh
+
+lint: vet fmt-check check-paths
 	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff check .
 	@cd voxtral && uv run ruff check .

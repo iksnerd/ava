@@ -4,7 +4,7 @@ See `docs/voxtral-architecture.mmd` for the full architecture this fits into.
 
 ## Done
 - [x] `pkg/stt/realtime` (Go wrapper around `realtime.py`) + `voxtral/` (MLX primitives: `realtime.py`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
-- [x] `cmd/voice-monitor` — serves live transcript at `localhost:8765` (SSE) and logs it to `/tmp/voice-input/transcript-<timestamp>.txt`
+- [x] `cmd/voice-monitor` — serves live transcript at `localhost:8766` (SSE) and logs it to `/tmp/voice-input/transcript-<timestamp>.txt`
 - [x] BlackHole 2ch installed (`brew list --cask blackhole-2ch`) + Multi-Output Device ("Meet Recording") in Audio MIDI Setup, built from **MacBook Pro Speakers + BlackHole 2ch** (not Bluetooth/AirPods — see gotcha below)
 - [x] Dual STT engine in `realtime.py`/`pkg/stt/realtime`: `--engine voxtral` (default, <500ms, 13 languages) or `--engine whisper` (multilingual, 99+ languages, ~1s latency)
 - [x] `--diarize` — tags transcript deltas with `[Speaker N]` via Sortformer (mlx-audio, no extra dep), whisper engine only
@@ -42,7 +42,7 @@ make setup-voxtral        # first time only (or after editing voxtral/pyproject.
 make build-voice-monitor
 bin/voice-monitor --device BlackHole --engine whisper --language bg --diarize
 ```
-Open `http://localhost:8765`, join the Meet call (with Meet's own Speakers picker
+Open `http://localhost:8766`, join the Meet call (with Meet's own Speakers picker
 set to the Multi-Output Device - see gotcha above), and watch the transcript;
 it's also being written live to `/tmp/voice-input/transcript-<timestamp>.txt`.
 

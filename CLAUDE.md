@@ -63,4 +63,4 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - **Error handling** - Return errors up; `fmt.Fprintf(os.Stderr, ...)` + `os.Exit(1)` at top level
 - **Resource cleanup** - Always check `os.Open`/HTTP response errors and `defer Close()`
 - **Temp files** - Written to `/tmp/voice-input/`, cleaned up on exit
-- **Ports** - `mlx-engine` binds `127.0.0.1:8765` — don't reuse this port for anything else in this repo; it was previously 8000, which is common enough for other local dev servers (Django, Docker port mappings, etc.) to collide with
+- **Ports** - `mlx-engine` binds `127.0.0.1:8765`; `voice-monitor` serves its live transcript on `8766`. Don't reuse either for anything else in this repo, and don't go back to 8000, which is common enough for other local dev servers (Django, Docker port mappings, etc.) to collide with. `cmd/voice-monitor` defaulted to 8765 until it was caught by a test — the two never collided in normal use only because nobody ran a call monitor and dictation in the same minute
