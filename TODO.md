@@ -60,7 +60,7 @@ urgent — see CLAUDE.md for the project overview.
   convention now names both ports instead of only the one to avoid.
 
 - Removed the two hardcoded home directories from tracked files: a
-  `/Users/user/.local/bin` PATH entry in `scripts/lib.sh` (now `$HOME`) and a
+  `/Users/<name>/.local/bin` PATH entry in `scripts/lib.sh` (now `$HOME`) and a
   hardcoded repo root in `ClaudeVoiceMenuBar/Paths.swift` (now derived from its
   own `#filePath`, four levels up, verified with a probe at a known depth
   rather than assumed). This repo is public, and both were correct forever on
