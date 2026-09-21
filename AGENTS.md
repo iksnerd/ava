@@ -1,14 +1,15 @@
 # local-whisper Agent Guide
 
-This repo is six components: the `local-whisper` Go CLI (dictation),
-`cmd/voice-monitor` (realtime call-transcript monitor), the `mlx-engine`
-Python server (local STT+TTS, used by the CLI and by everything below),
-`voxtral/` (Python/MLX primitives used by `voice-monitor`), `scripts/`
-(Claude Code voice hooks), and `ClaudeVoiceMenuBar` (a Swift menu bar app
-for tuning voice settings). This guide covers the Go CLI (`local-whisper`)
-specifically; see each other component's own docs — `SETUP.md`
-(`voice-monitor`), `mlx-engine/README.md`, `docs/claude-code-voice-hooks.md`,
-`ClaudeVoiceMenuBar/README.md`.
+This repo is six components: the `local-whisper` Go CLI (dictation, speech,
+transcription, accessibility narration, and an MCP server), `cmd/voice-monitor`
+(realtime call-transcript monitor), the `mlx-engine` Python server (local
+STT+TTS, used by the CLI and by everything below), `voxtral/` (Python/MLX
+primitives used by `voice-monitor`), `scripts/` (Claude Code voice hooks), and
+`ClaudeVoiceMenuBar` (a Swift menu bar app for tuning voice settings). This
+guide covers the Go CLI (`local-whisper`) specifically; see each other
+component's own docs — `SETUP.md` (`voice-monitor`), `mlx-engine/README.md`,
+`docs/claude-code-voice-hooks.md`, `ClaudeVoiceMenuBar/README.md`,
+`docs/mcp.md`.
 
 ## Build Commands
 - `make build` - Compile binary to `bin/local-whisper`
@@ -37,11 +38,28 @@ cmd/local-whisper/engine.go     - `engine` subcommand group (start/stop/status),
 cmd/local-whisper/model.go      - engine/model flag validation, model filename selection
 cmd/local-whisper/context.go    - .whisper-context loading
 cmd/local-whisper/dependencies.go - external dependency checks (sox, whisper-cli, mlx-engine health)
+cmd/local-whisper/speak.go      - `speak` (Kokoro or the `say` fallback; reads stdin with no args)
+cmd/local-whisper/stop.go       - `stop` (cancels speech from any source, incl. the hooks)
+cmd/local-whisper/voices.go     - `voices`, plus formatVoices() shared with the MCP list_voices tool
+cmd/local-whisper/transcribe.go - `transcribe <file>` (an existing WAV, vs. the root command recording one)
+cmd/local-whisper/a11y.go       - `a11y` (accessibility tree -> screen-reader announcements)
+cmd/local-whisper/mcp.go        - `mcp`: stdio MCP server exposing the five above to any MCP client.
+                                  Nothing in this command may write to stdout — that's the JSON-RPC
+                                  channel. See docs/mcp.md
 internal/recording/recorder.go  - Audio recording, silence detection, and peak
                                   normalization (norm -3) in one sox invocation
 internal/audio/audio.go         - shared sox format constants (SampleRateHz, Channels)
 internal/clipboard/clipboard.go - Clipboard & auto-paste operations
 internal/procutil/              - shared subprocess/signal helpers
+internal/voiceconfig/           - the live Claude Voice settings (mute, speed, volume, voice,
+                                  say rate). Hand-ported from scripts/lib.sh's config_get; drift
+                                  tests pin the defaults to scripts/voice-defaults.json and the
+                                  voice list to VoiceSettings.swift
+internal/speaker/               - synthesis + playback, joining scripts/speak.sh's protocol
+                                  (mute gate, activity marker, shared flock, `say` fallback)
+internal/ttscontrol/            - cancels speech in flight (Go port of stop-speaking.sh)
+internal/a11y/                  - accessibility tree -> screen-reader announcements + findings.
+                                  Pure functions; rendering must be identical run to run
 pkg/stt/stt.go                  - Options/Client shapes shared by the two engines below,
                                   plus WriteOutputIfRequested() they both call
 pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper (--engine whisper)
@@ -56,10 +74,10 @@ scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine, wrapped by `
 Not covered here: `pkg/stt/realtime` (a *different*, independent client —
 wraps `voxtral/realtime.py` via `os/exec`, used only by `cmd/voice-monitor`,
 same underlying model family as `mlx-engine` but a different local
-architecture) and `voxtral/` itself. See `SETUP.md`. There is no `pkg/tts` —
-nothing in this repo speaks Go to a TTS engine directly; all synthesis goes
-through `scripts/speak.sh` curling `mlx-engine`'s `/speak` (see `pkg/stt`'s
-own package doc comment for why).
+architecture) and `voxtral/` itself. See `SETUP.md`. There is no `pkg/tts`:
+synthesis is `pkg/mlx.Client.Speak` (same server, same HTTP-client
+scaffolding), wrapped by `internal/speaker` (see `pkg/stt`'s own package doc
+comment for why).
 
 **External dependencies** (not in go.mod):
 - `whisper-cli` - OpenAI Whisper C++ implementation (`--engine whisper`, the default)
@@ -81,7 +99,7 @@ own package doc comment for why).
 - Normalizes audio before transcription
 
 ## Code Style
-- **Imports**: `github.com/spf13/cobra` (and its `pflag` dependency) is the only external Go dependency, used for the CLI command tree; everything else is stdlib
+- **Imports**: two external Go dependencies — `github.com/spf13/cobra` (and its `pflag` dependency) for the CLI command tree, and `github.com/modelcontextprotocol/go-sdk` used only by `cmd/local-whisper/mcp.go`; everything else is stdlib. Don't add a third without the same kind of reason
 - **Naming**: CamelCase for functions; descriptive names (e.g., `recordAudio`, `pasteWithAppleScript`)
 - **Error handling**: `RunE` returns errors up to `Execute()`, which prints `❌ <error>` and exits 1; warn but continue on non-critical errors (e.g., sound/paste)
 - **Functions**: One responsibility per function; helpers at bottom
@@ -115,7 +133,7 @@ own package doc comment for why).
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- ~37 test functions across `cmd/local-whisper`, `pkg/stt/whisper`, `pkg/mlx`, `internal/clipboard`, `internal/recording`, `internal/procutil` (fixture-driven: `testdata/bin/` fake executables + `httptest`) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
+- ~130 test functions across `cmd/local-whisper`, `cmd/voice-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,voiceconfig,speaker,ttscontrol,clipboard,recording,procutil}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations, HTTP client behavior, subprocess/signal helpers
 

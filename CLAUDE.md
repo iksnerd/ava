@@ -6,7 +6,8 @@ below), `cmd/voice-monitor` (realtime call-transcript monitor, see
 `voxtral/` (Python/MLX primitives used by `voice-monitor`), `scripts/`
 (Claude Code voice hooks), and `ClaudeVoiceMenuBar/` (Swift menu bar app).
 See each one's own README/SETUP for build/run instructions specific to it —
-this file covers the Go side.
+this file covers the Go side. The same voice stack is also served to MCP
+clients by `local-whisper mcp` (see `docs/mcp.md`).
 
 **Basic vs. advanced engines**: `whisper.cpp` (STT) and Kokoro (TTS, via
 `mlx-engine/`) are the default, zero-extra-setup path — nothing to
@@ -38,12 +39,15 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 ## Project Structure
 
-- `cmd/local-whisper/` - CLI entry point (dictation)
+- `cmd/local-whisper/` - CLI entry point. The bare command dictates (record → transcribe → paste); `speak.go`, `stop.go`, `voices.go`, `transcribe.go` and `a11y.go` expose the rest of the voice stack as verbs, and `mcp.go` serves the same five capabilities to MCP clients over stdio (see `docs/mcp.md`). Keep the two surfaces in step: a capability reachable from one and not the other is the gap this layout exists to prevent. Nothing in the `mcp` command may write to stdout — it's the JSON-RPC channel
 - `cmd/voice-monitor/` - realtime transcript monitor: serves a live transcript over SSE at localhost and logs it to a file; input can be the mic or a loopback device (e.g. BlackHole) for capturing call audio
 - `internal/recording/` - Audio recording via sox, including peak normalization (`norm -3`) as part of the same sox invocation — capture already happens at `internal/audio`'s target rate/channels, so there's no separate resample/normalize pass
 - `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
-- `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` since nothing in this repo speaks Go to a TTS engine directly (see `pkg/stt`'s own doc comment)
+- `internal/voiceconfig/` - the live Claude Voice settings (mute, speed, volume, voice, `say` rate, engine auto-start). A hand-written Go port of `scripts/lib.sh`'s `config_get`/`config_get_bool`, because an installed binary can't reach the repo's `scripts/`. Default *values* are pinned to `scripts/voice-defaults.json` by a test, and the voice list to `VoiceSettings.swift` by another — `go:embed` can't reach a parent directory and a second copy of either file would defeat its single-source-of-truth job
+- `internal/speaker/` - synthesis + playback in Go: the same protocol `scripts/speak.sh` uses, not a replacement for it. Checks the global mute first, keeps an activity marker in `/tmp/claude-tts-active` (what the menu bar's indicator polls and `internal/ttscontrol` cancels), holds the same `flock(2)` on `/tmp/claude-tts-playback.lock` that speak.sh takes via Python's `fcntl.flock`, and falls back to `say` when the server is down. Writes no `.synth.pid`: synthesis here is an in-process HTTP call, so naming our own PID would have a stop kill the whole process
+- `internal/a11y/` - parses chrome-devtools MCP's `take_snapshot` accessibility tree and renders it as screen-reader announcements, plus the findings that only surface when a page is heard in order. Pure functions, no I/O — the rendering has to be identical run to run for a spoken audit to mean anything
+- `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` — synthesis is `pkg/mlx.Client.Speak` wrapped by `internal/speaker` (see `pkg/stt`'s own doc comment)
 - `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper --engine whisper`, default)
 - `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper --engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
 - `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
@@ -54,7 +58,7 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 ## Conventions
 
-- **Minimal Go dependencies** - `github.com/spf13/cobra` (CLI command/flag framework) is the only third-party Go dependency, used by both `cmd/local-whisper` and `cmd/voice-monitor` for their command trees. `voxtral/` is external Python/MLX tooling shelled out to via `os/exec`, same as whisper-cli/sox — not a Go dependency. (The Python/Swift components have their own dependency managers — `uv` and SwiftPM respectively.) Each binary's cobra wiring lives in its own `cmd/<binary>/` directory: `main.go` just calls `Execute()`, `root.go` builds the root command, and each subcommand (e.g. `engine.go`, `devices.go`) is its own file with a `newXCmd()` constructor.
+- **Minimal Go dependencies** - two third-party Go dependencies, both load-bearing: `github.com/spf13/cobra` (CLI command/flag framework), used by both `cmd/local-whisper` and `cmd/voice-monitor` for their command trees, and `github.com/modelcontextprotocol/go-sdk` (used only by `cmd/local-whisper/mcp.go`) — hand-rolling JSON-RPC-over-stdio against a spec that still moves would cost more than the dependency does. Don't add a third without the same kind of reason. `voxtral/` is external Python/MLX tooling shelled out to via `os/exec`, same as whisper-cli/sox — not a Go dependency. (The Python/Swift components have their own dependency managers — `uv` and SwiftPM respectively.) Each binary's cobra wiring lives in its own `cmd/<binary>/` directory: `main.go` just calls `Execute()`, `root.go` builds the root command, and each subcommand (e.g. `engine.go`, `devices.go`) is its own file with a `newXCmd()` constructor.
 - **macOS-specific** - Uses `afplay`, `pbcopy`, AppleScript, sox, whisper-cli, MLX (Apple Silicon only)
 - **Error handling** - Return errors up; `fmt.Fprintf(os.Stderr, ...)` + `os.Exit(1)` at top level
 - **Resource cleanup** - Always check `os.Open`/HTTP response errors and `defer Close()`

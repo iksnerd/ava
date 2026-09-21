@@ -6,7 +6,8 @@ Code notifications — everything runs on-device, nothing leaves your machine.
 Started as a Go CLI wrapping `whisper.cpp` for dictation. It's grown into a
 small local-voice stack: two interchangeable transcription engines, a
 real-time call-transcription monitor, a local TTS server, Claude Code hooks
-that speak session status out loud, and a menu bar app to tune it all.
+that speak session status out loud, a menu bar app to tune it all, and an
+MCP server so anything else can use the same voice.
 
 ## Features
 
@@ -21,6 +22,8 @@ that speak session status out loud, and a menu bar app to tune it all.
 - **Text-to-speech**: a local Kokoro TTS server for anything that wants to speak, not just this CLI — see [`mlx-engine/`](mlx-engine/README.md).
 - **Spoken Claude Code notifications**: hooks that speak when Claude finishes a turn or needs a decision — see [Claude Code voice hooks](docs/claude-code-voice-hooks.md).
 - **Claude Voice menu bar app**: a one-click Dictate button (same dictation as the CLI, no terminal needed), a global Mute switch (also a system-wide keyboard-shortcut Service), plus live tuning of speed/volume/voice/message-length — see [`ClaudeVoiceMenuBar/`](ClaudeVoiceMenuBar/README.md).
+- **MCP server**: `local-whisper mcp` serves speech, transcription and accessibility-tree narration to any MCP client (Claude Code in any repo, Claude Desktop, another agent) — `claude mcp add -s user local-whisper -- local-whisper mcp`; see [`docs/mcp.md`](docs/mcp.md).
+- **Hear a web page**: paired with [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), it reads a page's accessibility tree aloud the way a screen reader announces it — for catching the accessibility problems a rule-based audit can't see (see [`.claude/skills/web-accessibility-audit/`](.claude/skills/web-accessibility-audit/SKILL.md)).
 
 ## Getting Started
 
@@ -109,6 +112,44 @@ local-whisper engine status  # Check whether it's running
 local-whisper engine stop    # Stop it
 ```
 
+### Speech
+
+The same local Kokoro path the voice hooks and the menu bar app use, from the
+terminal. Silent while the menu bar app's global Mute is on — it says so
+rather than pretending to speak.
+
+```bash
+local-whisper speak "build finished"
+git log -1 --format=%s | local-whisper speak      # no arguments: reads stdin
+local-whisper speak --voice bf_emma --speed 0.9 "slower, british"
+local-whisper speak --async "don't wait for playback"
+local-whisper stop                                # cancel whatever is speaking
+local-whisper voices                              # what --voice accepts
+```
+
+### Transcribe an existing file
+
+```bash
+local-whisper transcribe meeting.wav
+local-whisper transcribe --engine voxtral --lang es clip.wav
+local-whisper transcribe --output notes.txt meeting.wav
+```
+
+### Hear a web page
+
+Renders a Chrome accessibility tree as screen-reader announcements. Save
+chrome-devtools MCP's `take_snapshot` output to a file (or pipe it in):
+
+```bash
+local-whisper a11y snapshot.txt
+local-whisper a11y --mode headings --quiet snapshot.txt   # print, don't speak
+pbpaste | local-whisper a11y --mode links
+```
+
+Modes: `reading`, `headings`, `links`, `landmarks`, `forms`. The same
+rendering is available to agents as the `speak_accessibility_tree` MCP tool —
+see [`docs/mcp.md`](docs/mcp.md).
+
 ## Voice Engines
 
 `whisper` is the basic, default path — zero extra setup beyond
@@ -193,6 +234,7 @@ Check `/tmp/mlx-engine-server.log` if it doesn't come up. Full troubleshooting: 
 - [`SETUP.md`](SETUP.md) — `voice-monitor` (real-time call transcription): BlackHole loopback setup, engine/diarization options, known gaps.
 - [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken Claude Code notifications: setup, settings, how message length/summarization work.
 - [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar app for tuning the above live.
+- [`docs/mcp.md`](docs/mcp.md) — the MCP server: tools, registering it, and pairing it with chrome-devtools MCP for accessibility work.
 - [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or agent) working on this repo.
 
 ## Development
