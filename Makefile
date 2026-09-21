@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test vet fmt fmt-check lint check-paths check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral vet fmt fmt-check lint check-paths check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -22,7 +22,7 @@ help:
 	@echo "  make setup-blackhole    - Install BlackHole loopback driver to capture system/call audio"
 	@echo "  make build              - Build the binary to bin/"
 	@echo "  make build-voice-monitor - Build the realtime transcript monitor (localhost + log file)"
-	@echo "  make test               - Run all tests"
+	@echo "  make test               - Run all tests (Go, voice-hooks, mlx-engine, voxtral)"
 	@echo "  make vet                - go vet the Go code"
 	@echo "  make fmt                - Format Go (gofmt) and Python (ruff format), in place"
 	@echo "  make fmt-check          - Check formatting without modifying files (CI-safe)"
@@ -60,7 +60,26 @@ test:
 	@echo "🧪 Running tests..."
 	@go test -v ./...
 	@cd scripts/voice_hooks && uv run pytest
+	@$(MAKE) --no-print-directory test-mlx-engine
+	@$(MAKE) --no-print-directory test-voxtral
 	@echo "✅ Tests passed"
+
+# mlx-engine's HTTP contract, stubbing MLX so this needs neither Apple Silicon
+# nor the 146-package torch/CUDA lock. Deliberately NOT `cd mlx-engine && uv run
+# pytest`: that resolves the whole environment for tests that never touch a
+# model. See mlx-engine/tests/conftest.py.
+test-mlx-engine:
+	@echo "🧪 mlx-engine HTTP contract..."
+	@cd mlx-engine && uvx --with fastapi --with httpx --with pytest --with python-multipart \
+		pytest tests/ -q -p no:warnings
+
+# realtime.py's pure parts — the high-pass filter and --device resolution — with
+# sounddevice stubbed so no audio hardware is needed. scipy and numpy are real:
+# the filter is what is under test.
+test-voxtral:
+	@echo "🧪 voxtral filter + device resolution..."
+	@cd voxtral && uvx --with numpy --with scipy --with pytest \
+		pytest tests/ -q -p no:warnings
 
 vet:
 	@echo "🔍 Vetting Go code..."

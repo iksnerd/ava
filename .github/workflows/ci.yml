@@ -38,6 +38,15 @@ jobs:
       - name: No hardcoded home directories
         run: bash scripts/check-portable-paths.sh
 
+      # These stub the MLX surface (see mlx-engine/tests/conftest.py), so they
+      # run here rather than on the macOS runner — which also proves the stubbing
+      # holds on a machine where MLX could not be installed at all.
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: mlx-engine HTTP contract
+        run: make test-mlx-engine
+      - name: voxtral filter + device resolution
+        run: make test-voxtral
+
   # Swift and the Python hooks. Xcode is preinstalled on the macOS runner, so
   # building the app needs no toolchain setup — only *running* it would need a
   # TCC grant, which a headless runner cannot give.

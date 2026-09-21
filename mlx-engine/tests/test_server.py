@@ -1,0 +1,229 @@
+"""Contract tests for the mlx-engine HTTP surface.
+
+Four callers depend on this server's shape — the Go CLI via pkg/mlx, the MCP
+speak tool, scripts/speak.sh in bash, and the Ava menu bar app's health poll —
+and until now nothing checked any of it.
+"""
+
+import time
+
+import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
+
+class TestHealth:
+    def test_reports_both_models_and_their_load_state(self, client, server):
+        """STT lazy, TTS warm — the asymmetry is deliberate and documented in
+        startup_event: the 4B Voxtral model must not be paid for by a server
+        that only ever speaks, while Kokoro's first call costs an extra ~2.6s of
+        MLX compilation that is better spent at startup than on a real request.
+        Making STT eager here would add a multi-gigabyte load to every start.
+        """
+        res = client.get("/health")
+        assert res.status_code == 200
+        assert res.json() == {
+            "status": "ok",
+            "model": server.MODEL_PATH,
+            "stt_loaded": False,
+            "tts_model": server.TTS_MODEL_PATH,
+            "tts_loaded": True,
+        }
+
+    def test_does_not_count_as_activity(self, client, server):
+        """The menu bar app polls /health every few seconds. If that reset the
+        idle timer, the 15-minute shutdown would never fire while the panel is
+        open — which is the whole point of the timer. server.py documents this;
+        nothing enforced it.
+        """
+        server.last_request_time = 0.0
+        client.get("/health")
+        assert server.last_request_time == 0.0, "/health must not touch the idle timer"
+
+    def test_speak_does_count_as_activity(self, client, server, tmp_path):
+        server.last_request_time = 0.0
+        _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "hello"})
+        assert server.last_request_time > 0.0, "/speak must reset the idle timer"
+
+
+class TestSpeakValidation:
+    def test_empty_text_is_rejected_without_generating(self, client, server, tmp_path):
+        gen = _stub_successful_tts(server, tmp_path)
+        res = client.post("/speak", json={"text": ""})
+        assert res.status_code == 400
+        assert "empty" in res.json()["detail"].lower()
+        assert gen.calls == [], "must reject empty text before running synthesis"
+
+    def test_whitespace_only_text_is_rejected(self, client):
+        assert client.post("/speak", json={"text": "   \n\t "}).status_code == 400
+
+    def test_text_is_required(self, client):
+        assert client.post("/speak", json={}).status_code == 422
+
+    def test_defaults_match_the_documented_contract(self, client, server, tmp_path):
+        """af_heart / speed 1.0 are what every caller relies on when it sends
+        only `text`. scripts/voice-defaults.json and VoiceSettings.swift both
+        assume it."""
+        gen = _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "hi"})
+        assert gen.last["voice"] == "af_heart"
+        assert gen.last["speed"] == 1.0
+
+
+class TestSpeakLanguageCode:
+    """The voice id's first letter selects the phonemizer locale. Without it
+    every voice is phonemized as American English, so a British voice speaks
+    with the wrong accent's rules while still sounding like the right voice —
+    a bug that is invisible unless you listen for it.
+    """
+
+    def test_derives_lang_code_from_the_voice_prefix(self, client, server, tmp_path):
+        gen = _stub_successful_tts(server, tmp_path)
+        for voice, expected in [
+            ("af_heart", "a"),
+            ("am_adam", "a"),
+            ("bf_emma", "b"),
+            ("bm_george", "b"),
+            ("ef_dora", "e"),
+        ]:
+            client.post("/speak", json={"text": "hi", "voice": voice})
+            assert gen.last["lang_code"] == expected, f"{voice} should phonemize as {expected!r}"
+
+    def test_falls_back_to_american_english_for_an_empty_voice(self, client, server, tmp_path):
+        gen = _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "hi", "voice": ""})
+        assert gen.last["lang_code"] == "a"
+
+
+class TestSpeakLongText:
+    def test_requests_joined_audio(self, client, server, tmp_path):
+        """Kokoro splits long text into speech_000.wav, speech_001.wav, ... and
+        the handler reads back only speech.wav. Without join_audio the response
+        would silently truncate anything past a paragraph or two.
+        """
+        gen = _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "a paragraph. " * 500})
+        assert gen.last["join_audio"] is True
+
+
+class TestSpeakFailureModes:
+    def test_generation_failure_becomes_a_500_with_the_reason(self, client, server):
+        server.tts_model.instance = "loaded"
+        server.generate_audio = _raiser(RuntimeError("out of memory"))
+        res = client.post("/speak", json={"text": "hi"})
+        assert res.status_code == 500
+        assert "out of memory" in res.json()["detail"]
+
+    def test_silent_generation_is_an_error_not_an_empty_200(self, client, server):
+        """generate_audio can return without writing a file. Returning 200 with
+        a zero-byte body would make every caller think it spoke."""
+        server.tts_model.instance = "loaded"
+        server.generate_audio = lambda **kw: None  # writes nothing
+        res = client.post("/speak", json={"text": "hi"})
+        assert res.status_code == 500
+        assert "no audio" in res.json()["detail"].lower()
+
+    def test_returns_wav_bytes_on_success(self, client, server, tmp_path):
+        _stub_successful_tts(server, tmp_path, audio=b"RIFFfake")
+        res = client.post("/speak", json={"text": "hi"})
+        assert res.status_code == 200
+        assert res.headers["content-type"] == "audio/wav"
+        assert res.content == b"RIFFfake"
+
+
+class TestTranscribeValidation:
+    def test_rejects_a_non_wav_upload(self, client):
+        res = client.post("/transcribe", files={"audio": ("a.mp3", b"\x00\x00", "audio/mpeg")})
+        assert res.status_code == 400
+        assert "wav" in res.json()["detail"].lower()
+
+    def test_audio_is_required(self, client):
+        assert client.post("/transcribe").status_code == 422
+
+    def test_a_wav_that_is_not_really_a_wav_fails_cleanly(self, client, wav_bytes):
+        res = client.post("/transcribe", files={"audio": ("a.wav", b"not a wav", "audio/wav")})
+        assert res.status_code in (400, 500)
+        assert res.json()["detail"], "an error must carry a reason, not an empty body"
+
+
+class TestLazyModel:
+    def test_loads_once_and_caches(self, server, recording_stub):
+        loader = recording_stub(result="model-object")
+        lm = server.LazyModel("STT", "some/path", loader)
+
+        assert lm.loaded is False
+        assert lm.get() == "model-object"
+        assert lm.loaded is True
+        assert lm.get() == "model-object"
+        assert len(loader.calls) == 1, "a second get() must not reload the model"
+
+    def test_a_load_failure_is_a_500_naming_the_model(self, server, recording_stub):
+        lm = server.LazyModel("TTS", "bad/path", recording_stub(raises=OSError("no such model")))
+        with pytest.raises(HTTPException) as caught:
+            lm.get()
+        assert caught.value.status_code == 500
+        assert "TTS" in caught.value.detail
+        assert "no such model" in caught.value.detail
+        assert lm.loaded is False, "a failed load must not be cached as loaded"
+
+
+class TestIdleShutdown:
+    def test_timeout_is_fifteen_minutes(self, server):
+        assert server.IDLE_TIMEOUT_SEC == 15 * 60
+
+    def test_last_request_time_starts_populated(self, server):
+        """Starting at 0 would make the server look 56 years idle and shut down
+        on the first check, before anyone connected."""
+        assert server.last_request_time > time.time() - 60
+
+
+def _stub_successful_tts(server, tmp_path, audio: bytes = b"RIFF" + b"\x00" * 44):
+    """Point the TTS path at a stub that writes a file where the handler looks."""
+    server.tts_model.instance = "loaded"
+
+    class _Gen:
+        def __init__(self):
+            self.calls = []
+
+        def __call__(self, **kwargs):
+            self.calls.append(kwargs)
+            out = kwargs["output_path"]
+            with open(f"{out}/{kwargs['file_prefix']}.wav", "wb") as f:
+                f.write(audio)
+
+        @property
+        def last(self):
+            return self.calls[-1]
+
+    gen = _Gen()
+    server.generate_audio = gen
+    return gen
+
+
+def _raiser(exc):
+    def _f(**kwargs):
+        raise exc
+
+    return _f
+
+
+class TestStartupWarmUp:
+    """The eager TTS warm-up is a performance contract, not an implementation
+    detail: without it the first real /speak pays ~2.6s of MLX compilation, and
+    so does the first one after every idle shutdown."""
+
+    def test_startup_generates_once_to_warm_kokoro(self, server):
+        calls = []
+        server.generate_audio = lambda **kw: calls.append(kw)
+        with TestClient(server.app):
+            pass
+        assert len(calls) == 1, "startup should warm the TTS model exactly once"
+        assert calls[0]["voice"] == "af_heart"
+        assert server.tts_model.loaded
+
+    def test_startup_does_not_load_the_stt_model(self, server):
+        server.generate_audio = lambda **kw: None
+        with TestClient(server.app):
+            pass
+        assert not server.stt_model.loaded, "the 4B STT model must stay lazy at startup"
