@@ -47,6 +47,29 @@ urgent — see CLAUDE.md for the project overview.
   not in the web projects where a page would actually be audited. Left local on
   purpose for now; promote with `code-quality:skill-distiller` if it earns it.
 
+- **Nothing catches a shipped script or make target that no doc mentions.**
+  `make setup-blackhole` existed, worked, and was referenced by nothing —
+  `SETUP.md` walked a reader through installing BlackHole by hand without ever
+  saying the repo automates the installable part. Found by listing every
+  Makefile target and grepping the docs for it, which took one loop and should
+  not need a person to think of running it. `scripts/check-portable-paths.sh`
+  is the shape the fix would take: a check in `make lint` that fails when a
+  target or a `scripts/*.sh` is mentioned in no `.md`, with an allowlist for
+  the genuinely internal ones (`fmt-check`, `vet`).
+
+## Done (2026-09-22, later)
+
+- Audited the docs against the code rather than against memory, after the
+  README split and the port/path fixes, and closed the three gaps it found:
+  `make check-paths` was missing from the README's Development block though
+  `check-swift-config` was listed; `SETUP.md` never mentioned
+  `make setup-blackhole`; and `ClaudeVoiceMenuBar/README.md` still described
+  the global mute as something `speak.sh` enforces "for every caller", which
+  stopped being the whole story when the Go side gained its own readers of the
+  same flag. Everything else checked clean: all seven CLI commands and all
+  their flags appear in `docs/cli.md`, all five MCP tools in `docs/mcp.md`, and
+  every remaining `8765` in the tree belongs to mlx-engine.
+
 ## Done (2026-09-22)
 
 - Moved `cmd/voice-monitor` off port 8765 to 8766. It had defaulted to

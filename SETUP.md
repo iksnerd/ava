@@ -5,11 +5,16 @@ See `docs/voxtral-architecture.mmd` for the full architecture this fits into.
 ## Done
 - [x] `pkg/stt/realtime` (Go wrapper around `realtime.py`) + `voxtral/` (MLX primitives: `realtime.py`), managed as a uv project (`voxtral/pyproject.toml` + `uv.lock`) — `make setup-voxtral` runs `uv sync` into `voxtral/.venv`
 - [x] `cmd/voice-monitor` — serves live transcript at `localhost:8766` (SSE) and logs it to `/tmp/voice-input/transcript-<timestamp>.txt`
-- [x] BlackHole 2ch installed (`brew list --cask blackhole-2ch`) + Multi-Output Device ("Meet Recording") in Audio MIDI Setup, built from **MacBook Pro Speakers + BlackHole 2ch** (not Bluetooth/AirPods — see gotcha below)
+- [x] BlackHole 2ch installed (`make setup-blackhole`, or `brew list --cask blackhole-2ch` to check) + Multi-Output Device ("Meet Recording") in Audio MIDI Setup, built from **MacBook Pro Speakers + BlackHole 2ch** (not Bluetooth/AirPods — see gotcha below)
 - [x] Dual STT engine in `realtime.py`/`pkg/stt/realtime`: `--engine voxtral` (default, <500ms, 13 languages) or `--engine whisper` (multilingual, 99+ languages, ~1s latency)
 - [x] `--diarize` — tags transcript deltas with `[Speaker N]` via Sortformer (mlx-audio, no extra dep), whisper engine only
 - [x] `--highpass-hz` (default 80Hz) — cuts low-frequency rumble/bass before STT/diarization; important because BlackHole loopback audio runs much quieter than mic input, so noise floor matters more
 - [x] End-to-end confirmed working against a real Bulgarian Meet call, with speaker labels
+
+`make setup-blackhole` installs the driver and prints the rest of the steps.
+It stops at the Multi-Output Device, which has to be built by hand in Audio
+MIDI Setup — that part isn't scriptable. Installing the driver needs a reboot
+before macOS lists it as a device.
 
 ## Gotcha: getting audio into BlackHole at all (the actual saga)
 Confirming BlackHole is installed and selected as the macOS system output is **not enough**. In order, what actually had to be true:

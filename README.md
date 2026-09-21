@@ -181,6 +181,7 @@ make build-voice-monitor
 make test                  # Go tests plus the voice-hooks pytest suite
 make lint                  # vet, format check, ruff. Run before committing
 make check-swift-config    # check the Swift config reader agrees with bash and Go
+make check-paths           # fail on a hardcoded home directory (also runs in lint)
 make clean
 ```
 

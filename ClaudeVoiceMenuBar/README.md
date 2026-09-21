@@ -82,9 +82,12 @@ needs a paid Apple Developer Program membership — tracked as still-open in
 ## Mute
 
 The **Mute Claude Voice** button at the top of the panel is a single global
-switch: while it's on, `speak.sh` exits immediately for every caller —
-both Claude Code hooks, Read Aloud, and this panel's own Test/Preview
-buttons — rather than each one having to remember to check. Muting also
+switch: while it's on, `speak.sh` exits immediately for every caller that
+goes through it — both Claude Code hooks, Read Aloud, and this panel's own
+Test/Preview buttons — rather than each one having to remember to check.
+The Go side reads the same flag through `internal/voiceconfig`, so
+`local-whisper speak`/`a11y` and the MCP `speak` tool are silent too, and
+say so rather than reporting a success nobody heard. Muting also
 stops anything already playing, and the menu bar icon itself turns into a
 muted speaker so you can tell at a glance without opening the panel.
 
