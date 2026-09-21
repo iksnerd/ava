@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/ttscontrol"
+	"github.com/iksnerd/local-whisper/internal/ttscontrol"
 )
 
 // newStopCmd cancels speech in flight, whoever started it — this session,

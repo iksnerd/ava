@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/internal/testutil"
+	"github.com/iksnerd/local-whisper/internal/testutil"
 )
 
 func TestCopyToClipboardWritesStdin(t *testing.T) {

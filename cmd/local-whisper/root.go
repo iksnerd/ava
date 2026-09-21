@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/clipboard"
-	"local-whisper/internal/procutil"
-	"local-whisper/internal/recording"
-	"local-whisper/pkg/mlx"
-	"local-whisper/pkg/stt"
-	"local-whisper/pkg/stt/whisper"
+	"github.com/iksnerd/local-whisper/internal/clipboard"
+	"github.com/iksnerd/local-whisper/internal/procutil"
+	"github.com/iksnerd/local-whisper/internal/recording"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
+	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/pkg/stt/whisper"
 )
 
 const tmpDir = "/tmp/voice-input"

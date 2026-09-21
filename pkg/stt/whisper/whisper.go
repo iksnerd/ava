@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 // Client wraps the whisper-cli command-line tool

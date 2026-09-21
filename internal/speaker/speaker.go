@@ -37,8 +37,8 @@ import (
 	"syscall"
 	"time"
 
-	"local-whisper/internal/voiceconfig"
-	"local-whisper/pkg/mlx"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
 
 // DefaultActivityDir mirrors speak.sh's ACTIVITY_DIR and the directory

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 // newTranscribeCmd transcribes a WAV file that already exists, as opposed

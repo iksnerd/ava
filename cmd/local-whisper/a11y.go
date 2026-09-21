@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/a11y"
-	"local-whisper/internal/speaker"
-	"local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/internal/a11y"
+	"github.com/iksnerd/local-whisper/internal/speaker"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 )
 
 // newA11yCmd renders a Chrome accessibility tree as screen-reader

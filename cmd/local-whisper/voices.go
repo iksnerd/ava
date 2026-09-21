@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 )
 
 // newVoicesCmd lists what `speak --voice` accepts.

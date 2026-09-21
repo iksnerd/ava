@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/speaker"
-	"local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/internal/speaker"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 )
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and

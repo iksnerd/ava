@@ -8,11 +8,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/a11y"
-	"local-whisper/internal/speaker"
-	"local-whisper/internal/ttscontrol"
-	"local-whisper/internal/voiceconfig"
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/internal/a11y"
+	"github.com/iksnerd/local-whisper/internal/speaker"
+	"github.com/iksnerd/local-whisper/internal/ttscontrol"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 // mcpServerVersion is the version reported to MCP clients during the

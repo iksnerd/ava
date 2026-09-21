@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 // Client wraps the local mlx-engine HTTP server.

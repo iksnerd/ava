@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/pkg/mlx"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
 
 func TestRootFlagsPresent(t *testing.T) {

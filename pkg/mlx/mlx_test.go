@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 const fixtureAudioPath = "testdata/audio.wav"

@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"local-whisper/internal/procutil"
-	"local-whisper/pkg/stt/realtime"
+	"github.com/iksnerd/local-whisper/internal/procutil"
+	"github.com/iksnerd/local-whisper/pkg/stt/realtime"
 )
 
 // rootOptions holds the persistent --python/--voxtral-dir flags, shared by

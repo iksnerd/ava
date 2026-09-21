@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/internal/voiceconfig"
-	"local-whisper/pkg/mlx"
+	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
 
 // stubEngine stands in for the mlx-engine HTTP client.

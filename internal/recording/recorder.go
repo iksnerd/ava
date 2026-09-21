@@ -3,9 +3,9 @@ package recording
 import (
 	"os/exec"
 
-	"local-whisper/internal/audio"
-	"local-whisper/internal/procutil"
-	"local-whisper/internal/ttscontrol"
+	"github.com/iksnerd/local-whisper/internal/audio"
+	"github.com/iksnerd/local-whisper/internal/procutil"
+	"github.com/iksnerd/local-whisper/internal/ttscontrol"
 )
 
 // Recorder handles audio recording with silence detection

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"local-whisper/internal/testutil"
-	"local-whisper/internal/ttscontrol"
+	"github.com/iksnerd/local-whisper/internal/testutil"
+	"github.com/iksnerd/local-whisper/internal/ttscontrol"
 )
 
 // isolateTTSActivityDir points Record()'s ttscontrol.StopSpeaking() call at

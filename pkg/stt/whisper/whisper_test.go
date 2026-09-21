@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"local-whisper/internal/testutil"
-	"local-whisper/pkg/stt"
+	"github.com/iksnerd/local-whisper/internal/testutil"
+	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 const fixtureModelPath = "testdata/model.bin"
