@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test vet fmt fmt-check lint install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test vet fmt fmt-check lint check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -13,6 +13,7 @@ help:
 	@echo ""
 	@echo "Commands:"
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
+	@echo "  make check-swift-config - Check VoiceSettings.swift resolves the config like bash and Go (needs swift)"
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
 	@echo "  make setup-voxtral      - Create Python venv and install Voxtral MLX primitives"
@@ -82,6 +83,10 @@ fmt-check:
 	@cd voxtral && uv run ruff format --check .
 	@cd scripts/voice_hooks && uv run ruff format --check .
 	@echo "✅ Formatting clean"
+
+check-swift-config:
+	@echo "🔍 Checking VoiceSettings.swift against the config contract..."
+	@python3 ClaudeVoiceMenuBar/scripts/check-config-contract.py
 
 lint: vet fmt-check
 	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."

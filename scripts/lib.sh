@@ -18,8 +18,11 @@ SPEAK="$SCRIPT_DIR/speak.sh"
 # voice-defaults.json is the single source of truth for default values —
 # VoiceSettings.swift reads the same file, so a default only ever needs to
 # change in one place instead of at every call site in both languages.
-VOICE_CONFIG_FILE="$HOME/Library/Application Support/ClaudeVoice/config.json"
-VOICE_DEFAULTS_FILE="$SCRIPT_DIR/voice-defaults.json"
+# Both paths are overridable so the contract test (internal/voiceconfig) can
+# point this reader and the Go one at the same fixture and compare answers.
+# Nothing in normal operation sets them; see VOICECONFIG_PATH on the Go side.
+VOICE_CONFIG_FILE="${VOICE_CONFIG_FILE:-$HOME/Library/Application Support/ClaudeVoice/config.json}"
+VOICE_DEFAULTS_FILE="${VOICE_DEFAULTS_FILE:-$SCRIPT_DIR/voice-defaults.json}"
 
 # config_get <jsonKey> -> the live config's value, else voice-defaults.json's, else empty.
 config_get() {
@@ -51,6 +54,31 @@ config_get_int() {
         ''|*[!0-9-]*) echo "$2" ;;
         *) echo "$v" ;;
     esac
+}
+
+# as_float <value> <fallback> -> <value> when it parses as a number, else
+# <fallback>. Uses Python's float() rather than a shell glob so it accepts
+# exactly what the call sites downstream accept, and rejects the near-misses
+# a character-class test would let through ("1.2.3", "1e", "--3").
+as_float() {
+    python3 -c "
+import sys
+try:
+    print(float(sys.argv[1]))
+except Exception:
+    print(sys.argv[2])
+" "$1" "$2"
+}
+
+# config_get_float <jsonKey> <lastResortDefault> -> like config_get, but
+# guarantees a number. Without it a hand-edited '"speed": "fast"' reached
+# speak.sh's json.dumps(float(...)) verbatim, which threw, emptied the
+# payload, and dropped the whole synthesis to the `say` fallback — a robot
+# voice with no error anywhere. internal/voiceconfig drops a wrong-typed
+# value per key; this is how bash does the same, and
+# internal/voiceconfig/contract_test.go keeps the two honest.
+config_get_float() {
+    as_float "$(config_get "$1")" "$2"
 }
 
 # config_get_bool <jsonKey> <lastResortDefault: true|false> -> "true"/"false".

@@ -14,6 +14,7 @@ component's own docs — `SETUP.md` (`voice-monitor`), `mlx-engine/README.md`,
 ## Build Commands
 - `make build` - Compile binary to `bin/local-whisper`
 - `make test` - Run all Go tests plus the `scripts/voice_hooks/` pytest suite
+- `make check-swift-config` - Check VoiceSettings.swift resolves the voice config the same way bash and Go do (needs swift; not part of `make test`)
 - `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin
@@ -54,7 +55,10 @@ internal/procutil/              - shared subprocess/signal helpers
 internal/voiceconfig/           - the live Claude Voice settings (mute, speed, volume, voice,
                                   say rate). Hand-ported from scripts/lib.sh's config_get; drift
                                   tests pin the defaults to scripts/voice-defaults.json and the
-                                  voice list to VoiceSettings.swift
+                                  voice list to VoiceSettings.swift. contract_test.go runs bash
+                                  and Go against testdata/voice-config-cases.json and fails if the
+                                  two readers of this config disagree; `make check-swift-config`
+                                  is the Swift arm (needs swiftc, so not in `make test`)
 internal/speaker/               - synthesis + playback, joining scripts/speak.sh's protocol
                                   (mute gate, activity marker, shared flock, `say` fallback)
 internal/ttscontrol/            - cancels speech in flight (Go port of stop-speaking.sh)

@@ -22,6 +22,43 @@ struct VoiceConfig: Codable, Equatable {
     var engineAutoStart: Bool = true
 }
 
+// Decoded key by key, each bad value costing only its own key.
+//
+// The synthesized Codable init is all-or-nothing: one wrong-typed value
+// anywhere in the file — a hand-edited "speed": "fast" — fails the whole
+// decode, and load() below then falls back to *every* property default,
+// including muted = false. The two other readers of this same file,
+// scripts/lib.sh's config_get and internal/voiceconfig, both degrade per
+// key, so before this the menu bar app could show unmuted and speak while
+// the hooks and the CLI stayed correctly silent. Mute is the one setting
+// whose entire job is to be absolute.
+//
+// Declared in an extension on purpose: an init(from:) inside the struct
+// body would suppress the synthesized init(), which load() returns when
+// both files are unreadable.
+extension VoiceConfig {
+    init(from decoder: Decoder) throws {
+        self.init()
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else { return }
+        muted = Self.lenient(c, .muted) ?? muted
+        speed = Self.lenient(c, .speed) ?? speed
+        volume = Self.lenient(c, .volume) ?? volume
+        voice = Self.lenient(c, .voice) ?? voice
+        sayRate = Self.lenient(c, .sayRate) ?? sayRate
+        stopMaxChars = Self.lenient(c, .stopMaxChars) ?? stopMaxChars
+        notifyMaxChars = Self.lenient(c, .notifyMaxChars) ?? notifyMaxChars
+        llmSummary = Self.lenient(c, .llmSummary) ?? llmSummary
+        engineAutoStart = Self.lenient(c, .engineAutoStart) ?? engineAutoStart
+    }
+
+    /// nil for a key that is absent, of the wrong type, or otherwise
+    /// undecodable — the caller keeps its existing value in all three cases.
+    private static func lenient<T: Decodable>(_ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> T? {
+        guard let value = try? c.decodeIfPresent(T.self, forKey: key) else { return nil }
+        return value
+    }
+}
+
 /// English Kokoro voices bundled in the already-downloaded
 /// mlx-community/Kokoro-82M-bf16 snapshot (~/.cache/huggingface/.../voices).
 enum KokoroVoice {
@@ -92,10 +129,11 @@ final class VoiceSettings: ObservableObject {
     }
 
     // Merges voice-defaults.json (base) with the live config (overlay) key
-    // by key, mirroring config_get's per-key fallback — so a live config
-    // missing a newer field still picks it up from the shared defaults
-    // instead of the whole decode failing. The struct's own property
-    // defaults are a last resort if *both* files are unreadable.
+    // by key, so a live config missing a newer field picks it up from the
+    // shared defaults. That covers a *missing* key; a present-but-wrong-typed
+    // one is handled by the tolerant init(from:) above, which is what
+    // actually mirrors config_get's per-key fallback. The struct's own
+    // property defaults are a last resort if *both* files are unreadable.
     nonisolated static func load() -> VoiceConfig {
         var merged = readJSONObject(defaultsFileURL) ?? [:]
         if let live = readJSONObject(fileURL) {

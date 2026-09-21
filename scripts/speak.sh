@@ -11,8 +11,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 SERVER="http://127.0.0.1:8765"
 TEXT="$1"
 VOICE="${2:-$(config_get voice)}"
-SPEED="${TTS_SPEED:-$(config_get speed)}"       # Kokoro speed multiplier
-VOLUME="${TTS_VOLUME:-$(config_get volume)}"    # afplay volume, 0.0-1.0+
+SPEED=$(config_get_float speed 1.3)             # Kokoro speed multiplier
+VOLUME=$(config_get_float volume 1.0)           # afplay volume, 0.0-1.0+
+# Env overrides go through the same check as the config file, so a typo'd
+# TTS_SPEED falls back instead of reaching float() — matching what
+# internal/voiceconfig does with the same variable.
+[ -n "$TTS_SPEED" ] && SPEED=$(as_float "$TTS_SPEED" "$SPEED")
+[ -n "$TTS_VOLUME" ] && VOLUME=$(as_float "$TTS_VOLUME" "$VOLUME")
 SAY_RATE="${TTS_SAY_RATE:-$(config_get sayRate)}" # words/min for the `say` fallback
 PLAYBACK_LOCK="/tmp/claude-tts-playback.lock"
 PLAYBACK_TIMEOUT_SEC=600 # long enough for a full article read aloud at once

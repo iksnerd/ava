@@ -1,0 +1,150 @@
+{
+  "_comment": [
+    "Contract fixtures for the voice config. Every reader of",
+    "~/Library/Application Support/ClaudeVoice/config.json must resolve these",
+    "identically: scripts/lib.sh (bash), internal/voiceconfig (Go), and",
+    "ClaudeVoiceMenuBar/VoiceSettings.swift (Swift, not yet automated - no test",
+    "target). 'live' is the config file's content; null means the file is absent.",
+    "'raw' means write this text verbatim instead of encoding 'live' as JSON.",
+    "Expected values are the resolved ones; 'default' means whatever",
+    "scripts/voice-defaults.json says for that key."
+  ],
+  "cases": [
+    {
+      "name": "live config wins for every key it sets",
+      "live": {
+        "muted": true,
+        "speed": 0.9,
+        "volume": 0.4,
+        "voice": "bf_emma",
+        "sayRate": 180,
+        "engineAutoStart": false
+      },
+      "expect": {
+        "muted": "true",
+        "speed": "0.9",
+        "volume": "0.4",
+        "voice": "bf_emma",
+        "sayRate": "180",
+        "engineAutoStart": "false"
+      }
+    },
+    {
+      "name": "keys absent from the live config fall back per key",
+      "live": {
+        "muted": true
+      },
+      "expect": {
+        "muted": "true",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "an empty live config is all defaults",
+      "live": {},
+      "expect": {
+        "muted": "default",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "no live config file at all is all defaults",
+      "live": null,
+      "expect": {
+        "muted": "default",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "unparseable live config is all defaults",
+      "raw": "{not json",
+      "expect": {
+        "muted": "default",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "one wrong-typed value costs only its own key, never mute",
+      "live": {
+        "muted": true,
+        "speed": "fast",
+        "voice": "bf_emma"
+      },
+      "expect": {
+        "muted": "true",
+        "speed": "default",
+        "volume": "default",
+        "voice": "bf_emma",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "a wrong-typed mute falls back rather than being believed",
+      "live": {
+        "muted": "yes",
+        "voice": "bf_emma"
+      },
+      "expect": {
+        "muted": "default",
+        "voice": "bf_emma",
+        "speed": "default",
+        "volume": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "a wrong-typed integer costs only its own key",
+      "live": {
+        "muted": true,
+        "sayRate": {
+          "nested": "object"
+        }
+      },
+      "expect": {
+        "muted": "true",
+        "sayRate": "default",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "engineAutoStart": "default"
+      }
+    },
+    {
+      "name": "unknown keys are ignored, not fatal",
+      "live": {
+        "muted": true,
+        "somethingNew": [
+          1,
+          2,
+          3
+        ]
+      },
+      "expect": {
+        "muted": "true",
+        "speed": "default",
+        "volume": "default",
+        "voice": "default",
+        "sayRate": "default",
+        "engineAutoStart": "default"
+      }
+    }
+  ]
+}
