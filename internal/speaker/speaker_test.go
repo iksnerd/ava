@@ -258,3 +258,42 @@ func (e *stoppingEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
 	}
 	return nil, errors.New("cancelled")
 }
+
+// Falling back to `say` changes the voice the user hears and degrades quality.
+// Staying quiet about it makes "why does it sound robotic / why is it the wrong
+// voice" unanswerable from the outside, which is exactly what happened before.
+func TestSpeakWarnsWhenItFallsBackToSay(t *testing.T) {
+	var notice strings.Builder
+	s, rec := newTestSpeaker(t, &stubEngine{healthy: false}, voiceconfig.Settings{})
+	s.Notice = &notice
+	s.AutoStart = func() error { return errors.New("mlx-engine not installed") }
+
+	if err := s.Speak("build finished", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+
+	if rec.saidText != "build finished" {
+		t.Errorf("say got %q, want the original text", rec.saidText)
+	}
+	got := notice.String()
+	for _, want := range []string{"say", "engine start"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("fallback warning %q should mention %q so the user can act on it", got, want)
+		}
+	}
+}
+
+// The happy path must stay quiet: a warning on every successful sentence would
+// train the user to ignore the one that matters.
+func TestSpeakIsSilentWhenTheEngineWorks(t *testing.T) {
+	var notice strings.Builder
+	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, audio: []byte("RIFF")}, voiceconfig.Settings{})
+	s.Notice = &notice
+
+	if err := s.Speak("all good", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+	if notice.Len() != 0 {
+		t.Errorf("successful synthesis should print no warning, got %q", notice.String())
+	}
+}

@@ -42,6 +42,9 @@ func newSpeakCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := validateVoice(voice); err != nil {
+				return err
+			}
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
 			}
@@ -91,4 +94,34 @@ func readSpeakText(args []string, stdin io.Reader) (string, error) {
 		return "", fmt.Errorf("nothing to speak: pass the text as arguments or pipe it in")
 	}
 	return text, nil
+}
+
+// validateVoice rejects an unknown voice id instead of letting the engine do
+// it. The engine's rejection is indistinguishable from the engine being down,
+// so internal/speaker falls back to macOS `say` — meaning a typo in --voice
+// used to speak the whole message in a completely different voice and exit 0.
+// The ids are a closed set this binary already ships for shell completion.
+//
+// An empty value means "use the configured voice" and is left alone. Two
+// comma-separated ids are a blend, so each side is checked.
+func validateVoice(voice string) error {
+	if voice == "" {
+		return nil
+	}
+	known := make(map[string]bool, len(voiceconfig.Voices()))
+	for _, v := range voiceconfig.Voices() {
+		known[v.ID] = true
+	}
+	for _, id := range strings.Split(voice, ",") {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return fmt.Errorf("invalid --voice %q: empty id in the blend", voice)
+		}
+		if !known[id] {
+			return fmt.Errorf(
+				"unknown voice %q (run `local-whisper voices` to list the %d available)",
+				id, len(known))
+		}
+	}
+	return nil
 }

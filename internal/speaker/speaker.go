@@ -30,6 +30,7 @@ package speaker
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -91,6 +92,12 @@ type Speaker struct {
 	AutoStart   func() error
 	ActivityDir string
 	LockPath    string
+	// Notice receives user-facing warnings that are not failures — above all,
+	// that synthesis fell back to macOS `say`. Without it the caller hears a
+	// completely different voice, in noticeably worse quality, and is told
+	// nothing: the most common "why does it sound robotic / why is it the wrong
+	// voice" confusion. nil means discard, which is what a test wants.
+	Notice io.Writer
 }
 
 // New wires a Speaker against the real mlx-engine, afplay and `say`.
@@ -105,7 +112,16 @@ func New(serverURL string) *Speaker {
 	}
 	s.Play = s.playLocked
 	s.Say = renderWithSay
+	s.Notice = os.Stderr
 	return s
+}
+
+// notef writes a non-fatal warning where the user will see it, if anywhere.
+func (s *Speaker) notef(format string, args ...any) {
+	if s.Notice == nil {
+		return
+	}
+	fmt.Fprintf(s.Notice, "⚠️  "+format+"\n", args...)
 }
 
 // Speak says text out loud and returns once it has finished playing (unless
@@ -145,6 +161,9 @@ func (s *Speaker) speak(text string, opts Options) error {
 		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
+	s.notef("mlx-engine unavailable (%v) — speaking through macOS `say` instead, "+
+		"so this will not use your configured Kokoro voice. "+
+		"Start it with `local-whisper engine start`.", synthErr)
 	return s.speakWithSay(text, settings, marker)
 }
 

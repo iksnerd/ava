@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -59,6 +60,16 @@ func newTranscribeCmd() *cobra.Command {
 				return fmt.Errorf("transcription failed: %w", err)
 			}
 			if strings.TrimSpace(text) == "" {
+				// whisper-cli exits 0 with empty output both for a genuinely
+				// silent recording and for a file it could not decode at all —
+				// an AIFF named .wav, a truncated download, a zero-byte file.
+				// Reporting "no speech" for the second case sends the user off
+				// to check their microphone and silence thresholds when the
+				// real problem is the file. Distinguish them before concluding
+				// the room was quiet.
+				if err := checkAudioDecodable(args[0]); err != nil {
+					return err
+				}
 				return fmt.Errorf("no speech detected in %s", args[0])
 			}
 
@@ -112,4 +123,45 @@ func checkAudioFile(path string) error {
 		return fmt.Errorf("not a file: %s is a directory", path)
 	}
 	return nil
+}
+
+// checkAudioDecodable reports why a file produced no transcript, when the
+// reason is the file rather than silence. Only called once the engine has
+// already returned nothing, so the cost of opening the file again is irrelevant
+// and the payoff is not blaming the user's microphone for a bad download.
+func checkAudioDecodable(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("cannot read %s: %w", path, err)
+	}
+	defer f.Close()
+
+	// A RIFF/WAVE header is 44 bytes; anything shorter cannot be a WAV at all.
+	var header [12]byte
+	n, err := io.ReadFull(f, header[:])
+	if err != nil && n < len(header) {
+		return fmt.Errorf("%s is not readable audio: only %d bytes, too short to be a WAV", path, n)
+	}
+
+	if string(header[0:4]) != "RIFF" || string(header[8:12]) != "WAVE" {
+		return fmt.Errorf(
+			"%s is not a WAV file: it starts with %q, not a RIFF/WAVE header. "+
+				"Convert it first, e.g. `sox in.<ext> -r 16000 -c 1 out.wav`",
+			path, printableMagic(header[0:4]))
+	}
+	return nil
+}
+
+// printableMagic renders the leading bytes of a file for an error message
+// without emitting control characters into the user's terminal.
+func printableMagic(b []byte) string {
+	out := make([]rune, 0, len(b))
+	for _, c := range b {
+		if c >= 0x20 && c < 0x7f {
+			out = append(out, rune(c))
+		} else {
+			out = append(out, '.')
+		}
+	}
+	return string(out)
 }

@@ -9,6 +9,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+            errorBanner
 
             Button {
                 toggleMute()
@@ -180,6 +181,28 @@ struct SettingsView: View {
         .frame(width: 312)
     }
 
+    /// The panel had no error surface at all: nothing anywhere said "the last
+    /// thing you asked me to do failed". Shown under the header so it is the
+    /// first thing read, and only when there is something to say.
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let message = server.lastError ?? Speech.lastError {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                Text(message)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(8)
+            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .accessibilityLabel("Error: \(message)")
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 8) {
             Image(systemName: "waveform")
@@ -283,13 +306,24 @@ struct SettingsView: View {
     }
 
     private func dictate() {
-        guard let bin = VoicePaths.dictateBinary else { return }
+        guard let bin = VoicePaths.dictateBinary else {
+            Speech.lastError = "Could not find the local-whisper binary. Reinstall the app."
+            return
+        }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: bin)
         // No -engine flag: local-whisper's own default (whisper) works on
         // any Mac with zero extra setup, unlike voxtral (Apple Silicon +
         // mlx-engine's 1.3GB venv + a 2.9GB model download).
         task.environment = VoicePaths.hardenedEnvironment
-        try? task.run()
+        do {
+            try task.run()
+            Speech.lastError = nil
+        } catch {
+            // Was `try?`. Dictation gives no other feedback — the panel closes
+            // and recording begins invisibly — so a failure to launch was
+            // indistinguishable from a working mic that heard nothing.
+            Speech.lastError = "Could not start dictation: \(error.localizedDescription)"
+        }
     }
 }
