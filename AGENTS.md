@@ -7,7 +7,7 @@ STT+TTS, used by the CLI and by everything below), `voxtral/` (Python/MLX
 primitives used by `voice-monitor`), `scripts/` (Claude Code voice hooks), and
 `ClaudeVoiceMenuBar` (a Swift menu bar app for tuning voice settings). This
 guide covers the Go CLI (`local-whisper`) specifically; see each other
-component's own docs — `SETUP.md` (`voice-monitor`), `mlx-engine/README.md`,
+component's own docs — `docs/voice-monitor.md` (`voice-monitor`), `mlx-engine/README.md`,
 `docs/claude-code-voice-hooks.md`, `ClaudeVoiceMenuBar/README.md`,
 `docs/mcp.md`.
 
@@ -79,7 +79,7 @@ scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine, wrapped by `
 Not covered here: `pkg/stt/realtime` (a *different*, independent client —
 wraps `voxtral/realtime.py` via `os/exec`, used only by `cmd/voice-monitor`,
 same underlying model family as `mlx-engine` but a different local
-architecture) and `voxtral/` itself. See `SETUP.md`. There is no `pkg/tts`:
+architecture) and `voxtral/` itself. See `docs/voice-monitor.md`. There is no `pkg/tts`:
 synthesis is `pkg/mlx.Client.Speak` (same server, same HTTP-client
 scaffolding), wrapped by `internal/speaker` (see `pkg/stt`'s own package doc
 comment for why).

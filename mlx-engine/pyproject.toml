@@ -1,7 +1,7 @@
 [project]
 name = "mlx-engine"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local STT+TTS HTTP server for local-whisper (Kokoro TTS, Voxtral STT) on Apple Silicon via MLX"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

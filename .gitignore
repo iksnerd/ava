@@ -8,6 +8,12 @@ mlx-engine/.venv/
 mlx-engine/__pycache__/
 mlx-engine/**/__pycache__/
 
+# Python (generic — catches any subproject added later, not just the three below)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
 # Swift
 ClaudeVoiceMenuBar/.build/
 
@@ -24,8 +30,24 @@ scripts/voice_hooks/.ruff_cache/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 
 # OS
 .DS_Store
+
+# Secrets — nothing here is read by this project today; this is a guard, not a fix
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Agent-session local state (per-machine, not per-project)
+.claude/settings.local.json
+
+# Private working notes — kept out of the published repo on purpose
+/TODO.md
+/SETUP.md

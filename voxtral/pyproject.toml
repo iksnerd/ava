@@ -1,7 +1,7 @@
 [project]
 name = "voxtral-primitives"
 version = "0.1.0"
-description = "Voxtral MLX primitives (STT, realtime STT, TTS) for local-whisper"
+description = "Realtime STT primitives (Voxtral, Whisper, Sortformer diarization) for local-whisper's voice-monitor"
 requires-python = ">=3.11"
 dependencies = [
     "mlx-audio>=0.4.6",

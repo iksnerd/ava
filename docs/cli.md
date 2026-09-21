@@ -1,7 +1,7 @@
 # CLI reference
 
 Every command `local-whisper` accepts. For the MCP server see
-[`mcp.md`](mcp.md); for `voice-monitor` see [`../SETUP.md`](../SETUP.md).
+[`mcp.md`](mcp.md); for `voice-monitor` see [`voice-monitor.md`](voice-monitor.md).
 
 ← [Back to the README](../README.md)
 

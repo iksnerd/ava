@@ -2,7 +2,7 @@
 
 Several components in this repo: the `local-whisper` Go CLI (dictation, see
 below), `cmd/voice-monitor` (realtime call-transcript monitor, see
-`SETUP.md`), `mlx-engine/` (Python STT+TTS server used by `local-whisper`),
+`docs/voice-monitor.md`), `mlx-engine/` (Python STT+TTS server used by `local-whisper`),
 `voxtral/` (Python/MLX primitives used by `voice-monitor`), `scripts/`
 (Claude Code voice hooks), and `ClaudeVoiceMenuBar/` (Swift menu bar app).
 See each one's own README/SETUP for build/run instructions specific to it —
@@ -24,7 +24,7 @@ equivalent `make start-engine`/`stop-engine`/`status-engine` targets).
 
 ```bash
 make build              # Build local-whisper binary to bin/local-whisper
-make build-voice-monitor # Build the realtime call-transcript monitor (see SETUP.md)
+make build-voice-monitor # Build the realtime call-transcript monitor (see docs/voice-monitor.md)
 make test                # Run all tests (go test -v ./... + scripts/voice_hooks pytest)
 make vet                  # go vet ./...
 make fmt                  # gofmt + ruff format (mlx-engine/, voxtral/, scripts/voice_hooks/), in place
@@ -52,7 +52,7 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper --engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
 - `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
 - `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
-- `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `SETUP.md`
+- `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `docs/voice-monitor.md`
 - `scripts/` - dependency/model setup, plus the Claude Code voice hooks (see `docs/claude-code-voice-hooks.md`); `scripts/voice_hooks/` is its own `uv` project (flat scripts, no nested package, matching `voxtral/`'s pattern) holding the hooks' text processing (markdown stripping, sentence-aware truncation, Ollama summarization) — `hook-stop.sh`/`hook-notify.sh` stay thin bash entry points that shell out to it once per firing
 - `ClaudeVoiceMenuBar/` - menu bar app for tuning voice settings (Swift, see its own README)
 

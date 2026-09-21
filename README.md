@@ -21,17 +21,23 @@ git clone https://github.com/iksnerd/local-whisper.git
 cd local-whisper
 make install-bin        # builds, downloads the 141MB model, installs to ~/.local/bin
 
+export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
+
 local-whisper           # speak; it lands wherever your cursor is
 ```
 
-Auto-paste drives Cmd+V through AppleScript, so the first run needs
-Accessibility permission for whatever you ran it from (System Settings →
-Privacy & Security → Accessibility). Without it the transcript still reaches
-your clipboard; `local-whisper --no-paste` skips the attempt.
+Two macOS permission prompts on first run. **Microphone**, for whatever you
+ran it from — if you miss or deny this one, recording still "succeeds" and
+produces silence. And **Accessibility**, because auto-paste drives Cmd+V
+through AppleScript (System Settings → Privacy & Security → Accessibility);
+without it the transcript still reaches your clipboard, and
+`local-whisper --no-paste` skips the attempt.
 
-Prefer a hotkey? `make install-raycast` installs it as a Raycast script
-command instead: Raycast Settings → Extensions → Add Script Directory →
-`~/raycast-scripts`, reload, then bind "Transcribe Local Whisper".
+Prefer a hotkey? `make install-raycast` installs three Raycast script
+commands: Raycast Settings → Extensions → Add Script Directory →
+`~/raycast-scripts`, reload, then bind "Dictate with Whisper". The other two,
+"Dictate with Voxtral" and "Toggle Voxtral Server", need Apple Silicon and the
+Voxtral setup below.
 
 The default engine works on any Mac. Voxtral, the TTS server and call
 monitoring need Apple Silicon; they run through
@@ -168,8 +174,8 @@ Every flag and every command: [`docs/cli.md`](docs/cli.md).
   HTTP endpoints, models, running it standalone.
 - [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar
   app.
-- [`SETUP.md`](SETUP.md) — `voice-monitor`: BlackHole loopback setup,
-  diarization, known gaps.
+- [`docs/voice-monitor.md`](docs/voice-monitor.md) — `voice-monitor`: BlackHole
+  loopback setup, engine and language choice, diarization, known gaps.
 - [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or
   agent) working on this repo.
 
