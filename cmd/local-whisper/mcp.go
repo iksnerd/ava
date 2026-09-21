@@ -9,16 +9,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/local-whisper/internal/a11y"
+	"github.com/iksnerd/local-whisper/internal/buildinfo"
 	"github.com/iksnerd/local-whisper/internal/speaker"
 	"github.com/iksnerd/local-whisper/internal/ttscontrol"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 	"github.com/iksnerd/local-whisper/pkg/stt"
 )
-
-// mcpServerVersion is the version reported to MCP clients during the
-// initialize handshake. It tracks this server's tool surface, not the
-// local-whisper CLI's release.
-const mcpServerVersion = "0.1.0"
 
 // mcpDeps are the MCP tools' side effects, injected so the server can be
 // tested over a real client session without audio hardware or a running
@@ -102,7 +98,7 @@ type noArgs struct{}
 // text rather than structured output: the caller is a model deciding what
 // to do next, and "what did the page just say" is prose.
 func newMcpServer(deps mcpDeps) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "local-whisper", Version: mcpServerVersion}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "local-whisper", Version: buildinfo.Get()}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "speak",

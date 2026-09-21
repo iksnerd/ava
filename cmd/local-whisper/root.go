@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/iksnerd/local-whisper/internal/buildinfo"
 	"github.com/iksnerd/local-whisper/internal/clipboard"
 	"github.com/iksnerd/local-whisper/internal/procutil"
 	"github.com/iksnerd/local-whisper/internal/recording"
@@ -36,6 +37,7 @@ func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "local-whisper",
 		Short:         "Record audio, transcribe it, and copy/paste the result",
+		Version:       buildinfo.Get(),
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -47,13 +49,24 @@ func newRootCmd() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.contextFile, "context", "", "Path to context file (optional)")
 	flags.StringVar(&opts.outputFile, "output", "", "Output file for transcription (optional)")
-	flags.StringVar(&opts.workDir, "dir", "", "Working directory (optional)")
-	flags.StringVar(&opts.modelName, "model", "base", "Model size: base (default) or tiny (for whisper only)")
-	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc. (default: en)")
+	flags.StringVar(&opts.workDir, "dir", "", "Run as if started from this directory (affects --context discovery)")
+	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny (whisper only)")
+	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc.")
 	flags.BoolVar(&opts.noPaste, "no-paste", false, "Don't auto-paste to clipboard/cursor")
 	flags.BoolVar(&opts.noSound, "no-sound", false, "Disable sound effects")
 	flags.BoolVar(&opts.showStatus, "verbose", true, "Show processing status")
-	flags.StringVar(&opts.engine, "engine", "whisper", "Inference engine: whisper (default) or voxtral")
+	// --verbose already defaults to true, so the only way to get a quiet run was
+	// `--verbose=false`. Every other command in this binary spells that --quiet
+	// (a11y), so offer it here too rather than having one idea with two opposite
+	// spellings. --verbose stays for anything already passing it.
+	var quiet bool
+	flags.BoolVar(&quiet, "quiet", false, "Suppress processing status (inverse of --verbose)")
+	cmd.PreRun = func(cmd *cobra.Command, args []string) {
+		if quiet {
+			opts.showStatus = false
+		}
+	}
+	flags.StringVar(&opts.engine, "engine", "whisper", "Inference engine: whisper or voxtral")
 
 	cmd.AddCommand(
 		newEngineCmd(),
@@ -148,8 +161,13 @@ func run(opts options) error {
 	// Check if audio was actually recorded
 	fileInfo, err := os.Stat(audioPath)
 	if err != nil || fileInfo.Size() < 1000 {
-		fmt.Println("⚠️ No audio recorded.")
-		return nil
+		// Returning nil here meant a dead microphone exited 0, so no hotkey
+		// wrapper or script could tell it apart from a successful run. The
+		// overwhelmingly common cause is the Microphone permission, which is
+		// silent: sox "succeeds" and writes nothing.
+		return fmt.Errorf("no audio recorded — check Microphone permission for " +
+			"whatever you ran this from (System Settings → Privacy & Security → " +
+			"Microphone), or pick an input device in Sound settings")
 	}
 
 	if opts.showStatus {
@@ -187,8 +205,11 @@ func run(opts options) error {
 	}
 
 	if text == "" {
-		fmt.Println("⚠️ No speech detected.")
-		return nil
+		// Same reasoning as "no audio recorded": exiting 0 made a silent
+		// failure undetectable from outside.
+		return fmt.Errorf("no speech detected in the recording — it captured " +
+			"audio but no words; try speaking closer to the mic, or check the " +
+			"input level in Sound settings")
 	}
 
 	// Step 4: Output

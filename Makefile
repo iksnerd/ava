@@ -5,6 +5,11 @@ MONITOR_BINARY_NAME=voice-monitor
 BUILD_DIR=bin
 RAYCAST_DIR=$(HOME)/raycast-scripts
 INSTALL_BIN_DIR=$(HOME)/.local/bin
+# git describe so a build can name the exact commit it came from; a tarball
+# with no .git falls back to the tag-less form, and `go install` gets its
+# version from the module proxy instead (see internal/buildinfo).
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS=-ldflags "-X github.com/iksnerd/local-whisper/internal/buildinfo.Version=$(VERSION)"
 BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
 MONITOR_BINARY_PATH=$(BUILD_DIR)/$(MONITOR_BINARY_NAME)
 
@@ -47,13 +52,13 @@ status-engine: build
 build:
 	@echo "🔨 Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@cd cmd/local-whisper && go build -o ../../$(BINARY_PATH)
+	@cd cmd/local-whisper && go build $(LDFLAGS) -o ../../$(BINARY_PATH)
 	@echo "✅ Built: ./$(BINARY_PATH)"
 
 build-voice-monitor:
 	@echo "🔨 Building $(MONITOR_BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@cd cmd/voice-monitor && go build -o ../../$(MONITOR_BINARY_PATH)
+	@cd cmd/voice-monitor && go build $(LDFLAGS) -o ../../$(MONITOR_BINARY_PATH)
 	@echo "✅ Built: ./$(MONITOR_BINARY_PATH)"
 
 test:

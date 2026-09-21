@@ -48,8 +48,8 @@ func newEngineCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		newAction("start", "Start the mlx-engine server in the background", "start"),
-		newAction("stop", "Stop the mlx-engine server", "stop"),
+		newAction("start", "Start the mlx-engine server, and re-arm hook auto-start", "start"),
+		newAction("stop", "Stop the mlx-engine server, and stop hooks auto-starting it", "stop"),
 		newAction("status", "Show whether the mlx-engine server is running", "status"),
 	)
 

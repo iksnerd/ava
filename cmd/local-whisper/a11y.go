@@ -105,7 +105,13 @@ func readSnapshot(args []string, stdin io.Reader) (string, error) {
 	if len(args) > 0 {
 		data, err := os.ReadFile(args[0])
 		if err != nil {
-			return "", fmt.Errorf("read snapshot: %w", err)
+			// A bare *os.PathError here read as `read snapshot: open /x: no
+			// such file or directory`, for the same condition `transcribe`
+			// reports as `no such audio file: /x`. Match that.
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("no such snapshot file: %s", args[0])
+			}
+			return "", fmt.Errorf("cannot read %s: %w", args[0], err)
 		}
 		return string(data), nil
 	}

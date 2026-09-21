@@ -5,6 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/pflag"
+
+	"github.com/iksnerd/local-whisper/internal/buildinfo"
 )
 
 func TestVoiceCommandsResolve(t *testing.T) {
@@ -196,5 +200,89 @@ func TestA11yFindingsHeaderSaysItIsPageWide(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "whole page") {
 		t.Errorf("findings header doesn't say it covers the whole page:\n%s", out.String())
+	}
+}
+
+func TestValidateVoiceAcceptsKnownIDsAndBlends(t *testing.T) {
+	for _, v := range []string{"", "af_heart", "bf_emma", "bf_emma,af_heart", " bf_emma , af_heart "} {
+		if err := validateVoice(v); err != nil {
+			t.Errorf("validateVoice(%q) = %v, want nil", v, err)
+		}
+	}
+}
+
+// An unknown voice used to reach the engine, whose rejection internal/speaker
+// cannot distinguish from the engine being down — so it fell back to macOS
+// `say` and spoke the whole message in a different voice, exit 0.
+func TestValidateVoiceRejectsUnknownIDs(t *testing.T) {
+	for _, v := range []string{"bf_emmma", "nope", "bf_emma,nope", "af_heart,"} {
+		err := validateVoice(v)
+		if err == nil {
+			t.Errorf("validateVoice(%q) = nil, want an error", v)
+			continue
+		}
+		if !strings.Contains(err.Error(), "voices") && !strings.Contains(err.Error(), "blend") {
+			t.Errorf("validateVoice(%q) = %q; should point at `local-whisper voices` or name the blend problem", v, err)
+		}
+	}
+}
+
+func TestRootHasQuietAlongsideVerbose(t *testing.T) {
+	flags := newRootCmd().Flags()
+	for _, f := range []string{"quiet", "verbose"} {
+		if flags.Lookup(f) == nil {
+			t.Errorf("root missing --%s", f)
+		}
+	}
+}
+
+// Cobra appends `(default "x")` to every usage string itself. Repeating it in
+// the usage text printed it twice on the root command — the first help anyone
+// sees — while transcribe had already been fixed.
+func TestRootFlagUsageDoesNotRepeatTheDefault(t *testing.T) {
+	newRootCmd().Flags().VisitAll(func(f *pflag.Flag) {
+		lower := strings.ToLower(f.Usage)
+		if strings.Contains(lower, "(default") || strings.Contains(lower, "default:") {
+			t.Errorf("--%s usage %q states its default; cobra already appends it", f.Name, f.Usage)
+		}
+	})
+}
+
+func TestBothBinariesReportAVersion(t *testing.T) {
+	if v := buildinfo.Get(); v == "" {
+		t.Error("buildinfo.Get() is empty; --version would print nothing")
+	}
+	if newRootCmd().Version == "" {
+		t.Error("root command has no Version, so cobra registers no --version flag")
+	}
+}
+
+func TestA11yMissingFileErrorMatchesTranscribes(t *testing.T) {
+	_, err := readSnapshot([]string{filepath.Join(t.TempDir(), "absent.txt")}, nil)
+	if err == nil {
+		t.Fatal("readSnapshot on a missing file returned no error")
+	}
+	if strings.Contains(err.Error(), "no such file or directory") {
+		t.Errorf("error %q leaks the raw *os.PathError; transcribe says `no such audio file: <path>`", err)
+	}
+	if !strings.Contains(err.Error(), "no such snapshot file") {
+		t.Errorf("error = %q, want it to start `no such snapshot file:`", err)
+	}
+}
+
+// Covers the wiring, not just the function: validateVoice existing is no use if
+// speak's RunE does not call it before handing the id to the engine.
+func TestSpeakCommandRejectsAnUnknownVoiceBeforeSpeaking(t *testing.T) {
+	root := newRootCmd()
+	root.SetArgs([]string{"speak", "--voice", "definitely_not_a_voice", "hello"})
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("speak accepted an unknown --voice; it would reach the engine and fall back to `say`")
+	}
+	if !strings.Contains(err.Error(), "unknown voice") {
+		t.Errorf("error = %q, want it to name the unknown voice", err)
 	}
 }

@@ -24,7 +24,7 @@ func newTranscribeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "transcribe <audio.wav>",
-		Short: "Transcribe an existing 16kHz mono WAV file on-device",
+		Short: "Transcribe an existing WAV file on-device",
 		Args:  cobra.ExactArgs(1),
 		Long: "Transcribe a WAV file that already exists on disk, as opposed to the\n" +
 			"bare `local-whisper` command, which records one first.\n\n" +
