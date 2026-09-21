@@ -56,7 +56,7 @@ Check the menu bar app's global Mute. Every speech path honours it, and
 `local-whisper speak` prints:
 
 ```
-⚠️  voice output is muted — nothing was played; unmute in the Claude Voice menu bar app
+⚠️  voice output is muted — nothing was played; unmute in the Ava menu bar app
 ```
 
 `local-whisper voices` shows the configured voice, so a wrong-sounding voice is
@@ -64,7 +64,7 @@ visible there too.
 
 ## The menu bar app and the CLI disagree about a setting
 
-They read the same `~/Library/Application Support/ClaudeVoice/config.json`, and
+They read the same `~/Library/Application Support/ava/config.json`, and
 three separate readers resolve it — bash, Go and Swift. That is guarded by a
 contract test (`make test`) plus `make check-swift-config`. If you hit a
 disagreement anyway, it's a bug: add the case to

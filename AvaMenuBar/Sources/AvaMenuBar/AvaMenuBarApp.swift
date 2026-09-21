@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct ClaudeVoiceMenuBarApp: App {
+struct AvaMenuBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var settings = VoiceSettings()
     @StateObject private var activity = SpeechActivityMonitor()
@@ -13,7 +13,7 @@ struct ClaudeVoiceMenuBarApp: App {
                 .environmentObject(settings)
                 .environmentObject(activity)
         } label: {
-            Label("Claude Voice", systemImage: menuBarIcon)
+            Label("Ava", systemImage: menuBarIcon)
         }
         .menuBarExtraStyle(.window)
     }

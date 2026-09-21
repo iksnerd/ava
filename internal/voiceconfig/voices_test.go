@@ -45,7 +45,7 @@ func TestDefaultVoiceIsInTheList(t *testing.T) {
 // the same Kokoro model, maintained in two languages. This is what catches
 // them drifting apart.
 func TestVoicesMatchMenuBarAppList(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "ClaudeVoiceMenuBar", "Sources", "ClaudeVoiceMenuBar", "VoiceSettings.swift"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "AvaMenuBar", "Sources", "AvaMenuBar", "VoiceSettings.swift"))
 	if err != nil {
 		t.Fatalf("read VoiceSettings.swift: %v", err)
 	}

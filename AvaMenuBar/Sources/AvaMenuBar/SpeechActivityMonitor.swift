@@ -2,14 +2,14 @@ import Foundation
 
 /// Polls scripts/speak.sh's per-invocation marker directory (one file per
 /// in-flight speak, present for the full synth+playback duration) so the
-/// menu bar icon can show when Claude Voice is actively speaking — this
+/// menu bar icon can show when Ava is actively speaking — this
 /// covers speech triggered from anywhere (Read Aloud, Claude Code hooks,
 /// the Test/Preview buttons), not just actions taken in this app.
 @MainActor
 final class SpeechActivityMonitor: ObservableObject {
     @Published private(set) var isSpeaking = false
 
-    private static let activityDir = "/tmp/claude-tts-active"
+    private static let activityDir = "/tmp/ava-tts-active"
 
     private var timer: Timer?
 

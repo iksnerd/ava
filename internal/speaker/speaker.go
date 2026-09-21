@@ -5,13 +5,13 @@
 // script's protocol rather than replacing it, so a hook speaking and an MCP
 // client speaking are the same kind of event to everything watching:
 //
-//   - the global mute in ~/Library/Application Support/ClaudeVoice/config.json
+//   - the global mute in ~/Library/Application Support/ava/config.json
 //     is checked before anything is synthesized (internal/voiceconfig);
-//   - an activity marker file exists in /tmp/claude-tts-active for the whole
-//     synth+playback window, which ClaudeVoiceMenuBar's SpeechActivityMonitor
+//   - an activity marker file exists in /tmp/ava-tts-active for the whole
+//     synth+playback window, which AvaMenuBar's SpeechActivityMonitor
 //     polls for its speaking indicator and internal/ttscontrol looks for when
 //     cancelling;
-//   - playback holds an exclusive flock(2) on /tmp/claude-tts-playback.lock,
+//   - playback holds an exclusive flock(2) on /tmp/ava-tts-playback.lock,
 //     the same lock speak.sh takes via Python's fcntl.flock — which is
 //     flock(2) too, so the two genuinely queue behind each other instead of
 //     talking over one another.
@@ -43,10 +43,10 @@ import (
 
 // DefaultActivityDir mirrors speak.sh's ACTIVITY_DIR and the directory
 // internal/ttscontrol scans.
-const DefaultActivityDir = "/tmp/claude-tts-active"
+const DefaultActivityDir = "/tmp/ava-tts-active"
 
 // DefaultLockPath mirrors speak.sh's PLAYBACK_LOCK.
-const DefaultLockPath = "/tmp/claude-tts-playback.lock"
+const DefaultLockPath = "/tmp/ava-tts-playback.lock"
 
 // playbackTimeout matches speak.sh's PLAYBACK_TIMEOUT_SEC: long enough for a
 // whole article read aloud in one go, short enough that one wedged player
@@ -142,7 +142,7 @@ func (s *Speaker) speak(text string, opts Options) error {
 		return nil
 	}
 	if synthErr == nil {
-		return s.playTemp(audio, "claude-tts-*.wav", settings.Volume, marker)
+		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
 	return s.speakWithSay(text, settings, marker)
@@ -180,7 +180,7 @@ func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Set
 // volume slider meaningful even with the server down, exactly as
 // speak.sh's speak_with_say_fallback does.
 func (s *Speaker) speakWithSay(text string, settings voiceconfig.Settings, marker string) error {
-	out, err := os.CreateTemp("", "claude-tts-say-*.aiff")
+	out, err := os.CreateTemp("", "ava-tts-say-*.aiff")
 	if err != nil {
 		return fmt.Errorf("create temp audio file: %w", err)
 	}

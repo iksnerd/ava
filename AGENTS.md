@@ -5,10 +5,10 @@ transcription, accessibility narration, and an MCP server), `cmd/voice-monitor`
 (realtime call-transcript monitor), the `mlx-engine` Python server (local
 STT+TTS, used by the CLI and by everything below), `voxtral/` (Python/MLX
 primitives used by `voice-monitor`), `scripts/` (Claude Code voice hooks), and
-`ClaudeVoiceMenuBar` (a Swift menu bar app for tuning voice settings). This
+`AvaMenuBar` (a Swift menu bar app for tuning voice settings). This
 guide covers the Go CLI (`local-whisper`) specifically; see each other
 component's own docs — `docs/voice-monitor.md` (`voice-monitor`), `mlx-engine/README.md`,
-`docs/claude-code-voice-hooks.md`, `ClaudeVoiceMenuBar/README.md`,
+`docs/claude-code-voice-hooks.md`, `AvaMenuBar/README.md`,
 `docs/mcp.md`.
 
 ## Build Commands
@@ -53,7 +53,7 @@ internal/recording/recorder.go  - Audio recording, silence detection, and peak
 internal/audio/audio.go         - shared sox format constants (SampleRateHz, Channels)
 internal/clipboard/clipboard.go - Clipboard & auto-paste operations
 internal/procutil/              - shared subprocess/signal helpers
-internal/voiceconfig/           - the live Claude Voice settings (mute, speed, volume, voice,
+internal/voiceconfig/           - the live Ava settings (mute, speed, volume, voice,
                                   say rate). Hand-ported from scripts/lib.sh's config_get; drift
                                   tests pin the defaults to scripts/voice-defaults.json and the
                                   voice list to VoiceSettings.swift. contract_test.go runs bash

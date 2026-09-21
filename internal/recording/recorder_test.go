@@ -15,7 +15,7 @@ import (
 
 // isolateTTSActivityDir points Record()'s ttscontrol.StopSpeaking() call at
 // an empty, private directory instead of the real, shared
-// /tmp/claude-tts-active — otherwise a test run could kill actual
+// /tmp/ava-tts-active — otherwise a test run could kill actual
 // in-flight speech on the machine running the tests. Returns the directory
 // so callers that want to plant a fake in-flight speak can do so.
 func isolateTTSActivityDir(t *testing.T) string {

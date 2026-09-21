@@ -14,7 +14,7 @@ struct SettingsView: View {
                 toggleMute()
             } label: {
                 Label(
-                    settings.config.muted ? "Unmute Claude Voice" : "Mute Claude Voice",
+                    settings.config.muted ? "Unmute Ava" : "Mute Ava",
                     systemImage: settings.config.muted ? "speaker.slash.fill" : "speaker.wave.2.fill"
                 )
                 .frame(maxWidth: .infinity)
@@ -23,8 +23,8 @@ struct SettingsView: View {
             .tint(settings.config.muted ? .red : .indigo)
             .help(
                 settings.config.muted
-                    ? "Hooks, Read Aloud, and Test/Preview are all silenced — this is the same switch as the \"Toggle Claude Voice Mute\" Service"
-                    : "Silences Claude Code hooks, Read Aloud, and Test/Preview — also available system-wide as the \"Toggle Claude Voice Mute\" Service"
+                    ? "Hooks, Read Aloud, and Test/Preview are all silenced — this is the same switch as the \"Toggle Ava Mute\" Service"
+                    : "Silences Claude Code hooks, Read Aloud, and Test/Preview — also available system-wide as the \"Toggle Ava Mute\" Service"
             )
 
             Button {
@@ -37,7 +37,7 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .center)
             .help(
-                "From there, open Keyboard Shortcuts → Services to enable \"Toggle Claude Voice Mute\" and \"Read Aloud with Claude Voice\" and optionally bind each to a global keyboard shortcut — macOS doesn't currently support deep-linking straight to that screen"
+                "From there, open Keyboard Shortcuts → Services to enable \"Toggle Ava Mute\" and \"Read Aloud with Ava\" and optionally bind each to a global keyboard shortcut — macOS doesn't currently support deep-linking straight to that screen"
             )
 
             Button {
@@ -188,7 +188,7 @@ struct SettingsView: View {
                 .frame(width: 26, height: 26)
                 .background(Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             VStack(alignment: .leading, spacing: 0) {
-                Text("Claude Voice").font(.system(size: 14, weight: .semibold))
+                Text("Ava").font(.system(size: 14, weight: .semibold))
                 Text("Dictation + spoken Claude Code updates")
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
@@ -248,7 +248,7 @@ struct SettingsView: View {
         }
     }
 
-    // Mirrors the "Toggle Claude Voice Mute" Service (SpeechService.swift) —
+    // Mirrors the "Toggle Ava Mute" Service (SpeechService.swift) —
     // both flip the same config.json field, so muting from either place
     // stays in sync (the Service's own writes are picked up here via
     // VoiceSettings' external-change poll).
@@ -274,7 +274,7 @@ struct SettingsView: View {
 
     private func runTest() {
         settings.saveNow()
-        Speech.speak("This is Claude Voice, speaking at the current speed, volume, and voice settings.")
+        Speech.speak("This is Ava, speaking at the current speed, volume, and voice settings.")
     }
 
     private func previewVoice() {

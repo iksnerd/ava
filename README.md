@@ -86,7 +86,7 @@ flowchart TB
         cli["local-whisper<br/>CLI"]
         mcpc["MCP clients<br/>agents, Claude Code"]
         hooks["Claude Code hooks<br/>scripts/*.sh"]
-        app["Claude Voice<br/>menu bar app"]
+        app["Ava<br/>menu bar app"]
     end
 
     subgraph gobin["local-whisper binary · Go"]
@@ -172,7 +172,7 @@ Every flag and every command: [`docs/cli.md`](docs/cli.md).
   pastes, or nothing plays.
 - [`mlx-engine/README.md`](mlx-engine/README.md) — the local STT/TTS server:
   HTTP endpoints, models, running it standalone.
-- [`ClaudeVoiceMenuBar/README.md`](ClaudeVoiceMenuBar/README.md) — the menu bar
+- [`AvaMenuBar/README.md`](AvaMenuBar/README.md) — the menu bar
   app.
 - [`docs/voice-monitor.md`](docs/voice-monitor.md) — `voice-monitor`: BlackHole
   loopback setup, engine and language choice, diarization, known gaps.

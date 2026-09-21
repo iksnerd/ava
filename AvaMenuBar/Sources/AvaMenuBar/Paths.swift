@@ -11,12 +11,12 @@ enum VoicePaths {
     // Derived from this file's own compile-time location rather than written
     // out, so it follows the checkout it was built from instead of only ever
     // being right on one machine. #filePath is
-    // <repo>/ClaudeVoiceMenuBar/Sources/ClaudeVoiceMenuBar/Paths.swift, hence
+    // <repo>/AvaMenuBar/Sources/AvaMenuBar/Paths.swift, hence
     // four levels up.
     private static let devRepoRoot: String = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()  // ClaudeVoiceMenuBar/
+        .deletingLastPathComponent()  // AvaMenuBar/
         .deletingLastPathComponent()  // Sources/
-        .deletingLastPathComponent()  // ClaudeVoiceMenuBar/
+        .deletingLastPathComponent()  // AvaMenuBar/
         .deletingLastPathComponent()  // repo root
         .path
 

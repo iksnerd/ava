@@ -35,7 +35,7 @@ type recorder struct {
 	saidText     string
 	saidRate     int
 	// markerSeen records whether an activity marker existed at playback
-	// time — that file is what ClaudeVoiceMenuBar polls and what
+	// time — that file is what AvaMenuBar polls and what
 	// ttscontrol.StopSpeaking() looks for.
 	markerSeen bool
 }
@@ -194,7 +194,7 @@ func TestSpeakFallsBackToSayWhenSynthesisFails(t *testing.T) {
 	}
 }
 
-// ClaudeVoiceMenuBar's speaking indicator and ttscontrol.StopSpeaking() both
+// AvaMenuBar's speaking indicator and ttscontrol.StopSpeaking() both
 // key off a marker file that exists for the whole synth+playback window.
 func TestSpeakTracksActivityMarkerAndCleansUp(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}

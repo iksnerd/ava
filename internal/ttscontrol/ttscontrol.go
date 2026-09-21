@@ -21,8 +21,8 @@ import (
 
 // defaultActivityDir holds one marker file per in-flight speak.sh
 // invocation, present for the whole synth+playback duration. Also polled by
-// ClaudeVoiceMenuBar's SpeechActivityMonitor.
-const defaultActivityDir = "/tmp/claude-tts-active"
+// AvaMenuBar's SpeechActivityMonitor.
+const defaultActivityDir = "/tmp/ava-tts-active"
 
 // ActivityDirEnv overrides defaultActivityDir when set — its only real use
 // is pointing tests (in this package and callers like internal/recording)

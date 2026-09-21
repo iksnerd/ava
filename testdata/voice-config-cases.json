@@ -1,9 +1,9 @@
 {
   "_comment": [
     "Contract fixtures for the voice config. Every reader of",
-    "~/Library/Application Support/ClaudeVoice/config.json must resolve these",
+    "~/Library/Application Support/ava/config.json must resolve these",
     "identically: scripts/lib.sh (bash), internal/voiceconfig (Go), and",
-    "ClaudeVoiceMenuBar/VoiceSettings.swift (Swift, not yet automated - no test",
+    "AvaMenuBar/VoiceSettings.swift (Swift, not yet automated - no test",
     "target). 'live' is the config file's content; null means the file is absent.",
     "'raw' means write this text verbatim instead of encoding 'live' as JSON.",
     "Expected values are the resolved ones; 'default' means whatever",

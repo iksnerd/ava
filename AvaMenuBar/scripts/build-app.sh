@@ -1,15 +1,15 @@
 #!/bin/bash
-# Builds ClaudeVoiceMenuBar (release) and packages it as a real double-clickable
-# .app bundle at .build/Claude Voice.app — then installs it to /Applications.
+# Builds AvaMenuBar (release) and packages it as a real double-clickable
+# .app bundle at .build/Ava.app — then installs it to /Applications.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
 cd "$DIR"
 
-APP_NAME="Claude Voice"
-BUNDLE_ID="com.local-whisper.claudevoice"
-BIN_NAME="ClaudeVoiceMenuBar"
+APP_NAME="Ava"
+BUNDLE_ID="xyz.iksnerd.ava"
+BIN_NAME="AvaMenuBar"
 APP_DIR="$DIR/.build/$APP_NAME.app"
 INSTALLED_APP="/Applications/$APP_NAME.app"
 DMG_PATH="$DIR/.build/$APP_NAME.dmg"
@@ -73,7 +73,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
             <key>NSMenuItem</key>
             <dict>
                 <key>default</key>
-                <string>Read Aloud with Claude Voice</string>
+                <string>Read Aloud with Ava</string>
             </dict>
             <key>NSMessage</key>
             <string>readAloud</string>
@@ -89,7 +89,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
             <key>NSMenuItem</key>
             <dict>
                 <key>default</key>
-                <string>Toggle Claude Voice Mute</string>
+                <string>Toggle Ava Mute</string>
             </dict>
             <key>NSMessage</key>
             <string>toggleMute</string>
@@ -114,7 +114,7 @@ rm -f "$DMG_PATH"
 hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" -ov -format UDZO "$DMG_PATH" >/dev/null
 
 echo "✅ Installed. Launch with: open -a \"$APP_NAME\""
-echo "   Note: after (re)installing, 'Read Aloud with Claude Voice' can take a"
+echo "   Note: after (re)installing, 'Read Aloud with Ava' can take a"
 echo "   minute to appear in other apps' right-click Services menu — relaunching"
 echo "   $APP_NAME (already done via NSUpdateDynamicServices on launch) usually"
 echo "   surfaces it immediately; if not, log out and back in."

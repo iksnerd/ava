@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run VoiceSettings.swift's config reader against testdata/voice-config-cases.json.
 
-The three readers of ~/Library/Application Support/ClaudeVoice/config.json --
+The three readers of ~/Library/Application Support/ava/config.json --
 scripts/lib.sh (bash), internal/voiceconfig (Go) and this app (Swift) -- have
 to resolve those cases identically. bash and Go are covered automatically by
 internal/voiceconfig/contract_test.go, which runs under `make test`. Swift
@@ -23,7 +23,7 @@ import sys
 import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-SOURCE = REPO / "ClaudeVoiceMenuBar/Sources/ClaudeVoiceMenuBar/VoiceSettings.swift"
+SOURCE = REPO / "AvaMenuBar/Sources/AvaMenuBar/VoiceSettings.swift"
 FIXTURES = REPO / "testdata/voice-config-cases.json"
 DEFAULTS = REPO / "scripts/voice-defaults.json"
 

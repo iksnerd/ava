@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClaudeVoiceMenuBar",
+    name: "AvaMenuBar",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "ClaudeVoiceMenuBar",
-            path: "Sources/ClaudeVoiceMenuBar"
+            name: "AvaMenuBar",
+            path: "Sources/AvaMenuBar"
         )
     ]
 )

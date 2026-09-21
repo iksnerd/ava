@@ -228,7 +228,7 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 
 // mutedNotice is what every speaking tool says instead of claiming success
 // the user never heard.
-const mutedNotice = "voice output is muted — nothing was played; unmute in the Claude Voice menu bar app"
+const mutedNotice = "voice output is muted — nothing was played; unmute in the Ava menu bar app"
 
 func textResult(format string, args ...any) *mcp.CallToolResult {
 	return &mcp.CallToolResult{

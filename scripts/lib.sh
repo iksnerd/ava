@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SPEAK="$SCRIPT_DIR/speak.sh"
 
-# Settings tunable live from the Claude Voice menu bar app (speed, volume,
+# Settings tunable live from the Ava menu bar app (speed, volume,
 # voice, snippet lengths). An env var of the same shape always wins, so
 # manual testing (`TTS_SPEED=1.0 ./speak.sh ...`) can still override it.
 #
@@ -21,7 +21,7 @@ SPEAK="$SCRIPT_DIR/speak.sh"
 # Both paths are overridable so the contract test (internal/voiceconfig) can
 # point this reader and the Go one at the same fixture and compare answers.
 # Nothing in normal operation sets them; see VOICECONFIG_PATH on the Go side.
-VOICE_CONFIG_FILE="${VOICE_CONFIG_FILE:-$HOME/Library/Application Support/ClaudeVoice/config.json}"
+VOICE_CONFIG_FILE="${VOICE_CONFIG_FILE:-$HOME/Library/Application Support/ava/config.json}"
 VOICE_DEFAULTS_FILE="${VOICE_DEFAULTS_FILE:-$SCRIPT_DIR/voice-defaults.json}"
 
 # config_get <jsonKey> -> the live config's value, else voice-defaults.json's, else empty.

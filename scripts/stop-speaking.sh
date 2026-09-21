@@ -5,7 +5,7 @@
 # Speaking" button.
 #
 # Usage: stop-speaking.sh
-ACTIVITY_DIR="/tmp/claude-tts-active"
+ACTIVITY_DIR="/tmp/ava-tts-active"
 
 shopt -s nullglob
 for marker in "$ACTIVITY_DIR"/*; do

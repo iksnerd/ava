@@ -15,7 +15,7 @@ __pycache__/
 .ruff_cache/
 
 # Swift
-ClaudeVoiceMenuBar/.build/
+AvaMenuBar/.build/
 
 # Python (voxtral/)
 voxtral/.venv/

@@ -34,7 +34,7 @@ func NewRecorder(outputPath string, playSound bool) *Recorder {
 // was "norm -3" — folding it in here saves a full sox spawn and an
 // intermediate temp file on every recording.
 func (r *Recorder) Record() error {
-	// Stop any in-flight Claude Voice TTS before opening the mic: otherwise
+	// Stop any in-flight Ava TTS before opening the mic: otherwise
 	// whatever it's currently speaking (e.g. a hook notification that
 	// overlaps a dictation) goes out the speakers and back in through the
 	// mic while sox is capturing.

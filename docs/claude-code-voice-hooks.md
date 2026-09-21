@@ -46,8 +46,8 @@ regardless of how long the actual speech takes.
 
 ## Settings
 
-Every setting below lives in `~/Library/Application Support/ClaudeVoice/config.json`
-(edited live by `../ClaudeVoiceMenuBar/`) with `voice-defaults.json` as the
+Every setting below lives in `~/Library/Application Support/ava/config.json`
+(edited live by `../AvaMenuBar/`) with `voice-defaults.json` as the
 fallback for anything not yet in that file. An environment variable of the
 matching name always overrides both, for one-off testing:
 
@@ -57,7 +57,7 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 
 | Config key | Env override | Default | Meaning |
 |---|---|---|---|
-| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. The Go side honours the same flag through `internal/voiceconfig`, so `local-whisper speak`/`a11y` and the MCP `speak` tool are silent too — they say so rather than reporting success. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Claude Voice Mute` Service (see `../ClaudeVoiceMenuBar/README.md`). |
+| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. The Go side honours the same flag through `internal/voiceconfig`, so `local-whisper speak`/`a11y` and the MCP `speak` tool are silent too — they say so rather than reporting success. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Ava Mute` Service (see `../AvaMenuBar/README.md`). |
 | `speed` | `TTS_SPEED` | 1.3 | Kokoro playback speed |
 | `volume` | `TTS_VOLUME` | 1.0 | `afplay` volume |
 | `voice` | — (2nd positional arg to `speak.sh`) | `af_heart` | Kokoro voice name |

@@ -16,7 +16,7 @@ import (
 // language: three separate readers resolve the same config file, and they
 // have to agree. scripts/lib.sh reads it in bash for the voice hooks, this
 // package reads it in Go for the CLI and the MCP server, and
-// ClaudeVoiceMenuBar/VoiceSettings.swift reads it in Swift for the UI.
+// AvaMenuBar/VoiceSettings.swift reads it in Swift for the UI.
 //
 // Pinning the default *values* (TestDefaultsMatchVoiceDefaultsJSON) is not
 // enough: what actually diverges is the resolution *logic* — what each

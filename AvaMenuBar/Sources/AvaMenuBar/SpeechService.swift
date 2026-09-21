@@ -2,10 +2,10 @@ import AppKit
 
 /// Backs the two system Services this app registers via Info.plist's
 /// NSServices (scripts/build-app.sh) and NSApp.servicesProvider in
-/// ClaudeVoiceMenuBarApp's AppDelegate — each `@objc` method name here must
+/// AvaMenuBarApp's AppDelegate — each `@objc` method name here must
 /// match an NSMessage entry in that plist.
 final class SpeechService: NSObject {
-    /// "Read Aloud with Claude Voice" — appears in the Services submenu of
+    /// "Read Aloud with Ava" — appears in the Services submenu of
     /// the right-click menu for selected text in any app that supports it.
     @objc func readAloud(
         _ pasteboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString>
@@ -17,7 +17,7 @@ final class SpeechService: NSObject {
         Speech.speak(text)
     }
 
-    /// "Toggle Claude Voice Mute" — an action Service with no send/return
+    /// "Toggle Ava Mute" — an action Service with no send/return
     /// pasteboard types, so it needs no selected text and shows up under
     /// System Settings → Keyboard → Keyboard Shortcuts → Services → General,
     /// where it can be bound to a global keyboard shortcut to mute/unmute

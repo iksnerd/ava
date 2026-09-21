@@ -8,7 +8,7 @@ type Voice struct {
 	Description string
 }
 
-// voiceIDs are the voices ClaudeVoiceMenuBar's picker offers, which all ship
+// voiceIDs are the voices AvaMenuBar's picker offers, which all ship
 // in the same Kokoro-82M download — there's nothing extra to fetch to use
 // any of them. Kept in sync with VoiceSettings.swift by
 // TestVoicesMatchMenuBarAppList.

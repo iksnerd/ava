@@ -1,12 +1,12 @@
-# Claude Voice
+# Ava
 
 A menu bar app for the local voice stack (`../mlx-engine/`, `../scripts/`,
 `../` itself): a **Dictate** button for recording/transcribing/pasting at
 your cursor (via `local-whisper` — the same dictation tool this whole repo
 started as, just triggerable from here instead of only Raycast), a
-system-wide **Read Aloud with Claude Voice** right-click action for any
+system-wide **Read Aloud with Ava** right-click action for any
 selected text, a global **Mute** switch (also reachable outside the app as
-the **Toggle Claude Voice Mute** Service — see below), plus live tuning for
+the **Toggle Ava Mute** Service — see below), plus live tuning for
 everything Claude Code's Stop/Notification hooks speak through — speed,
 volume, voice, spoken-message length, and whether to summarize long
 messages with a local LLM instead of cutting them off mid-sentence.
@@ -28,19 +28,19 @@ binary); a packaged `.app` doesn't have that requirement — see "Packaging
 for distribution" below.
 
 ```bash
-swift run ClaudeVoiceMenuBar          # dev build, runs until you quit or close the terminal
+swift run AvaMenuBar          # dev build, runs until you quit or close the terminal
 ```
 
 For something that survives quitting/reboots, package it as a real `.app`:
 
 ```bash
-scripts/build-app.sh                  # release build → installs to /Applications/Claude Voice.app
-open -a "Claude Voice"
+scripts/build-app.sh                  # release build → installs to /Applications/Ava.app
+open -a "Ava"
 ```
 
 To have it launch automatically at login, add a
 [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
-pointing `ProgramArguments` at `open -a "Claude Voice"` with `RunAtLoad`
+pointing `ProgramArguments` at `open -a "Ava"` with `RunAtLoad`
 set, then `launchctl bootstrap gui/$(id -u) <path-to-plist>`. Not included
 in this repo since it's a per-machine login item, not project config.
 
@@ -73,7 +73,7 @@ verify ... is free of malware that may harm your Mac" warning — not the
 harsher "is damaged and can't be opened" some ad-hoc-signed apps get. The
 recipient can either use System Settings → Privacy & Security → scroll
 down → "Open Anyway" next to the blocked-app notice (confirm once more in
-the follow-up prompt), or run `xattr -cr "/Applications/Claude Voice.app"`
+the follow-up prompt), or run `xattr -cr "/Applications/Ava.app"`
 to clear the quarantine attribute directly — also verified: the app
 launches clean afterward, no further prompt. Real signing/notarization
 needs a paid Apple Developer Program membership — tracked as still-open in
@@ -81,7 +81,7 @@ needs a paid Apple Developer Program membership — tracked as still-open in
 
 ## Mute
 
-The **Mute Claude Voice** button at the top of the panel is a single global
+The **Mute Ava** button at the top of the panel is a single global
 switch: while it's on, `speak.sh` exits immediately for every caller that
 goes through it — both Claude Code hooks, Read Aloud, and this panel's own
 Test/Preview buttons — rather than each one having to remember to check.
@@ -91,7 +91,7 @@ say so rather than reporting a success nobody heard. Muting also
 stops anything already playing, and the menu bar icon itself turns into a
 muted speaker so you can tell at a glance without opening the panel.
 
-It's also registered as a Service — **Toggle Claude Voice Mute** — with no
+It's also registered as a Service — **Toggle Ava Mute** — with no
 selected-text requirement (unlike Read Aloud), so instead of the **Services
 → Text** category below it shows up under System Settings → Keyboard →
 Keyboard Shortcuts → Services → **General**, where the same one-time
@@ -116,10 +116,10 @@ to the pane's default view ("Modifier Keys"). Rather than ship a link that
 confidently lands on the wrong screen, it stops at the Keyboard pane and
 leaves the last click to the user.
 
-## Read Aloud with Claude Voice
+## Read Aloud with Ava
 
 Select text in any app, right-click (or Edit → Services in the menu bar),
-and choose **Services → Read Aloud with Claude Voice** to have it spoken
+and choose **Services → Read Aloud with Ava** to have it spoken
 through the same TTS pipeline as everything else here (current speed,
 volume, and voice settings). This only requires the packaged `.app` — no
 extra permissions. The menu bar icon fills in while anything is actively
@@ -135,7 +135,7 @@ selected text into it, so the item won't appear there no matter what.
 
 **The first time**, macOS adds new Services disabled — open
 System Settings → Keyboard → Keyboard Shortcuts → Services → Text, find
-"Read Aloud with Claude Voice", and turn it on. That same row is also
+"Read Aloud with Ava", and turn it on. That same row is also
 where you can bind a global keyboard shortcut to it (select it, click
 "Add Shortcut", press the key combo) — the shortcut is still bounded by
 the same Services-support limitation above, so it'll fire in TextEdit/
@@ -143,7 +143,7 @@ Notes/etc. but not Chrome/VS Code/Slack.
 
 If the item doesn't show up in that list at all yet, macOS's Services
 cache can lag a freshly (re)installed app by a minute or so — relaunching
-"Claude Voice" (it calls `NSUpdateDynamicServices()` on launch) or logging
+"Ava" (it calls `NSUpdateDynamicServices()` on launch) or logging
 out and back in forces a refresh.
 
 There's no length limit worth worrying about — reading a whole article is
@@ -160,7 +160,7 @@ Speaking** button appears at the top — it cancels whatever's in flight
 immediately, whether that's still being synthesized or already playing,
 instead of waiting for it to finish. Backed by `scripts/stop-speaking.sh`,
 which works off the same per-invocation markers under
-`/tmp/claude-tts-active/` that drive the speaking indicator, so it reaches
+`/tmp/ava-tts-active/` that drive the speaking indicator, so it reaches
 speech from any source (Read Aloud, a Claude Code hook, Test/Preview) —
 including one still queued behind another because only one thing plays at
 a time.
@@ -168,14 +168,14 @@ a time.
 ## What it controls
 
 Every change is written (debounced) to
-`~/Library/Application Support/ClaudeVoice/config.json`, which `../scripts/lib.sh`
+`~/Library/Application Support/ava/config.json`, which `../scripts/lib.sh`
 reads on the shell side — so a setting changed here takes effect on the very
 next spoken message, no restart needed. Defaults for any field not yet
 present in that file come from `../scripts/voice-defaults.json`.
 
 | Setting | Effect |
 |---|---|
-| Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Claude Voice Mute" Service. See "Mute" above. |
+| Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Ava Mute" Service. See "Mute" above. |
 | Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
 | Dictate (button) | Runs `local-whisper` (its own default `whisper` engine — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
 | Speed | Kokoro playback speed multiplier |
@@ -184,16 +184,16 @@ present in that file come from `../scripts/voice-defaults.json`.
 | "On finish" / "Notification" length | Character cap before a spoken message gets shortened; a "∞" toggle disables the cap entirely for that message type |
 | Summarize with local LLM | When a message exceeds its length cap, summarize it with the local Ollama daemon instead of cutting it off mid-sentence (off by default — see `../scripts/hook-stop.sh` and `../scripts/voice_hooks/`) |
 | Server status / Start / Stop | Live status of `mlx-engine`, with a manual override — the hooks already auto-start it on demand, this is just visibility |
-| Read Aloud with Claude Voice (Services menu) | Speaks the text selected in any app, via the same TTS pipeline and current voice settings — see above |
-| Toggle Claude Voice Mute (Services menu / global shortcut) | Flips the same Mute switch from outside the app entirely — see "Mute" above |
+| Read Aloud with Ava (Services menu) | Speaks the text selected in any app, via the same TTS pipeline and current voice settings — see above |
+| Toggle Ava Mute (Services menu / global shortcut) | Flips the same Mute switch from outside the app entirely — see "Mute" above |
 | Speaking indicator (menu bar icon) | The waveform icon fills in (`waveform.circle.fill`) while anything is actively being synthesized or played, and reverts once it's done; a muted speaker (`speaker.slash.fill`) takes priority over both states while Mute is on |
 
 ## Structure
 
 ```
 Package.swift                          - bare SPM package, no Xcode project
-Sources/ClaudeVoiceMenuBar/
-  ClaudeVoiceMenuBarApp.swift           - entry point; hides the Dock icon via
+Sources/AvaMenuBar/
+  AvaMenuBarApp.swift           - entry point; hides the Dock icon via
                                           NSApp.setActivationPolicy(.accessory)
   SettingsView.swift                    - the dropdown UI
   Components.swift                      - SettingsRow / SectionCard / StatusBadge
@@ -203,7 +203,7 @@ Sources/ClaudeVoiceMenuBar/
   ServerController.swift                - polls mlx-engine's /health, drives start/stop
   Speech.swift                          - shells out to scripts/speak.sh
   SpeechService.swift                   - NSServices provider behind "Read Aloud with Claude
-                                          Voice" and "Toggle Claude Voice Mute"
+                                          Voice" and "Toggle Ava Mute"
   SpeechActivityMonitor.swift           - polls speak.sh's activity marker for the speaking indicator
   Paths.swift                           - resolves scripts/binary from the bundled Resources/ (packaged
                                           build) or this dev checkout (swift run); PATH hardening

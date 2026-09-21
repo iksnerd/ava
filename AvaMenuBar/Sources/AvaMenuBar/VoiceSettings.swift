@@ -85,7 +85,7 @@ final class VoiceSettings: ObservableObject {
     // Services callback thread (not necessarily MainActor) via SpeechService.
     nonisolated static let fileURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("ClaudeVoice", isDirectory: true)
+        let dir = base.appendingPathComponent("ava", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("config.json")
     }()
@@ -103,7 +103,7 @@ final class VoiceSettings: ObservableObject {
         config = Self.load()
         lastKnownModDate = Self.modDate()
         // Mute (and anything else) can also be flipped from outside this
-        // process — e.g. the "Toggle Claude Voice Mute" Service, which has
+        // process — e.g. the "Toggle Ava Mute" Service, which has
         // no reference to this live instance and writes straight to disk —
         // so poll for that the same way SpeechActivityMonitor polls its
         // activity directory, rather than only ever trusting our own writes.
@@ -174,7 +174,7 @@ final class VoiceSettings: ObservableObject {
     }
 
     /// Flips `muted` directly on disk and returns the new value — used by
-    /// the "Toggle Claude Voice Mute" Service (SpeechService.swift), which
+    /// the "Toggle Ava Mute" Service (SpeechService.swift), which
     /// has no reference to the live instance the SwiftUI app owns. That
     /// instance picks the change up via its own poll above.
     @discardableResult

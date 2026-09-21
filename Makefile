@@ -87,7 +87,7 @@ fmt-check:
 
 check-swift-config:
 	@echo "🔍 Checking VoiceSettings.swift against the config contract..."
-	@python3 ClaudeVoiceMenuBar/scripts/check-config-contract.py
+	@python3 AvaMenuBar/scripts/check-config-contract.py
 
 check-paths:
 	@bash scripts/check-portable-paths.sh

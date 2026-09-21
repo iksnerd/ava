@@ -6,7 +6,7 @@ No audio or text leaves the machine.
 
 Used by `local-whisper` (`--engine=voxtral`) for dictation and by the
 Claude Code voice hooks / menu bar app (`../scripts/speak.sh`,
-`../ClaudeVoiceMenuBar/`) for spoken notifications — but it's a standalone
+`../AvaMenuBar/`) for spoken notifications — but it's a standalone
 HTTP server, usable from anything that can `curl` `localhost:8765`.
 
 ## Run it
@@ -75,7 +75,7 @@ No model swap needed for any of these — they're request-level knobs Kokoro
   technical vocabulary than a pure acoustic model.
 - **TTS**: `mlx-community/Kokoro-82M-bf16` — small and fast, all English
   voices ship in the same download (`af_*`/`am_*`/`bf_*`/`bm_*`; see
-  `../ClaudeVoiceMenuBar/` for the full list). Text-to-speech via
+  `../AvaMenuBar/` for the full list). Text-to-speech via
   Mistral's own [Voxtral-4B-TTS](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603)
   is also available in `mlx-audio` (`voxtral_tts` model type) as a heavier,
   more expressive alternative if Kokoro's quality isn't enough for a given use case.

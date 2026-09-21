@@ -1,4 +1,4 @@
-// Package voiceconfig reads the Claude Voice settings that the menu bar app
+// Package voiceconfig reads the Ava settings that the menu bar app
 // writes and scripts/speak.sh reads — global mute, TTS speed/volume/voice,
 // the `say` fallback rate, and whether the mlx-engine may auto-start.
 //
@@ -13,7 +13,7 @@
 // Resolution order, matching lib.sh exactly:
 //
 //	TTS_SPEED / TTS_VOLUME / TTS_SAY_RATE  (env, these three keys only)
-//	~/Library/Application Support/ClaudeVoice/config.json  (live, per key)
+//	~/Library/Application Support/ava/config.json  (live, per key)
 //	Defaults()  (scripts/voice-defaults.json's values)
 //
 // Anything missing, unparseable or of the wrong type falls through to the
@@ -54,7 +54,7 @@ type Settings struct {
 }
 
 // Defaults mirrors scripts/voice-defaults.json, which
-// ClaudeVoiceMenuBar/VoiceSettings.swift and scripts/lib.sh also read.
+// AvaMenuBar/VoiceSettings.swift and scripts/lib.sh also read.
 // go:embed can't reach a parent directory and a second copy of the file
 // would defeat its single-source-of-truth job, so these are hand-maintained
 // and pinned by TestDefaultsMatchVoiceDefaultsJSON.
@@ -69,7 +69,7 @@ func Defaults() Settings {
 	}
 }
 
-// ConfigPath is where ClaudeVoiceMenuBar persists live settings.
+// ConfigPath is where AvaMenuBar persists live settings.
 func ConfigPath() string {
 	if v := os.Getenv(ConfigPathEnv); v != "" {
 		return v
@@ -78,7 +78,7 @@ func ConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, "Library", "Application Support", "ClaudeVoice", "config.json")
+	return filepath.Join(home, "Library", "Application Support", "ava", "config.json")
 }
 
 // Load resolves the current settings. It never fails: every unreadable or
