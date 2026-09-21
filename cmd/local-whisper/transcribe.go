@@ -1,0 +1,115 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"local-whisper/pkg/stt"
+)
+
+// newTranscribeCmd transcribes a WAV file that already exists, as opposed
+// to the root command, which records one first. Same engines, same model
+// selection (newTranscriber), so the two can't disagree.
+func newTranscribeCmd() *cobra.Command {
+	var (
+		language string
+		engine   string
+		model    string
+		output   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "transcribe <audio.wav>",
+		Short: "Transcribe an existing 16kHz mono WAV file on-device",
+		Args:  cobra.ExactArgs(1),
+		Long: "Transcribe a WAV file that already exists on disk, as opposed to the\n" +
+			"bare `local-whisper` command, which records one first.\n\n" +
+			"The whisper engine works on any Mac; --engine voxtral is more accurate\n" +
+			"but needs the mlx-engine server running (local-whisper engine start).",
+		Example: "  local-whisper transcribe meeting.wav\n" +
+			"  local-whisper transcribe --engine voxtral --lang es clip.wav\n" +
+			"  local-whisper transcribe --output notes.txt meeting.wav",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkAudioFile(args[0]); err != nil {
+				return err
+			}
+			if err := validateEngine(engine); err != nil {
+				return err
+			}
+			if err := validateModel(engine, model); err != nil {
+				return err
+			}
+
+			transcriber, err := newTranscriber(engine, model)
+			if err != nil {
+				return err
+			}
+
+			text, err := transcriber.Transcribe(stt.Options{
+				AudioPath:  args[0],
+				OutputPath: output,
+				Language:   language,
+			})
+			if err != nil {
+				return fmt.Errorf("transcription failed: %w", err)
+			}
+			if strings.TrimSpace(text) == "" {
+				return fmt.Errorf("no speech detected in %s", args[0])
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), text)
+			return nil
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.StringVar(&language, "lang", "en", "Language code: en, es, fr, de, etc.")
+	flags.StringVar(&engine, "engine", "whisper", "Inference engine: whisper (default) or voxtral")
+	flags.StringVar(&model, "model", "base", "Model size: base (default) or tiny (whisper only)")
+	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
+
+	_ = cmd.MarkFlagFilename("output", "txt")
+	for _, flag := range []string{"engine", "model"} {
+		values := map[string][]string{
+			"engine": {"whisper", "voxtral"},
+			"model":  {"base", "tiny"},
+		}[flag]
+		_ = cmd.RegisterFlagCompletionFunc(flag,
+			func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+				return values, cobra.ShellCompDirectiveNoFileComp
+			})
+	}
+
+	// The positional is always an audio file.
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return []string{"wav"}, cobra.ShellCompDirectiveFilterFileExt
+	}
+
+	return cmd
+}
+
+// checkAudioFile fails early on a path whisper-cli can't read. Worth doing
+// here rather than letting the engine answer: whisper-cli's reply to a
+// missing file is its entire help screen, which buries "file not found"
+// under a hundred lines of flags.
+func checkAudioFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no such audio file: %s", path)
+		}
+		return fmt.Errorf("cannot read %s: %w", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("not a file: %s is a directory", path)
+	}
+	return nil
+}

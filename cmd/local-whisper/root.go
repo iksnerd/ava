@@ -55,7 +55,15 @@ func newRootCmd() *cobra.Command {
 	flags.BoolVar(&opts.showStatus, "verbose", true, "Show processing status")
 	flags.StringVar(&opts.engine, "engine", "whisper", "Inference engine: whisper (default) or voxtral")
 
-	cmd.AddCommand(newEngineCmd())
+	cmd.AddCommand(
+		newEngineCmd(),
+		newMcpCmd(),
+		newSpeakCmd(),
+		newStopCmd(),
+		newVoicesCmd(),
+		newTranscribeCmd(),
+		newA11yCmd(),
+	)
 
 	return cmd
 }
@@ -66,6 +74,22 @@ func Execute() {
 		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// newTranscriber builds the STT client for an engine name. Shared by the
+// root command's dictation run and the MCP server's transcribe tool, so the
+// two can never disagree about which engine a name selects or where the
+// whisper model lives.
+func newTranscriber(engine, modelName string) (stt.Client, error) {
+	if engine == "voxtral" {
+		return mlx.NewClient(""), nil // Defaults to http://127.0.0.1:8765
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+	modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", selectModelFile(modelName))
+	return whisper.NewClient(modelPath), nil
 }
 
 // run is the root command's RunE body: record, transcribe, output.
@@ -147,16 +171,9 @@ func run(opts options) error {
 		fmt.Println("🧠 Transcribing audio...")
 	}
 
-	var transcriber stt.Client
-	if opts.engine == "voxtral" {
-		transcriber = mlx.NewClient("") // Defaults to http://127.0.0.1:8765
-	} else {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		modelPath := filepath.Join(homeDir, ".local/share/whisper-cpp", selectModelFile(opts.modelName))
-		transcriber = whisper.NewClient(modelPath)
+	transcriber, err := newTranscriber(opts.engine, opts.modelName)
+	if err != nil {
+		return err
 	}
 
 	text, transcribeErr := transcriber.Transcribe(stt.Options{
