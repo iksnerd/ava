@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work the way the docs say it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [docs/troubleshooting.md](https://github.com/iksnerd/local-whisper/blob/main/docs/troubleshooting.md) first; most "nothing pastes" and "nothing plays" reports are a permission or a stopped engine.
+        For a security problem, use [private reporting](https://github.com/iksnerd/local-whisper/security/advisories/new) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected, and what you got instead. Paste the full output, including any ❌ line.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - local-whisper (dictation / transcribe)
+        - local-whisper speak / Kokoro engine
+        - local-whisper mcp
+        - voice-monitor
+        - Ava menu bar app
+        - Claude Code voice hooks
+        - Install / setup
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - Release binary (scripts/install.sh)
+        - go install
+        - From a checkout (make build / make install-bin)
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: "Paste the output of: `local-whisper --version; sw_vers -productVersion; uname -m; brew list --versions sox whisper-cpp`"
+      render: text
+    validations:
+      required: true

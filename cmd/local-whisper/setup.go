@@ -55,7 +55,13 @@ func newSetupCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(out, "\n✅ Setup complete. Try: local-whisper speak \"hello\"")
+			// Suggest something that exercises what was just installed:
+			// after --skip-engine, `speak` would only demo the fallback voice.
+			if skipEngine {
+				fmt.Fprintln(out, "\n✅ Setup complete. Try: local-whisper   (speak, then pause to finish)")
+			} else {
+				fmt.Fprintln(out, "\n✅ Setup complete. Try: local-whisper speak \"hello\"")
+			}
 			return nil
 		},
 	}

@@ -56,3 +56,6 @@ scripts/voice_hooks/.ruff_cache/
 # commit this way once, from a manual `local-whisper transcribe` run.
 transcript.txt
 transcript-*.txt
+
+# Launch and outreach drafts; not for the public repo.
+/docs/personal/

@@ -1,0 +1,16 @@
+name: Feature request
+description: Something the voice stack should do and does not.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation, not the solution. "I dictate into a terminal and…" is more useful than "add a flag for…".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: Optional. If it touches whisper.cpp or Kokoro, docs/tuning.md lists what each engine actually exposes.
