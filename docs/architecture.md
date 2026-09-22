@@ -88,6 +88,33 @@ A global mute, an activity marker at `/tmp/ava-tts-active`, and an exclusive
 is the failure this prevents. `internal/speaker`'s package comment has the
 details.
 
+## One source for the constants every runtime shares
+
+`internal/protocol/protocol.json` holds the values more than one language has
+to agree on: the TTS activity directory and its env override, the playback
+lock, the sidecar suffixes, mlx-engine's URL and pid file, and the temp dir.
+`make generate-protocol` renders it into four files — `protocol_gen.go`,
+`scripts/protocol.sh`, `AvaMenuBar/.../Protocol.swift` and
+`mlx-engine/protocol.py` — all committed, none edited by hand.
+
+It generates rather than having each runtime read one file at startup because
+the runtimes cannot agree on a path that exists: `go:embed` cannot reach
+outside its own package, an installed `local-whisper` has no `scripts/` beside
+it, and the menu bar app ships only what its bundle carries. A file read at
+runtime would serve two of the four and leave hand-written copies for the rest,
+which is worse than no generator, because the copies would look authoritative.
+
+Two things check it. `make check-protocol` re-renders and fails if anything on
+disk differs, and `internal/protocol/contract_test.go` fails when a protocol
+value is spelled by hand anywhere outside a generated file — because a
+generator guarantees its own output is correct, not that anybody reads it.
+
+One consumer is deliberately not generated: `mlx-engine/Makefile` passes
+`--port 8765` to uvicorn, and make cannot source a shell file for one word
+without more machinery than the line is worth. It stays pinned by
+`TestPortAgreesAcrossEveryRuntimeThatSpellsIt` in `pkg/mlx` instead — the
+honest outcome of generation, which covers most consumers rather than all.
+
 ## The checks that hold this together
 
 Four scripts run in `make lint`, each written after the bug it now prevents:

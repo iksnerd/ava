@@ -10,6 +10,8 @@ from mlx_audio.tts.generate import generate_audio
 from mlx_audio.tts.utils import load_model as load_tts_model
 from pydantic import BaseModel, ConfigDict
 
+import protocol
+
 app = FastAPI(title="Local Kokoro TTS Server")
 
 TTS_MODEL_PATH = "mlx-community/Kokoro-82M-bf16"
@@ -21,7 +23,7 @@ IDLE_TIMEOUT_SEC = 15 * 60  # 15 minutes
 # hand-started server still cleans up after itself. This was a hardcoded
 # "/tmp/voxtral-server.pid" — a path nothing else used — so every idle self-exit
 # left the real pid file on disk.
-PID_FILE = os.environ.get("MLX_ENGINE_PID_FILE", "/tmp/mlx-engine-server.pid")
+PID_FILE = os.environ.get("MLX_ENGINE_PID_FILE", protocol.ENGINE_PID_FILE)
 
 
 class SpeakRequest(BaseModel):
@@ -195,4 +197,5 @@ async def speak(req: SpeakRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8765)
+    _host, _port = protocol.ENGINE_URL.rsplit("//", 1)[1].split(":")
+    uvicorn.run(app, host=_host, port=int(_port))

@@ -20,6 +20,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/iksnerd/local-whisper/internal/protocol"
 )
 
 // Client wraps the local mlx-engine HTTP server.
@@ -34,7 +36,7 @@ type Client struct {
 // mlx-engine/Makefile and scripts/mlx-engine-server.sh spell it too — those
 // are pinned by TestDefaultServerURLMatchesEngine rather than shared, since
 // Go cannot hand a constant to Python or bash.
-const DefaultServerURL = "http://127.0.0.1:8765"
+const DefaultServerURL = protocol.EngineURL
 
 // NewClient creates a new mlx-engine HTTP client.
 func NewClient(serverURL string) *Client {

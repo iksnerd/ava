@@ -50,7 +50,7 @@ final class ServerController: ObservableObject {
     }
 
     private static func health() async -> Bool {
-        guard let url = URL(string: "http://127.0.0.1:8765/health") else { return false }
+        guard let url = URL(string: "\(AvaProtocol.engineURL)/health") else { return false }
         var req = URLRequest(url: url)
         req.timeoutInterval = 2
         do {

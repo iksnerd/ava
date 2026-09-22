@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "The single source for every constant more than one runtime has to agree on.",
+    "Edit this file, then run `make generate-protocol`. Never edit a generated file.",
+    "`make check-protocol` (in `make lint`) fails when a generated file is stale."
+  ],
+  "activity_dir": {
+    "value": "/tmp/ava-tts-active",
+    "doc": "One marker file per in-flight speak, present for the whole synth+playback window. Polled by the menu bar app's speaking indicator and scanned by every stop path."
+  },
+  "activity_dir_env": {
+    "value": "TTSCONTROL_ACTIVITY_DIR",
+    "doc": "Overrides activity_dir. Its only real use is pointing tests at an isolated directory, so they do not touch the real one or any speak in flight. The TTSCONTROL_ prefix is kept from when one package was its only reader: it is a published escape hatch, and renaming it would silently stop working for anyone who set it."
+  },
+  "playback_lock": {
+    "value": "/tmp/ava-tts-playback.lock",
+    "doc": "Exclusive flock(2) held for the duration of playback, so a Go speak and a speak.sh speak queue instead of talking over each other. Two paths would be two locks, and both would play at once."
+  },
+  "synth_pid_suffix": {
+    "value": ".synth.pid",
+    "doc": "Sidecar naming the synthesizing process, for a stop to signal."
+  },
+  "play_pid_suffix": {
+    "value": ".play.pid",
+    "doc": "Sidecar naming the playing process, for a stop to signal."
+  },
+  "stopped_suffix": {
+    "value": ".stopped",
+    "doc": "Sidecar telling speak.sh a stop was deliberate, so it does not treat the cancellation as a failure and fall back to `say`."
+  },
+  "engine_url": {
+    "value": "http://127.0.0.1:8765",
+    "doc": "Where mlx-engine binds. Whoever holds a stale copy either fails to bind or health-checks a socket nobody is listening on, and then reports the engine down while it is running."
+  },
+  "engine_pid_file": {
+    "value": "/tmp/mlx-engine-server.pid",
+    "doc": "Written by the start script, removed by the server's own idle exit. These disagreed once, so the idle exit cleaned up a file nothing created and left the real one behind."
+  },
+  "temp_dir": {
+    "value": "/tmp/voice-input",
+    "doc": "Where both binaries put what they produce: per-dictation audio, cleaned up on exit, and voice-monitor transcript logs, which are kept."
+  }
+}

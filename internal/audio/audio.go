@@ -3,6 +3,8 @@
 // recorded wav must agree on it.
 package audio
 
+import "github.com/iksnerd/local-whisper/internal/protocol"
+
 // Target format sox is asked to produce/consume throughout this repo.
 const (
 	SampleRateHz = "16000"
@@ -14,4 +16,4 @@ const (
 // transcript logs (kept — see the README's privacy section). One spelling,
 // because two spellings is how one of them ends up writing somewhere the
 // other never cleans.
-const TempDir = "/tmp/voice-input"
+const TempDir = protocol.TempDir

@@ -8,14 +8,15 @@ import (
 	"testing"
 )
 
-// mlx-engine's port is spelled in five places this repo controls: DefaultServerURL
-// here, the server that binds it, the two things that start it, and the menu bar
-// app that health-checks it. None of them can import a Go constant, so the copies
-// stay and this test fails when they DISAGREE.
+// mlx-engine's port used to be spelled in five places. Four of them now derive
+// it from internal/protocol/protocol.json — server.py and the start script read
+// the generated ENGINE_URL, the menu bar app reads the generated Swift constant.
 //
-// It is not a style rule. Whichever process holds a stale port either fails to
-// bind or health-checks a socket nobody is listening on, and the second one
-// reports the engine as down while it is running.
+// One cannot: mlx-engine/Makefile passes --port to uvicorn, and make cannot
+// source a shell file for one word without more machinery than the line is
+// worth. That is the honest shape of generation — it covers most consumers,
+// not all — so the leftover stays pinned here, and this test fails when it
+// DISAGREES with the Go constant rather than when it merely looks wrong.
 
 func enginePort(t *testing.T) string {
 	t.Helper()
@@ -36,30 +37,18 @@ func mustRead(t *testing.T, parts ...string) string {
 	return string(data)
 }
 
-func TestPortAgreesAcrossEveryRuntimeThatSpellsIt(t *testing.T) {
+func TestUngeneratedPortSpellingAgreesWithTheConstant(t *testing.T) {
 	port := enginePort(t)
+	body := mustRead(t, "mlx-engine", "Makefile")
 
-	for _, c := range []struct {
-		what    string
-		body    string
-		pattern string // one capture group: the port
-	}{
-		{"mlx-engine/server.py uvicorn.run", mustRead(t, "mlx-engine", "server.py"), `uvicorn\.run\([^)]*port=(\d+)`},
-		{"mlx-engine/Makefile uvicorn", mustRead(t, "mlx-engine", "Makefile"), `--port\s+(\d+)`},
-		{"scripts/mlx-engine-server.sh uvicorn", mustRead(t, "scripts", "mlx-engine-server.sh"), `--port\s+(\d+)`},
-		{"scripts/mlx-engine-server.sh health probe", mustRead(t, "scripts", "mlx-engine-server.sh"), `127\.0\.0\.1:(\d+)/health`},
-		{"ServerController.swift health probe", mustRead(t, "AvaMenuBar", "Sources", "AvaMenuBar", "ServerController.swift"), `127\.0\.0\.1:(\d+)/health`},
-	} {
-		m := regexp.MustCompile(c.pattern).FindStringSubmatch(c.body)
-		if m == nil {
-			t.Errorf("%s: found no port matching %s — if that line was rewritten, "+
-				"update this pattern rather than deleting the check", c.what, c.pattern)
-			continue
-		}
-		if m[1] != port {
-			t.Errorf("%s uses port %s, pkg/mlx.DefaultServerURL uses %s — one of them "+
-				"is talking to a socket nobody is listening on", c.what, m[1], port)
-		}
+	m := regexp.MustCompile(`--port\s+(\d+)`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatal("mlx-engine/Makefile no longer passes --port to uvicorn — if it " +
+			"now reads the generated value, delete this test rather than the check")
+	}
+	if m[1] != port {
+		t.Errorf("mlx-engine/Makefile starts uvicorn on port %s, pkg/mlx.DefaultServerURL "+
+			"is %s — `make -C mlx-engine` would bind where no client is looking", m[1], port)
 	}
 }
 

@@ -9,7 +9,7 @@ import Foundation
 final class SpeechActivityMonitor: ObservableObject {
     @Published private(set) var isSpeaking = false
 
-    private static let activityDir = "/tmp/ava-tts-active"
+    private static let activityDir = AvaProtocol.activityDir
 
     private var timer: Timer?
 

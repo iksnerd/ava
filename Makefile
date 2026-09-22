@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -20,6 +20,8 @@ help:
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
 	@echo "  make check-swift-config - Check VoiceSettings.swift resolves the config like bash and Go (needs swift)"
 	@echo "  make check-paths        - Fail if any tracked file hardcodes a home directory"
+	@echo "  make generate-protocol  - Regenerate the shared constants from internal/protocol/protocol.json"
+	@echo "  make check-protocol     - Fail if a generated constants file is stale"
 	@echo "  make check-names        - Fail if a tracked filename breaks another checkout"
 	@echo "  make check-docs         - Fail if a make target or script is documented nowhere"
 	@echo "  make install-hooks      - Enable the pre-commit hook (CI only runs on tags)"
@@ -122,6 +124,12 @@ check-paths:
 check-names:
 	@bash scripts/check-filenames.sh
 
+generate-protocol:
+	@go run ./internal/protocol/gen
+
+check-protocol:
+	@go run ./internal/protocol/gen -check
+
 check-docs:
 	@bash scripts/check-doc-coverage.sh
 
@@ -136,7 +144,7 @@ uninstall-hooks:
 	@git config --unset core.hooksPath || true
 	@echo "✅ hooks disabled"
 
-lint: vet fmt-check check-paths check-names check-docs
+lint: vet fmt-check check-paths check-names check-protocol check-docs
 	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff check .
 	@cd voxtral && uv run ruff check .

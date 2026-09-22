@@ -7,8 +7,11 @@
 # Designed to be called from Claude Code hooks: always returns fast (backgrounds
 # the actual synthesis+playback) so it never stalls the hook that invoked it.
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+# Generated from internal/protocol/protocol.json — the values every runtime
+# has to agree on. Never edit protocol.sh; run `make generate-protocol`.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
 
-SERVER="http://127.0.0.1:8765"
+SERVER="$ENGINE_URL"
 TEXT="$1"
 VOICE="${2:-$(config_get voice)}"
 SPEED=$(config_get_float speed 1.3)             # Kokoro speed multiplier
@@ -19,7 +22,6 @@ VOLUME=$(config_get_float volume 1.0)           # afplay volume, 0.0-1.0+
 [ -n "$TTS_SPEED" ] && SPEED=$(as_float "$TTS_SPEED" "$SPEED")
 [ -n "$TTS_VOLUME" ] && VOLUME=$(as_float "$TTS_VOLUME" "$VOLUME")
 SAY_RATE="${TTS_SAY_RATE:-$(config_get sayRate)}" # words/min for the `say` fallback
-PLAYBACK_LOCK="/tmp/ava-tts-playback.lock"
 PLAYBACK_TIMEOUT_SEC=600 # long enough for a full article read aloud at once
 
 if [ -z "$TEXT" ]; then
@@ -40,7 +42,7 @@ fi
 # and used by stop-speaking.sh to find what to cancel. PID-named so
 # concurrent speaks (multiple Claude Code sessions, or a hook overlapping a
 # manual Read Aloud) don't clobber each other's marker.
-ACTIVITY_DIR="/tmp/ava-tts-active"
+# ACTIVITY_DIR comes from protocol.sh, sourced above.
 
 # Multiple Claude Code sessions can call this at once. The server already
 # serializes /speak generation (single-worker, synchronous), but playback
@@ -74,7 +76,7 @@ with open(lock_path, 'w') as f:
             os.remove(pidfile)
         except OSError:
             pass
-" "$PLAYBACK_LOCK" "$PLAYBACK_TIMEOUT_SEC" "$ACTIVITY_MARKER.play.pid" "$@"
+" "$PLAYBACK_LOCK" "$PLAYBACK_TIMEOUT_SEC" "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "$@"
 }
 
 # Runs $1 (a synthesis command already backgrounded by the caller via `&`)
@@ -83,11 +85,11 @@ with open(lock_path, 'w') as f:
 # own), so callers know not to fall back to the next TTS option.
 wait_synth() {
     local pid="$1"
-    echo "$pid" > "$ACTIVITY_MARKER.synth.pid"
+    echo "$pid" > "${ACTIVITY_MARKER}$SYNTH_PID_SUFFIX"
     wait "$pid"
     local status=$?
-    rm -f "$ACTIVITY_MARKER.synth.pid"
-    if [ -e "$ACTIVITY_MARKER.stopped" ]; then
+    rm -f "${ACTIVITY_MARKER}$SYNTH_PID_SUFFIX"
+    if [ -e "${ACTIVITY_MARKER}$STOPPED_SUFFIX" ]; then
         STOPPED=1
         return 1
     fi
@@ -128,7 +130,7 @@ speak_with_say_fallback() {
     mkdir -p "$ACTIVITY_DIR" 2>/dev/null
     ACTIVITY_MARKER="$ACTIVITY_DIR/$$"
     touch "$ACTIVITY_MARKER" 2>/dev/null
-    trap 'rm -f "$ACTIVITY_MARKER" "$ACTIVITY_MARKER.synth.pid" "$ACTIVITY_MARKER.play.pid" "$ACTIVITY_MARKER.stopped"' EXIT
+    trap 'rm -f "$ACTIVITY_MARKER" "${ACTIVITY_MARKER}$SYNTH_PID_SUFFIX" "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "${ACTIVITY_MARKER}$STOPPED_SUFFIX"' EXIT
     STOPPED=0
 
     if curl -s -f -m 2 "$SERVER/health" >/dev/null 2>&1; then

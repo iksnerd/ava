@@ -1,7 +1,10 @@
 #!/bin/bash
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 DIR="$ROOT_DIR"
-PID_FILE="/tmp/mlx-engine-server.pid"
+# Generated from internal/protocol/protocol.json; supplies ENGINE_PID_FILE
+# and ENGINE_URL. Never edit protocol.sh; run `make generate-protocol`.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
+PID_FILE="$ENGINE_PID_FILE"
 LOG_FILE="/tmp/mlx-engine-server.log"
 START_LOCKDIR="/tmp/mlx-engine-server-start.lockdir"
 START_LOCK_STALE_SEC=30
@@ -29,8 +32,8 @@ case "$1" in
             echo "✅ mlx-engine server is already running (PID: $(cat "$PID_FILE"))"
             exit 0
         fi
-        if curl -s -f http://127.0.0.1:8765/health > /dev/null 2>&1; then
-            echo "✅ Server already responding on 8765 (started outside this script; not touching its PID)."
+        if curl -s -f $ENGINE_URL/health > /dev/null 2>&1; then
+            echo "✅ Server already responding on $ENGINE_URL (started outside this script; not touching its PID)."
             exit 0
         fi
 
@@ -45,14 +48,19 @@ case "$1" in
         # shuts itself down on idle. It used to hardcode a different path than
         # this script writes, so a self-exit left the real pid file behind.
         MLX_ENGINE_PID_FILE="$PID_FILE" \
-            nohup .venv/bin/uvicorn server:app --host 127.0.0.1 --port 8765 > "$LOG_FILE" 2>&1 &
+            # Host and port split out of the generated ENGINE_URL, so this cannot
+            # bind somewhere the clients are not looking.
+            engine_hostport="${ENGINE_URL#*//}"
+            nohup .venv/bin/uvicorn server:app \
+                --host "${engine_hostport%%:*}" --port "${engine_hostport##*:}" \
+                > "$LOG_FILE" 2>&1 &
         PID=$!
         echo $PID > "$PID_FILE"
         echo "✅ Server started with PID $PID. Logs at $LOG_FILE"
 
         echo "⏳ Waiting for server process to come up (models load lazily per-endpoint)..."
         for i in {1..120}; do
-            if curl -s -f http://127.0.0.1:8765/health > /dev/null; then
+            if curl -s -f $ENGINE_URL/health > /dev/null; then
                 echo "🎉 Server is up and ready!"
                 exit 0
             fi

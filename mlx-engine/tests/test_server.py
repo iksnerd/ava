@@ -154,27 +154,34 @@ class TestLazyModel:
 
 
 class TestIdleShutdown:
-    def test_pid_file_defaults_to_the_path_the_start_script_writes(self, server):
+    def test_pid_file_comes_from_the_generated_protocol(self, server):
         """The idle self-exit removes PID_FILE. It used to be a hardcoded
         "/tmp/voxtral-server.pid" while scripts/mlx-engine-server.sh wrote
         "/tmp/mlx-engine-server.pid", so shutting down on idle cleaned up a file
         nothing created and left the real one behind.
 
-        Read out of the script rather than written here: asserting the literal
-        would keep passing after someone moved the script's PID_FILE, which is
-        the half of the original bug this test existed to catch.
+        Both sides now derive from internal/protocol/protocol.json, so the test
+        is that neither has drifted back to a literal: server.py's default is
+        the generated constant, and the start script assigns from the generated
+        shell variable rather than spelling a path.
         """
+        import protocol
+
+        assert server.PID_FILE == protocol.ENGINE_PID_FILE
+
         script = (
             Path(__file__).resolve().parents[2] / "scripts" / "mlx-engine-server.sh"
         ).read_text()
-        match = re.search(r'^PID_FILE="([^"]*)"', script, re.MULTILINE)
-        assert match, (
-            "scripts/mlx-engine-server.sh no longer assigns PID_FILE= at the start "
-            "of a line; if it was renamed, rename it here too"
+        assert "source" in script and "protocol.sh" in script, (
+            "scripts/mlx-engine-server.sh no longer sources the generated "
+            "protocol.sh, so its pid path can drift from server.py's again"
         )
-        assert match.group(1) == server.PID_FILE, (
-            f"server.py writes {server.PID_FILE} but the start script writes "
-            f"{match.group(1)} — the idle exit will clean up a file nothing created"
+        match = re.search(r'^PID_FILE="([^"]*)"', script, re.MULTILINE)
+        assert match, "scripts/mlx-engine-server.sh no longer assigns PID_FILE="
+        assert match.group(1) == "$ENGINE_PID_FILE", (
+            f"the start script sets PID_FILE={match.group(1)!r} instead of the "
+            "generated $ENGINE_PID_FILE — a second spelling is how these two "
+            "disagreed the first time"
         )
 
     def test_pid_file_follows_the_env_the_start_script_sets(self, monkeypatch):

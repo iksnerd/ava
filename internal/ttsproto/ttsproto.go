@@ -22,39 +22,21 @@ package ttsproto
 import (
 	"os"
 	"strings"
+
+	"github.com/iksnerd/local-whisper/internal/protocol"
 )
 
-// defaultActivityDir holds one marker file per in-flight speak, present for
-// the whole synth+playback duration. Mirrors speak.sh's ACTIVITY_DIR.
-const defaultActivityDir = "/tmp/ava-tts-active"
-
-// ActivityDirEnv overrides defaultActivityDir when set. Its only real use is
-// pointing tests (here and in callers like internal/recording and
-// internal/speaker) at an isolated directory, since they cannot otherwise
-// exercise a stop without touching the real, shared activity dir — and any
-// speak actually in flight on the machine running the test.
-//
-// The name keeps its TTSCONTROL_ prefix from when internal/ttscontrol was
-// the only reader: it is an published escape hatch, and renaming it would
-// silently stop working for anyone who had set it.
-const ActivityDirEnv = "TTSCONTROL_ACTIVITY_DIR"
-
-// LockPath is the exclusive flock(2) every playback holds, so a Go speak and
-// a speak.sh speak queue behind each other instead of talking over one
-// another. speak.sh takes the same lock via Python's fcntl.flock, which is
-// flock(2) too. Mirrors speak.sh's PLAYBACK_LOCK.
-const LockPath = "/tmp/ava-tts-playback.lock"
-
-// Sidecar files written beside a marker. They are not themselves markers: a
-// stop that treated them as one would try to signal the pid file's own name.
+// These re-export internal/protocol's generated constants. The package keeps
+// its own names because they are the ones the rest of the repo reads, and
+// because ActivityDir() has to be a function to honour the env override.
 const (
-	// SynthPIDSuffix names the process synthesizing, for a stop to signal.
-	SynthPIDSuffix = ".synth.pid"
-	// PlayPIDSuffix names the process playing, for a stop to signal.
-	PlayPIDSuffix = ".play.pid"
-	// StoppedSuffix tells speak.sh's wait_synth that a stop was deliberate,
-	// so it does not treat the cancellation as a failure and fall back to `say`.
-	StoppedSuffix = ".stopped"
+	defaultActivityDir = protocol.ActivityDir
+	ActivityDirEnv     = protocol.ActivityDirEnv
+	LockPath           = protocol.PlaybackLock
+
+	SynthPIDSuffix = protocol.SynthPIDSuffix
+	PlayPIDSuffix  = protocol.PlayPIDSuffix
+	StoppedSuffix  = protocol.StoppedSuffix
 )
 
 // ActivityDir returns the directory holding in-flight speak markers,
