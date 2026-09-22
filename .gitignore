@@ -51,3 +51,8 @@ scripts/voice_hooks/.ruff_cache/
 # Private working notes — kept out of the published repo on purpose
 /TODO.md
 /SETUP.md
+
+# Transcripts: output, not source. mlx-engine/transcript.txt slipped into a
+# commit this way once, from a manual `local-whisper transcribe` run.
+transcript.txt
+transcript-*.txt
