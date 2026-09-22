@@ -2,7 +2,7 @@
 #
 # Scope: the CLI only. The menu bar app is a Swift package that needs
 # notarization before a .dmg is worth distributing, which is blocked on an
-# Apple Developer Program membership (see TODO/issue #5).
+# Apple Developer Program membership.
 #
 # darwin/arm64 alone is deliberate. Cross-compilation is GoReleaser's usual
 # selling point and it is moot here: the code shells out to afplay, pbcopy,
