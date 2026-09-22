@@ -3,6 +3,53 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## Unreleased
+
+### Added
+- `go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest` is
+  documented. It has worked since the module path was fixed; the README now
+  also says what it leaves out — the model, the hooks, the menu bar app and the
+  Kokoro server.
+- `split_pattern` on `/speak`, the fifth and last parameter Kokoro's
+  `generate()` accepts. Its default splits on blank lines, which is the wrong
+  unit for one long paragraph; `"\. "` chunks by sentence.
+- Copy and Save buttons on the live transcript page. Save downloads a
+  timestamped `.txt` rather than sending you to find the log under `/tmp`.
+- `make check-docs` fails when a Makefile target or `scripts/*.sh` is mentioned
+  in no markdown file. It found five gaps on its first run, then caught itself.
+- A pre-commit hook (`make install-hooks`) that checks the **staged snapshot**
+  rather than the working tree, so a file importing something you never
+  `git add`ed fails locally instead of on someone else's checkout.
+- `docs/tuning.md` and `docs/architecture.md`.
+
+### Changed
+- **CI now runs only on version tags.** No checks on pull requests or pushes to
+  `main`; the pre-commit hook is the pre-merge signal. `CONTRIBUTING.md` says so
+  rather than implying a green tick that will not appear.
+- `/speak` rejects unknown fields with a 422 instead of accepting them. A
+  request carrying `temperature` used to return 200 and change nothing, because
+  `mlx_audio`'s `generate_audio()` advertises ~25 parameters of which Kokoro
+  accepts five.
+- The missing-model error suggests `curl`, which macOS ships, instead of `wget`,
+  which it does not.
+- The README is a landing page: the Apple Silicon constraint moved above the
+  install commands, the diagram moved to `docs/architecture.md`, and there is a
+  section naming the dictation apps most readers should use instead.
+
+### Fixed
+- **`scripts/check-portable-paths.sh` was passing vacuously inside the
+  pre-commit hook.** The hook exports a snapshot with no `.git`, `git ls-files`
+  failed, the file list came back empty, and it printed its success line having
+  examined nothing — a planted `/Users/<name>` passed. Both guards now fall back
+  to `find` and refuse to report success on an empty list. The pattern is also
+  case-insensitive; the old `[a-z]` pattern missed a capitalised username.
+- A claim that whisper.cpp "cannot" stream, in eight places including two Go
+  package comments. whisper.cpp ships `whisper-stream`; the accurate statement
+  is about this project's wrapper, which transcribes a complete file per
+  subprocess.
+- `pkg/stt`'s package comment described a `Transcribe` method deleted when
+  Voxtral left the dictation path.
+
 ## [0.2.0] — 2026-09-22
 
 The release that made the project fit to publish. Two engines became one, the

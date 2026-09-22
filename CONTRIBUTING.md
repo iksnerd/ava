@@ -3,6 +3,11 @@
 Bug reports and patches are welcome. This is a small, single-maintainer project,
 so the honest expectation is slow but real responses.
 
+If you are looking for somewhere to start, the
+[`good first issue`](https://github.com/iksnerd/local-whisper/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+label marks issues that name the files to touch, the existing pattern to follow,
+and what "done" means.
+
 ## Getting set up
 
 ```bash
