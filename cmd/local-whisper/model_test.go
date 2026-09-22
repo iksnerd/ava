@@ -2,42 +2,20 @@ package main
 
 import "testing"
 
-func TestValidateEngine(t *testing.T) {
-	cases := []struct {
-		engine  string
-		wantErr bool
-	}{
-		{"whisper", false},
-		{"voxtral", false},
-		{"", true},
-		{"WHISPER", true},
-		{"gpt4", true},
-	}
-	for _, tc := range cases {
-		err := validateEngine(tc.engine)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("validateEngine(%q) error = %v, wantErr %v", tc.engine, err, tc.wantErr)
-		}
-	}
-}
-
 func TestValidateModel(t *testing.T) {
 	cases := []struct {
-		engine, model string
-		wantErr       bool
+		model   string
+		wantErr bool
 	}{
-		{"whisper", "base", false},
-		{"whisper", "tiny", false},
-		{"whisper", "large", true},
-		{"whisper", "", true},
-		// The model flag only constrains the whisper engine.
-		{"voxtral", "large", false},
-		{"voxtral", "", false},
+		{"base", false},
+		{"tiny", false},
+		{"large", true},
+		{"", true},
 	}
 	for _, tc := range cases {
-		err := validateModel(tc.engine, tc.model)
+		err := validateModel(tc.model)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("validateModel(%q, %q) error = %v, wantErr %v", tc.engine, tc.model, err, tc.wantErr)
+			t.Errorf("validateModel(%q) error = %v, wantErr %v", tc.model, err, tc.wantErr)
 		}
 	}
 }

@@ -2,7 +2,8 @@
 
 Four callers depend on this server's shape — the Go CLI via pkg/mlx, the MCP
 speak tool, scripts/speak.sh in bash, and the Ava menu bar app's health poll —
-and until now nothing checked any of it.
+and until now nothing checked any of it. It is TTS-only: the STT half moved out
+(see TestHealth).
 """
 
 import time
@@ -13,19 +14,16 @@ from fastapi.testclient import TestClient
 
 
 class TestHealth:
-    def test_reports_both_models_and_their_load_state(self, client, server):
-        """STT lazy, TTS warm — the asymmetry is deliberate and documented in
-        startup_event: the 4B Voxtral model must not be paid for by a server
-        that only ever speaks, while Kokoro's first call costs an extra ~2.6s of
-        MLX compilation that is better spent at startup than on a real request.
-        Making STT eager here would add a multi-gigabyte load to every start.
+    def test_reports_the_tts_model_and_its_load_state(self, client, server):
+        """Kokoro is warmed at startup, so a healthy server is a ready one.
+        This used to also report a lazily-loaded 4B STT model; that half moved
+        out — voice-monitor runs Voxtral in its own process for streaming, and
+        one-shot transcription uses whisper.cpp, which was 13x faster.
         """
         res = client.get("/health")
         assert res.status_code == 200
         assert res.json() == {
             "status": "ok",
-            "model": server.MODEL_PATH,
-            "stt_loaded": False,
             "tts_model": server.TTS_MODEL_PATH,
             "tts_loaded": True,
         }
@@ -132,21 +130,6 @@ class TestSpeakFailureModes:
         assert res.content == b"RIFFfake"
 
 
-class TestTranscribeValidation:
-    def test_rejects_a_non_wav_upload(self, client):
-        res = client.post("/transcribe", files={"audio": ("a.mp3", b"\x00\x00", "audio/mpeg")})
-        assert res.status_code == 400
-        assert "wav" in res.json()["detail"].lower()
-
-    def test_audio_is_required(self, client):
-        assert client.post("/transcribe").status_code == 422
-
-    def test_a_wav_that_is_not_really_a_wav_fails_cleanly(self, client, wav_bytes):
-        res = client.post("/transcribe", files={"audio": ("a.wav", b"not a wav", "audio/wav")})
-        assert res.status_code in (400, 500)
-        assert res.json()["detail"], "an error must carry a reason, not an empty body"
-
-
 class TestLazyModel:
     def test_loads_once_and_caches(self, server, recording_stub):
         loader = recording_stub(result="model-object")
@@ -221,9 +204,3 @@ class TestStartupWarmUp:
         assert len(calls) == 1, "startup should warm the TTS model exactly once"
         assert calls[0]["voice"] == "af_heart"
         assert server.tts_model.loaded
-
-    def test_startup_does_not_load_the_stt_model(self, server):
-        server.generate_audio = lambda **kw: None
-        with TestClient(server.app):
-            pass
-        assert not server.stt_model.loaded, "the 4B STT model must stay lazy at startup"

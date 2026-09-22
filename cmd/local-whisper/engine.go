@@ -9,7 +9,7 @@ import (
 )
 
 // newEngineCmd groups start/stop/status for the local mlx-engine STT/TTS
-// server (used by --engine voxtral). It shells out to
+// server (Kokoro TTS). It shells out to
 // scripts/mlx-engine-server.sh rather than reimplementing its PID-file
 // locking and uvicorn process management in Go — that script already owns
 // the mlx-engine/ Python venv it drives, so there is no independent Go-side
@@ -19,7 +19,7 @@ func newEngineCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "engine",
-		Short: "Manage the local mlx-engine STT/TTS server (used by --engine voxtral)",
+		Short: "Manage the local mlx-engine Kokoro TTS server",
 	}
 	cmd.PersistentFlags().StringVar(&scriptPath, "script", "scripts/mlx-engine-server.sh",
 		"Path to the server control script (run local-whisper from the repo root, or override this)")

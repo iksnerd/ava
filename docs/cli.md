@@ -15,15 +15,14 @@ local-whisper
 
 | Flag | Default | Does |
 |---|---|---|
-| `--engine` | `whisper` | `whisper` (subprocess) or `voxtral` (local server) |
-| `--model` | `base` | `base` (141MB) or `tiny` (74MB, faster, less accurate). whisper engine only |
+| `--model` | `base` | `base` (141MB) or `tiny` (74MB, faster, less accurate) |
 | `--lang` | `en` | Language code: `en`, `es`, `fr`, `de`, … |
-| `--context` | — | Path to a context file (whisper engine only, see below) |
+| `--context` | — | Path to a context file (see below) |
 | `--output` | — | Also write the transcript to this file |
 | `--dir` | — | Change to this directory first |
 | `--no-paste` | off | Copy to the clipboard but don't paste |
 | `--no-sound` | off | No audio cues |
-| `--verbose` | `true` | `--verbose=false` silences status messages |
+| `--verbose` | `true` | Status messages; `--quiet` is the inverse |
 
 ```bash
 local-whisper --dir ~/projects/app --lang en --model base --output transcript.txt
@@ -61,11 +60,11 @@ local-whisper voices     # ids, accents, and which one is current
 
 ```bash
 local-whisper transcribe meeting.wav
-local-whisper transcribe --engine voxtral --lang es clip.wav
+local-whisper transcribe --lang es clip.wav
 local-whisper transcribe --output notes.txt meeting.wav
 ```
 
-Takes 16kHz mono WAV. Same `--engine`, `--model` and `--lang` as dictation.
+Takes a WAV file. Same `--model` and `--lang` as dictation.
 
 ## Narrate an accessibility tree
 
@@ -94,7 +93,7 @@ of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 ## Engine server
 
 ```bash
-local-whisper engine start    # background the mlx-engine STT/TTS server
+local-whisper engine start    # background the mlx-engine Kokoro TTS server
 local-whisper engine status
 local-whisper engine stop
 ```
@@ -126,29 +125,28 @@ rather than starting Kokoro — and now says so on stderr when it does.
 local-whisper mcp             # stdio; see docs/mcp.md
 ```
 
-## Choosing an engine
+## Why there is only one transcription engine
 
-`whisper` is the default and needs nothing beyond `brew install whisper-cpp`.
-`voxtral` is opt-in (`make setup-voxtral`) and downloads its model on first
-real use.
+`local-whisper` transcribes with whisper.cpp and nothing else. There used to be
+a `--engine voxtral` that went through mlx-engine's HTTP server; it was removed
+after measuring both on the same 20-second sample:
 
-| | `whisper` (default) | `voxtral` |
+| | whisper.cpp | Voxtral 4B via mlx-engine |
 |---|---|---|
-| Setup | `brew install whisper-cpp` | `make setup-voxtral`, Apple Silicon only |
-| How it runs | A subprocess per transcription, reloading the model each time | A persistent local server on `127.0.0.1:8765`, started on demand |
-| Model | `ggml-base.en.bin` (141MB), or `--model tiny` (74MB) | `Voxtral-Mini-4B-Realtime-2602-4bit` |
-| Accuracy | Fine for everyday dictation | Better, particularly on technical vocabulary |
-| `.whisper-context` hints | Yes | No — see below |
+| Warm | **1.26s** | 17.0s |
+| Cold | same — no server | 126.7s, including a 108s model load |
+| Model on disk | 141MB | 2.9GB |
+| Peak memory | none held | ~4GB resident, 11GB while loading |
+| Transcript | near-identical | near-identical |
 
-The ~4% vs ~10% word-error-rate figures in
+The word-error-rate figures in
 [`../mlx-engine/README.md`](../mlx-engine/README.md) compare Voxtral against
-Whisper **Large-v3**, which is a much larger model than the `base.en` shipped
-here. Treat them as a comparison between those two models, not as a measurement
-of this default path.
+Whisper **Large-v3**, a far bigger model than the `base.en` here — they were
+never a measurement of this path.
 
-**Known gap**: `.whisper-context` vocabulary hints work under `--engine
-whisper` but aren't sent to the Voxtral server — the model can't take them. See
-[`../mlx-engine/README.md`](../mlx-engine/README.md#known-limitation-whisper-context-doesnt-work-under---engine-voxtral).
+Voxtral is still used, in `voice-monitor`: that path streams at under 500ms,
+which whisper.cpp cannot do at all, since it runs one subprocess per complete
+file. See [`voice-monitor.md`](voice-monitor.md).
 
 ## Context files
 

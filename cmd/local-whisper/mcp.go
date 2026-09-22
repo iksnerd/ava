@@ -25,7 +25,7 @@ type mcpDeps struct {
 	// Muted reports the global mute switch, so a tool can say that nothing
 	// was actually heard instead of reporting a successful speak.
 	Muted      func() bool
-	Transcribe func(engine, model string, opts stt.Options) (string, error)
+	Transcribe func(model string, opts stt.Options) (string, error)
 }
 
 // newMcpCmd serves the local voice stack over MCP on stdio, so any MCP
@@ -53,8 +53,8 @@ func newMcpCmd() *cobra.Command {
 				Speak:        spk.Speak,
 				StopSpeaking: ttscontrol.StopSpeaking,
 				Muted:        voiceconfig.Muted,
-				Transcribe: func(engine, model string, opts stt.Options) (string, error) {
-					transcriber, err := newTranscriber(engine, model)
+				Transcribe: func(model string, opts stt.Options) (string, error) {
+					transcriber, err := newTranscriber(model)
 					if err != nil {
 						return "", err
 					}
@@ -80,7 +80,6 @@ type speakArgs struct {
 type transcribeArgs struct {
 	AudioPath string `json:"audio_path" jsonschema:"path to a 16kHz mono WAV file"`
 	Language  string `json:"language,omitempty" jsonschema:"language code such as en or es; defaults to en"`
-	Engine    string `json:"engine,omitempty" jsonschema:"whisper (default, always available) or voxtral (higher accuracy, needs the mlx-engine server)"`
 	Model     string `json:"model,omitempty" jsonschema:"whisper model size: base (default) or tiny"`
 }
 
@@ -137,21 +136,14 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "transcribe",
-		Description: "Transcribe a WAV file on this machine to text, on-device. " +
-			"The whisper engine always works; voxtral is more accurate but needs the mlx-engine server running.",
+		Description: "Transcribe a WAV file on this machine to text, on-device, with whisper.cpp. " +
+			"Needs no server and works on any Mac.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args transcribeArgs) (*mcp.CallToolResult, any, error) {
-		engine := args.Engine
-		if engine == "" {
-			engine = "whisper"
-		}
-		if err := validateEngine(engine); err != nil {
-			return nil, nil, err
-		}
 		model := args.Model
 		if model == "" {
 			model = "base"
 		}
-		if err := validateModel(engine, model); err != nil {
+		if err := validateModel(model); err != nil {
 			return nil, nil, err
 		}
 		language := args.Language
@@ -159,7 +151,7 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 			language = "en"
 		}
 
-		text, err := deps.Transcribe(engine, model, stt.Options{AudioPath: args.AudioPath, Language: language})
+		text, err := deps.Transcribe(model, stt.Options{AudioPath: args.AudioPath, Language: language})
 		if err != nil {
 			return nil, nil, err
 		}

@@ -1,22 +1,17 @@
 import asyncio
 import contextlib
-import io
 import os
 import tempfile
 import time
 
-import mlx.core as mx
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
-from mlx_audio.stt.generate import generate_transcription
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.tts.utils import load_model as load_tts_model
-from mlx_audio.utils import load_model
 from pydantic import BaseModel
 
-app = FastAPI(title="Local Voice MLX Inference Server")
+app = FastAPI(title="Local Kokoro TTS Server")
 
-MODEL_PATH = "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit"
 TTS_MODEL_PATH = "mlx-community/Kokoro-82M-bf16"
 last_request_time = time.time()
 IDLE_TIMEOUT_SEC = 15 * 60  # 15 minutes
@@ -59,7 +54,6 @@ class LazyModel:
         return self.instance is not None
 
 
-stt_model = LazyModel("STT", MODEL_PATH, load_model)
 tts_model = LazyModel("TTS", TTS_MODEL_PATH, load_tts_model)
 
 
@@ -81,9 +75,7 @@ async def idle_shutdown_checker():
 
 @app.on_event("startup")
 async def startup_event():
-    # The STT model stays lazy — loaded on first /transcribe use, so starting
-    # the server (or a cold /speak call) doesn't pay for the 4B Voxtral model
-    # when only TTS is needed. TTS is warmed eagerly here instead: measured
+    # Kokoro is warmed eagerly: measured
     # on an M3 Pro, Kokoro's first generate_audio call after loading costs an
     # extra ~2.6s (MLX's lazy compilation) beyond the ~230-290ms steady-state
     # a warm call takes — worth paying once at startup (delaying /health)
@@ -117,79 +109,13 @@ def _warm_tts_model():
 async def health_check():
     # Deliberately does NOT touch last_request_time: the menu bar app polls
     # this every few seconds, and doing so would defeat the idle-shutdown
-    # timer for as long as it's open. Only real work (/transcribe, /speak)
-    # counts as activity.
+    # timer for as long as it's open. Only real work (/speak) counts as
+    # activity.
     return {
         "status": "ok",
-        "model": MODEL_PATH,
-        "stt_loaded": stt_model.loaded,
         "tts_model": TTS_MODEL_PATH,
         "tts_loaded": tts_model.loaded,
     }
-
-
-@app.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...), language: str = "en"):
-    global last_request_time
-    last_request_time = time.time()
-
-    model_instance = stt_model.get()
-
-    if not audio.filename.endswith(".wav"):
-        raise HTTPException(status_code=400, detail="Only .wav files are supported.")
-
-    start_time = time.time()
-    try:
-        # 1. Read the uploaded file directly into an in-memory byte buffer
-        audio_bytes = await audio.read()
-        buf = io.BytesIO(audio_bytes)
-
-        import numpy as np
-        import soundfile as sf
-
-        # 2. Decode the WAV file from memory
-        # We assume 16kHz mono (which the Go client enforces via sox)
-        audio_data, samplerate = sf.read(buf, dtype="float32")
-
-        # If stereo, convert to mono by averaging channels
-        if len(audio_data.shape) > 1:
-            audio_data = np.mean(audio_data, axis=1)
-
-        # 3. Convert to MLX array directly to bypass disk I/O
-        audio_array = mx.array(audio_data)
-
-        try:
-            # 4. Generate transcription using the loaded model and in-memory array
-            # We set `beam_size=1` for faster greedy decoding, and disable verbose logs
-            result = generate_transcription(
-                model=model_instance,
-                audio=audio_array,
-                language=language,
-                temp=0.0,
-                beam_size=1,
-                verbose=False,
-            )
-
-            # Extract the actual text from the STTOutput object or other formats
-            if hasattr(result, "text"):
-                final_text = result.text
-            elif isinstance(result, list):
-                final_text = " ".join(
-                    [seg.get("text", "") for seg in result if isinstance(seg, dict)]
-                )
-            elif isinstance(result, dict):
-                final_text = result.get("text", "")
-            else:
-                final_text = str(result)
-
-            return {"text": final_text.strip(), "latency_sec": round(time.time() - start_time, 3)}
-        except Exception as inner_e:
-            raise HTTPException(
-                status_code=500, detail=f"Generation failed: {inner_e}"
-            ) from inner_e
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/speak")

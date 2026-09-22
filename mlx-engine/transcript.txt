@@ -1,0 +1,1 @@
+This is a longer passage intended to exercise the multi-segment path. Kokoro splits text beyond roughly 1,200 tokens into several segments, and the server stitches them back together so nothing is silently truncated. The transcript should therefore come back complete rather than ending after the first paragraph or two.

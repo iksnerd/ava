@@ -1,12 +1,14 @@
 // Package mlx is an HTTP client for the local mlx-engine server
-// (../../mlx-engine/), which runs Voxtral STT and Kokoro TTS on-device via
-// MLX. Lives at the top level, not nested under pkg/stt, because the
-// server it wraps serves TTS as much as STT — it exposes both Transcribe()
-// and Speak() rather than splitting TTS off into a package of its own. Not
-// to be confused with pkg/stt/realtime, a different, independent client
-// that shells out to voxtral/realtime.py directly (used by
-// cmd/voice-monitor) — same underlying model family, two different local
-// architectures depending on which command you're looking at.
+// (../../mlx-engine/), which runs Kokoro TTS on-device via MLX.
+//
+// It used to speak to that server's STT half too, behind --engine voxtral.
+// That was removed after measuring it: on the same 20s sample whisper.cpp
+// took 1.26s against Voxtral's 17s warm and 127s cold, for a near-identical
+// transcript. One-shot transcription is pkg/stt/whisper's job now.
+//
+// Not to be confused with pkg/stt/realtime, an independent client that shells
+// out to voxtral/realtime.py for cmd/voice-monitor. Voxtral still earns its
+// place there: that path is streaming, which whisper.cpp cannot do at all.
 package mlx
 
 import (
@@ -14,13 +16,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"net/url"
-	"os"
 	"time"
-
-	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
 // Client wraps the local mlx-engine HTTP server.
@@ -36,81 +33,6 @@ func NewClient(serverURL string) *Client {
 	return &Client{
 		ServerURL: serverURL,
 	}
-}
-
-// TranscribeResponse is the expected JSON response from the server
-type TranscribeResponse struct {
-	Text       string  `json:"text"`
-	LatencySec float64 `json:"latency_sec"`
-}
-
-// Transcribe transcribes audio by sending it to the MLX Voxtral server
-func (c *Client) Transcribe(opts stt.Options) (string, error) {
-	// Open the audio file
-	file, err := os.Open(opts.AudioPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open audio file: %w", err)
-	}
-	defer file.Close()
-
-	// Prepare a form that you will submit to that URL.
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-
-	// Add the file to the payload
-	fw, err := w.CreateFormFile("audio", "audio.wav")
-	if err != nil {
-		return "", fmt.Errorf("failed to create form file: %w", err)
-	}
-	if _, err = io.Copy(fw, file); err != nil {
-		return "", fmt.Errorf("failed to copy file to form: %w", err)
-	}
-
-	// Close the multipart writer to set the terminating boundary
-	w.Close()
-
-	// Construct URL with query parameters
-	reqURL := c.ServerURL + "/transcribe"
-	if opts.Language != "" {
-		q := url.Values{}
-		q.Set("language", opts.Language)
-		reqURL = reqURL + "?" + q.Encode()
-	}
-
-	// Create request
-	req, err := http.NewRequest("POST", reqURL, &b)
-	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-
-	// Set content type to multipart/form-data
-	req.Header.Set("Content-Type", w.FormDataContentType())
-
-	// Send request
-	client := &http.Client{Timeout: 30 * time.Second}
-	res, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("server connection failed (is the mlx-engine running?): %w", err)
-	}
-	defer res.Body.Close()
-
-	// Parse response
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("server returned status %d: %s", res.StatusCode, string(body))
-	}
-
-	var response TranscribeResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("failed to parse server response: %w", err)
-	}
-
-	stt.WriteOutputIfRequested(opts, response.Text)
-	return response.Text, nil
 }
 
 // SpeakOptions are the knobs /speak accepts. Voice may be a comma-separated

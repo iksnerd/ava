@@ -17,7 +17,6 @@ import (
 func newTranscribeCmd() *cobra.Command {
 	var (
 		language string
-		engine   string
 		model    string
 		output   string
 	)
@@ -28,10 +27,9 @@ func newTranscribeCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Long: "Transcribe a WAV file that already exists on disk, as opposed to the\n" +
 			"bare `local-whisper` command, which records one first.\n\n" +
-			"The whisper engine works on any Mac; --engine voxtral is more accurate\n" +
-			"but needs the mlx-engine server running (local-whisper engine start).",
+			"Runs whisper.cpp locally and works on any Mac.",
 		Example: "  local-whisper transcribe meeting.wav\n" +
-			"  local-whisper transcribe --engine voxtral --lang es clip.wav\n" +
+			"  local-whisper transcribe --lang es clip.wav\n" +
 			"  local-whisper transcribe --output notes.txt meeting.wav",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -39,14 +37,11 @@ func newTranscribeCmd() *cobra.Command {
 			if err := checkAudioFile(args[0]); err != nil {
 				return err
 			}
-			if err := validateEngine(engine); err != nil {
-				return err
-			}
-			if err := validateModel(engine, model); err != nil {
+			if err := validateModel(model); err != nil {
 				return err
 			}
 
-			transcriber, err := newTranscriber(engine, model)
+			transcriber, err := newTranscriber(model)
 			if err != nil {
 				return err
 			}
@@ -80,21 +75,14 @@ func newTranscribeCmd() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&language, "lang", "en", "Language code: en, es, fr, de, etc.")
-	flags.StringVar(&engine, "engine", "whisper", "Inference engine: whisper (default) or voxtral")
-	flags.StringVar(&model, "model", "base", "Model size: base (default) or tiny (whisper only)")
+	flags.StringVar(&model, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
 
 	_ = cmd.MarkFlagFilename("output", "txt")
-	for _, flag := range []string{"engine", "model"} {
-		values := map[string][]string{
-			"engine": {"whisper", "voxtral"},
-			"model":  {"base", "tiny"},
-		}[flag]
-		_ = cmd.RegisterFlagCompletionFunc(flag,
-			func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-				return values, cobra.ShellCompDirectiveNoFileComp
-			})
-	}
+	_ = cmd.RegisterFlagCompletionFunc("model",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return []string{"base", "tiny"}, cobra.ShellCompDirectiveNoFileComp
+		})
 
 	// The positional is always an audio file.
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

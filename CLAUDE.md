@@ -9,16 +9,20 @@ See each one's own README/SETUP for build/run instructions specific to it —
 this file covers the Go side. The same voice stack is also served to MCP
 clients by `local-whisper mcp` (see `docs/mcp.md`).
 
-**Basic vs. advanced engines**: `whisper.cpp` (STT) and Kokoro (TTS, via
-`mlx-engine/`) are the default, zero-extra-setup path — nothing to
-download beyond `make setup-model`/`make setup-deps`. Voxtral models
-(`--engine voxtral` for `local-whisper`, and `voice-monitor`'s realtime
-Voxtral path) are the advanced, opt-in tier: separately set up via `make
-setup-voxtral`, and even then only actually downloaded on first real use
-(`mlx-engine` lazy-loads its STT model per-endpoint). Don't assume Voxtral
-is available; the basic path always is. Start/stop/check the mlx-engine
-server with `local-whisper engine start`/`stop`/`status` (or the
-equivalent `make start-engine`/`stop-engine`/`status-engine` targets).
+**Which engine does what**: `whisper.cpp` transcribes and Kokoro speaks, and
+that is the whole of `local-whisper` — nothing to download beyond `make
+setup-model`/`make setup-deps`. There is no `--engine` flag any more: the
+Voxtral STT path through `mlx-engine` was removed after it measured 13x slower
+than whisper.cpp on the same audio for a near-identical transcript.
+
+Voxtral is still the default engine of `cmd/voice-monitor`, which is a different
+problem — streaming a live transcript at under 500ms, which whisper.cpp cannot
+do. That lives in `voxtral/`, is opt-in via `make setup-voxtral`, and downloads
+its 2.9GB model on first real use. Don't assume it is available.
+
+Start/stop/check the mlx-engine (Kokoro) server with `local-whisper engine
+start`/`stop`/`status`, or the equivalent `make start-engine`/`stop-engine`/
+`status-engine` targets.
 
 ## Build & Run
 
@@ -31,7 +35,7 @@ make fmt                  # gofmt + ruff format (mlx-engine/, voxtral/, scripts/
 make fmt-check            # Same, but check-only — no writes (CI-safe)
 make lint                  # vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
 make clean                # Remove bin/
-make start-engine          # Start mlx-engine (needed for local-whisper --engine voxtral)
+make start-engine          # Start mlx-engine (Kokoro TTS server)
 make setup-voice-hooks     # Create the venv for scripts/voice_hooks/ (needed before hook-stop.sh/hook-notify.sh can summarize/truncate)
 ```
 
@@ -49,7 +53,7 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `internal/a11y/` - parses chrome-devtools MCP's `take_snapshot` accessibility tree and renders it as screen-reader announcements, plus the findings that only surface when a page is heard in order. Pure functions, no I/O — the rendering has to be identical run to run for a spoken audit to mean anything
 - `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` — synthesis is `pkg/mlx.Client.Speak` wrapped by `internal/speaker` (see `pkg/stt`'s own doc comment)
 - `pkg/stt/whisper/` - whisper-cli subprocess wrapper (`local-whisper --engine whisper`, default)
-- `pkg/mlx/` - HTTP client for `mlx-engine/` (`local-whisper --engine voxtral`) — lives at the top level rather than nested under `pkg/stt/`, since the server it wraps serves TTS as much as STT
+- `pkg/mlx/` - HTTP client for `mlx-engine/`'s Kokoro TTS. Lives at the top level rather than under `pkg/stt/` because it is not an STT client: mlx-engine's STT half was removed after whisper.cpp measured 13x faster on the same audio
 - `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
 - `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
 - `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `docs/voice-monitor.md`

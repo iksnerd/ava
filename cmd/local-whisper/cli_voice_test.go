@@ -32,7 +32,7 @@ func TestSpeakCommandFlags(t *testing.T) {
 
 func TestTranscribeCommandFlags(t *testing.T) {
 	c, _, _ := newRootCmd().Find([]string{"transcribe"})
-	for _, f := range []string{"lang", "engine", "model", "output"} {
+	for _, f := range []string{"lang", "model", "output"} {
 		if c.Flags().Lookup(f) == nil {
 			t.Errorf("transcribe missing --%s", f)
 		}

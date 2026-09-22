@@ -1,7 +1,7 @@
 # MCP server
 
 `local-whisper mcp` serves the local voice stack to any MCP client over
-stdio. Same on-device Kokoro TTS and Voxtral/whisper STT the CLI, the hooks
+stdio. Same on-device Kokoro TTS and whisper.cpp STT the CLI, the hooks
 and the menu bar app use — but reachable from Claude Code in any repo,
 Claude Desktop, or another agent, without this repo's `scripts/` directory
 being on disk.

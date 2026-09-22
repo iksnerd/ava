@@ -59,14 +59,19 @@ Downloads `ggml-base.en.bin` (141MB) to `~/.local/share/whisper-cpp/`.
 
 ## Transcription feels slow
 
-The `whisper` engine spawns a subprocess per run and reloads the model each
-time, so every transcription pays that cost — a few seconds, less once the file
-is in the OS page cache. `--model tiny` trades accuracy for speed.
+whisper.cpp spawns a subprocess per run and reloads the model each time, so
+every transcription pays that cost — well under a second for a short dictation,
+less once the model is in the OS page cache. `--model tiny` trades accuracy for
+speed if you need it.
 
-`--engine voxtral` keeps a warm server instead, which is faster after the first
-request. It needs `make setup-voxtral` first.
+For reference, a 20-second recording transcribes in about 1.3s on an M3 Pro.
+If you are seeing much worse, check that `--model` is not pointing at something
+unexpected and that the machine is not thermally throttled.
 
-## `voxtral server is not running or model failed to load`
+## Speech falls back to the robotic macOS voice
+
+That means the Kokoro server is down and `say` took over. `local-whisper speak`
+now says so on stderr when it happens. Start it with:
 
 ```bash
 local-whisper engine start

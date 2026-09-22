@@ -5,7 +5,7 @@ entirely on-device.
 
 Cloud voice tools are a non-starter for anything you wouldn't paste into a
 stranger's web form. Client calls, mostly. This keeps the loop local instead:
-whisper.cpp or Voxtral for speech-to-text, Kokoro for speech. No audio and no
+whisper.cpp for speech-to-text, Kokoro for speech. No audio and no
 transcript leaves the machine.
 
 It started as a Go CLI for dictation and grew into the stack around it: a menu
@@ -31,9 +31,9 @@ your cursor is still in the terminal you just typed the command into, so your
 words get pasted at your own shell prompt. That is the tool working, not
 failing. Binding it to a hotkey (below) is what makes this natural.
 
-`make install-bin` covers the default engine. `make setup` is the one-shot
-version if you also want the Voxtral and Kokoro path: it installs the system
-dependencies and downloads the model in one go.
+`make install-bin` covers dictation. `make setup` is the one-shot version that
+also sets up the Kokoro speech server: it installs the system dependencies and
+downloads the model in one go.
 
 Two macOS permission prompts on first run. **Microphone**, for whatever you
 ran it from — if you miss or deny this one, recording still "succeeds" and
@@ -42,14 +42,12 @@ through AppleScript (System Settings → Privacy & Security → Accessibility);
 without it the transcript still reaches your clipboard, and
 `local-whisper --no-paste` skips the attempt.
 
-Prefer a hotkey? `make install-raycast` installs three Raycast script
-commands: Raycast Settings → Extensions → Add Script Directory →
-`~/raycast-scripts`, reload, then bind "Dictate with Whisper". The other two,
-"Dictate with Voxtral" and "Toggle Voxtral Server", need Apple Silicon and the
-Voxtral setup below.
+Prefer a hotkey? `make install-raycast` installs a Raycast script command:
+Raycast Settings → Extensions → Add Script Directory → `~/raycast-scripts`,
+reload, then bind "Dictate with Whisper".
 
-The default engine works on any Mac. Voxtral, the TTS server and call
-monitoring need Apple Silicon; they run through
+Dictation works on any Mac. Speech and call monitoring need Apple Silicon:
+Kokoro and the realtime transcript engine both run through
 [MLX](https://github.com/ml-explore/mlx).
 
 ## What it does
@@ -58,9 +56,9 @@ monitoring need Apple Silicon; they run through
 silence), transcribes, copies, and pastes. Bind it to a hotkey through Raycast
 or the menu bar app if you don't want to reach for a terminal.
 
-Two speech-to-text engines sit behind that. `whisper.cpp` is the default and
-needs nothing installed beyond the brew formula. Voxtral runs on a local MLX
-server and does better on technical vocabulary, at the cost of a setup step.
+`whisper.cpp` does the transcribing, and needs nothing installed beyond the brew
+formula. It is also fast: 1.3s for a 20-second recording on an M3 Pro, roughly
+16x faster than real time.
 
 **Speech** the other direction, from `local-whisper speak`, an MCP tool, a
 shell script, or the menu bar app. They all go through one Kokoro server, one
@@ -73,7 +71,8 @@ The rest of what's here:
 - A menu bar app for one-click dictation, a system-wide mute shortcut, and live
   tuning of voice, speed, volume and message length.
 - `voice-monitor`, which streams a live call transcript with optional speaker
-  diarization, from the mic or a loopback device.
+  diarization, from the mic or a loopback device. This is where Voxtral runs —
+  it streams at under 500ms, which whisper.cpp cannot do.
 - An MCP server. `local-whisper mcp` hands any MCP client the same speech and
   transcription, plus accessibility-tree narration.
 - Paired with [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp),
@@ -83,7 +82,7 @@ The rest of what's here:
 
 ## How it works
 
-There are four ways in and two engines underneath. The Claude Code hooks don't go
+There are four ways in: whisper.cpp transcribes, Kokoro speaks. The Claude Code hooks don't go
 through the Go binary at all. They're plain bash, so speech still works on a
 machine where the binary was never installed.
 
@@ -101,7 +100,7 @@ flowchart TB
     subgraph gobin["local-whisper binary · Go"]
         direction LR
         speaker["internal/speaker<br/>mute · markers · playback lock"]
-        engsel["pkg/stt · pkg/mlx<br/>engine selection"]
+        engsel["pkg/stt/whisper<br/>transcription"]
         a11y["internal/a11y<br/>AX tree to announcements"]
     end
 
@@ -111,7 +110,7 @@ flowchart TB
     subgraph engines["ON-DEVICE ENGINES"]
         direction LR
         whispercpp["whisper.cpp<br/>subprocess per run"]
-        mlx(["mlx-engine 127.0.0.1:8765<br/>Kokoro TTS · Voxtral STT"])
+        mlx(["mlx-engine 127.0.0.1:8765<br/>Kokoro TTS"])
     end
 
     cli ==> speaker
@@ -125,7 +124,6 @@ flowchart TB
     speaker ==> mlx
     speaksh ==> mlx
     engsel ==> whispercpp
-    engsel ==> mlx
 
     cfg -. "read by all three" .-> speaker
     cfg -. " " .-> speaksh
@@ -201,7 +199,6 @@ seeing the content. It's off unless you enable `llmSummary`.
 
 ```bash
 local-whisper                              # dictate
-local-whisper --engine voxtral             # dictate with the MLX engine
 local-whisper transcribe meeting.wav       # transcribe a file you already have
 
 local-whisper speak "build finished"

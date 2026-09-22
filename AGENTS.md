@@ -19,17 +19,22 @@ component's own docs — `docs/voice-monitor.md` (`voice-monitor`), `mlx-engine/
 - `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin
-- `make start-engine` / `stop-engine` / `status-engine` - Manage the `mlx-engine` background server (needed for `--engine voxtral`); thin wrappers around `local-whisper engine start` / `stop` / `status`
+- `make start-engine` / `stop-engine` / `status-engine` - Manage the `mlx-engine` background server (Kokoro TTS); thin wrappers around `local-whisper engine start` / `stop` / `status`
 - `make clean` - Remove bin/ directory
 - `go run ./cmd/local-whisper [flags]` - Run directly without building
 
 ## Architecture
-Multi-package CLI tool for local voice transcription, with two interchangeable
-engines: `whisper.cpp` via subprocess (default, zero extra setup), or Voxtral
-via a local HTTP server (`--engine voxtral`, see `pkg/mlx/` and
-`mlx-engine/` — advanced/opt-in, needs `make setup-voxtral`). Both engines
-satisfy the shared `pkg/stt.Client` interface so `cmd/local-whisper` picks
-one at runtime without branching on engine-specific types.
+Multi-package CLI tool for local voice, in both directions. Transcription is
+`whisper.cpp` via subprocess, the only engine and zero extra setup; it satisfies
+the shared `pkg/stt.Client` interface, which still exists because
+`cmd/voice-monitor` has its own separate client. Synthesis is Kokoro, reached
+over HTTP through `pkg/mlx/` to the local `mlx-engine/` server.
+
+`mlx-engine/` used to serve STT as well, behind `--engine voxtral`. That was
+removed after measuring it: whisper.cpp took 1.26s on a 20s sample against
+Voxtral's 17s warm and 127s cold, for a near-identical transcript. Voxtral
+remains in `voxtral/` for `cmd/voice-monitor`, whose job is streaming — a thing
+whisper.cpp cannot do, since it runs one subprocess per complete file.
 
 **Project Structure:**
 ```
@@ -68,7 +73,7 @@ internal/a11y/                  - accessibility tree -> screen-reader announceme
 pkg/stt/stt.go                  - Options/Client shapes shared by the two engines below,
                                   plus WriteOutputIfRequested() they both call
 pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper (--engine whisper)
-pkg/mlx/mlx.go                  - mlx-engine HTTP client (--engine voxtral) — lives at
+pkg/mlx/mlx.go                  - mlx-engine HTTP client (Kokoro TTS) — lives at
                                   the top level, not nested under pkg/stt, since
                                   mlx-engine itself serves TTS as much as STT
 mlx-engine/                     - the local STT/TTS server (separate Python/uv project)
@@ -89,7 +94,7 @@ comment for why).
 - `sox` - Audio recording with silence detection
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
-- `uv` - runs `mlx-engine`, needed for `--engine voxtral` (start it with `local-whisper engine start`, which shells out to `scripts/mlx-engine-server.sh`)
+- `uv` - runs `mlx-engine`, the Kokoro TTS server (start it with `local-whisper engine start`, which shells out to `scripts/mlx-engine-server.sh`)
 
 **Model location** (whisper engine): `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, auto-downloaded by `make setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)

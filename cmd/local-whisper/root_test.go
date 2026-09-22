@@ -4,7 +4,7 @@ import "testing"
 
 func TestRootFlagsPresent(t *testing.T) {
 	cmd := newRootCmd()
-	for _, f := range []string{"context", "output", "dir", "model", "lang", "no-paste", "no-sound", "verbose", "engine"} {
+	for _, f := range []string{"context", "output", "dir", "model", "lang", "no-paste", "no-sound", "verbose", "quiet"} {
 		if cmd.Flags().Lookup(f) == nil {
 			t.Errorf("root command missing --%s", f)
 		}

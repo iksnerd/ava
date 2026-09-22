@@ -7,19 +7,10 @@ const (
 	tinyModel = "ggml-tiny.en.bin"
 )
 
-// validateEngine checks that engine is one of the supported inference
-// engines.
-func validateEngine(engine string) error {
-	if engine != "whisper" && engine != "voxtral" {
-		return fmt.Errorf("invalid engine: %s (use 'whisper' or 'voxtral')", engine)
-	}
-	return nil
-}
-
-// validateModel checks the --model flag; it only constrains the whisper
-// engine, which ships exactly two local models.
-func validateModel(engine, model string) error {
-	if engine == "whisper" && model != "base" && model != "tiny" {
+// validateModel checks the --model flag against the two local whisper.cpp
+// models this ships with.
+func validateModel(model string) error {
+	if model != "base" && model != "tiny" {
 		return fmt.Errorf("invalid model: %s (use 'base' or 'tiny')", model)
 	}
 	return nil

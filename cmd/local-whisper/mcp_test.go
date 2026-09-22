@@ -20,7 +20,7 @@ type spy struct {
 	speakOpts  []speaker.Options
 	speakErr   error
 	stops      int
-	transcribe func(engine, model string, opts stt.Options) (string, error)
+	transcribe func(model string, opts stt.Options) (string, error)
 }
 
 func (s *spy) deps() mcpDeps {
@@ -32,11 +32,11 @@ func (s *spy) deps() mcpDeps {
 		},
 		StopSpeaking: func() { s.stops++ },
 		Muted:        func() bool { return false },
-		Transcribe: func(engine, model string, opts stt.Options) (string, error) {
+		Transcribe: func(model string, opts stt.Options) (string, error) {
 			if s.transcribe == nil {
 				return "", errors.New("no transcriber configured")
 			}
-			return s.transcribe(engine, model, opts)
+			return s.transcribe(model, opts)
 		},
 	}
 }
@@ -160,10 +160,7 @@ func TestListVoicesToolDescribesVoices(t *testing.T) {
 }
 
 func TestTranscribeToolReturnsTheText(t *testing.T) {
-	s := &spy{transcribe: func(engine, model string, opts stt.Options) (string, error) {
-		if engine != "voxtral" {
-			t.Errorf("engine = %q, want voxtral", engine)
-		}
+	s := &spy{transcribe: func(model string, opts stt.Options) (string, error) {
 		if opts.AudioPath != "/tmp/clip.wav" || opts.Language != "es" {
 			t.Errorf("opts = %+v, want the requested path and language", opts)
 		}
@@ -174,7 +171,6 @@ func TestTranscribeToolReturnsTheText(t *testing.T) {
 	res := callTool(t, session, "transcribe", map[string]any{
 		"audio_path": "/tmp/clip.wav",
 		"language":   "es",
-		"engine":     "voxtral",
 	})
 	if res.IsError {
 		t.Fatalf("transcribe returned an error: %s", resultText(t, res))

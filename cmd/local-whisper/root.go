@@ -11,7 +11,6 @@ import (
 	"github.com/iksnerd/local-whisper/internal/clipboard"
 	"github.com/iksnerd/local-whisper/internal/procutil"
 	"github.com/iksnerd/local-whisper/internal/recording"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
 	"github.com/iksnerd/local-whisper/pkg/stt"
 	"github.com/iksnerd/local-whisper/pkg/stt/whisper"
 )
@@ -50,7 +49,7 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.contextFile, "context", "", "Path to context file (optional)")
 	flags.StringVar(&opts.outputFile, "output", "", "Output file for transcription (optional)")
 	flags.StringVar(&opts.workDir, "dir", "", "Run as if started from this directory (affects --context discovery)")
-	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny (whisper only)")
+	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc.")
 	flags.BoolVar(&opts.noPaste, "no-paste", false, "Don't auto-paste to clipboard/cursor")
 	flags.BoolVar(&opts.noSound, "no-sound", false, "Disable sound effects")
@@ -66,7 +65,6 @@ func newRootCmd() *cobra.Command {
 			opts.showStatus = false
 		}
 	}
-	flags.StringVar(&opts.engine, "engine", "whisper", "Inference engine: whisper or voxtral")
 
 	cmd.AddCommand(
 		newEngineCmd(),
@@ -89,14 +87,17 @@ func Execute() {
 	}
 }
 
-// newTranscriber builds the STT client for an engine name. Shared by the
-// root command's dictation run and the MCP server's transcribe tool, so the
-// two can never disagree about which engine a name selects or where the
-// whisper model lives.
-func newTranscriber(engine, modelName string) (stt.Client, error) {
-	if engine == "voxtral" {
-		return mlx.NewClient(""), nil // Defaults to http://127.0.0.1:8765
-	}
+// newTranscriber builds the STT client. Shared by the root command's dictation
+// run and the MCP server's transcribe tool, so the two can never disagree about
+// where the whisper model lives.
+//
+// There used to be a second engine here: mlx-engine's Voxtral /transcribe,
+// behind --engine voxtral. It was removed after measuring it — on the same
+// 20s sample whisper.cpp took 1.26s and Voxtral 17s warm, 127s cold including
+// a 108s model load, for a near-identical transcript. mlx-engine is TTS-only
+// now; Voxtral still runs in voice-monitor, where it does streaming, which
+// whisper.cpp cannot do at all.
+func newTranscriber(modelName string) (stt.Client, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
@@ -107,10 +108,7 @@ func newTranscriber(engine, modelName string) (stt.Client, error) {
 
 // run is the root command's RunE body: record, transcribe, output.
 func run(opts options) error {
-	if err := validateEngine(opts.engine); err != nil {
-		return err
-	}
-	if err := validateModel(opts.engine, opts.modelName); err != nil {
+	if err := validateModel(opts.modelName); err != nil {
 		return err
 	}
 
@@ -139,12 +137,12 @@ func run(opts options) error {
 	})
 
 	// Check dependencies based on engine
-	if err := checkDependencies(opts.engine, voxtralHealthURL); err != nil {
+	if err := checkDependencies(); err != nil {
 		return err
 	}
 
 	if opts.showStatus {
-		fmt.Printf("🎤 Starting voice transcription (engine: %s)...\n", opts.engine)
+		fmt.Println("🎤 Starting voice transcription...")
 	}
 
 	// Step 1: Record audio
@@ -189,7 +187,7 @@ func run(opts options) error {
 		fmt.Println("🧠 Transcribing audio...")
 	}
 
-	transcriber, err := newTranscriber(opts.engine, opts.modelName)
+	transcriber, err := newTranscriber(opts.modelName)
 	if err != nil {
 		return err
 	}
