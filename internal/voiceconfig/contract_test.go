@@ -149,16 +149,24 @@ func goResolved(t *testing.T, configPath, key string) string {
 func bashResolved(t *testing.T, configPath, key, lastResort string) string {
 	t.Helper()
 
+	// The keys speak.sh uses go through the function it actually calls, so
+	// the contract covers what speaks rather than a parallel accessor.
+	speakVars := map[string]string{"speed": "SPEED", "volume": "VOLUME", "sayRate": "SAY_RATE", "voice": "VOICE"}
+
 	var call string
-	switch keyKind[key] {
-	case "bool":
-		call = fmt.Sprintf("config_get_bool %s %s", key, lastResort)
-	case "int":
-		call = fmt.Sprintf("config_get_int %s %s", key, lastResort)
-	case "float":
-		call = fmt.Sprintf("config_get_float %s %s", key, lastResort)
-	default:
-		call = fmt.Sprintf("config_get %s", key)
+	if v, ok := speakVars[key]; ok {
+		call = `resolve_speak_settings; echo "$` + v + `"`
+	} else {
+		switch keyKind[key] {
+		case "bool":
+			call = fmt.Sprintf("config_get_bool %s %s", key, lastResort)
+		case "int":
+			call = fmt.Sprintf("config_get_int %s %s", key, lastResort)
+		case "float":
+			call = fmt.Sprintf("config_get_float %s %s", key, lastResort)
+		default:
+			call = fmt.Sprintf("config_get %s", key)
+		}
 	}
 
 	libPath, err := filepath.Abs(filepath.Join("..", "..", "scripts", "lib.sh"))

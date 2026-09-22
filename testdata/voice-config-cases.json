@@ -145,6 +145,19 @@
         "sayRate": "default",
         "engineAutoStart": "default"
       }
+    },
+    {
+      "name": "a wrong-typed sayRate or voice falls back, as speak.sh reads them",
+      "live": {
+        "sayRate": {
+          "nested": "object"
+        },
+        "voice": 42
+      },
+      "expect": {
+        "sayRate": "default",
+        "voice": "default"
+      }
     }
   ]
 }

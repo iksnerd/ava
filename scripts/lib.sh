@@ -71,6 +71,47 @@ except Exception:
 " "$1" "$2"
 }
 
+# config_get_str <jsonKey> <lastResortDefault> -> the live config's value when
+# it is a JSON string, else voice-defaults.json's, else the last resort:
+# '"voice": 42' used to reach Kokoro as "42".
+config_get_str() {
+    python3 -c "
+import json, sys
+key, fallback, live, defaults = sys.argv[1:5]
+for path in (live, defaults):
+    try:
+        d = json.load(open(path))
+    except Exception:
+        continue
+    # A wrong-typed live value falls through to the defaults file, as Go
+    # drops it per key and keeps the default.
+    if isinstance(d.get(key), str):
+        print(d[key])
+        sys.exit(0)
+print(fallback)
+" "$1" "$2" "$VOICE_CONFIG_FILE" "$VOICE_DEFAULTS_FILE"
+}
+
+# resolve_speak_settings sets VOICE, SPEED, VOLUME and SAY_RATE the way
+# speak.sh uses them: the config with per-key type checks, then the TTS_*
+# env overrides through the same checks. It lives here, not in speak.sh, so
+# the contract test (internal/voiceconfig) runs exactly this and not a
+# parallel accessor: speak.sh used to read sayRate with plain config_get,
+# which passed a wrong-typed value straight to `say -r` while the test, and
+# Go, fell back. $1 is an explicit voice, as speak.sh's second argument.
+resolve_speak_settings() {
+    VOICE="${1:-$(config_get_str voice af_heart)}"
+    SPEED=$(config_get_float speed 1.3)
+    VOLUME=$(config_get_float volume 1.0)
+    SAY_RATE=$(config_get_int sayRate 220)
+    [ -n "${TTS_SPEED:-}" ] && SPEED=$(as_float "$TTS_SPEED" "$SPEED")
+    [ -n "${TTS_VOLUME:-}" ] && VOLUME=$(as_float "$TTS_VOLUME" "$VOLUME")
+    if [ -n "${TTS_SAY_RATE:-}" ]; then
+        SAY_RATE=$(as_float "$TTS_SAY_RATE" "$SAY_RATE")
+        SAY_RATE="${SAY_RATE%%.*}" # an integer, as internal/voiceconfig truncates it
+    fi
+}
+
 # config_get_float <jsonKey> <lastResortDefault> -> like config_get, but
 # guarantees a number. Without it a hand-edited '"speed": "fast"' reached
 # speak.sh's json.dumps(float(...)) verbatim, which threw, emptied the
