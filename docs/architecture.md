@@ -1,0 +1,89 @@
+# Architecture
+
+[← Back to the README](../README.md)
+
+Four ways in, two engines underneath, and one config file that all of them read.
+
+```mermaid
+flowchart TB
+    subgraph doors["WAYS IN"]
+        direction LR
+        cli["local-whisper<br/>CLI"]
+        mcpc["MCP clients<br/>agents, Claude Code"]
+        hooks["Claude Code hooks<br/>scripts/*.sh"]
+        app["Ava<br/>menu bar app"]
+    end
+
+    subgraph gobin["local-whisper binary · Go"]
+        direction LR
+        speaker["internal/speaker<br/>mute · markers · playback lock"]
+        engsel["pkg/stt/whisper<br/>transcription"]
+        a11y["internal/a11y<br/>AX tree to announcements"]
+    end
+
+    speaksh["scripts/speak.sh<br/>same protocol, in bash"]
+    cfg[("config.json<br/>mute, voice, speed")]
+
+    subgraph engines["ON-DEVICE ENGINES"]
+        direction LR
+        whispercpp["whisper.cpp<br/>subprocess per run"]
+        mlx(["mlx-engine 127.0.0.1:8765<br/>Kokoro TTS"])
+    end
+
+    cli ==> speaker
+    cli ==> engsel
+    mcpc ==> speaker
+    mcpc ==> a11y
+    a11y ==> speaker
+    hooks ==> speaksh
+    app ==> speaksh
+
+    speaker ==> mlx
+    speaksh ==> mlx
+    engsel ==> whispercpp
+
+    cfg -. "read by all three" .-> speaker
+    cfg -. " " .-> speaksh
+    cfg -. " " .-> app
+
+    classDef door fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe;
+    classDef go fill:#134e4a,stroke:#2dd4bf,color:#ccfbf1;
+    classDef engine fill:#4c1d95,stroke:#a78bfa,color:#ede9fe;
+    classDef store fill:#78350f,stroke:#fbbf24,color:#fef3c7;
+    classDef shell fill:#334155,stroke:#94a3b8,color:#f1f5f9;
+
+    class cli,mcpc,hooks,app door;
+    class speaker,engsel,a11y go;
+    class whispercpp,mlx engine;
+    class cfg store;
+    class speaksh shell;
+    linkStyle default stroke:#64748b,stroke-width:1.5px;
+```
+
+## Why the hooks bypass the Go binary
+
+The Claude Code hooks are plain bash talking to `scripts/speak.sh`, not to
+`local-whisper`. That is deliberate: speech still works on a machine where the
+Go binary was never installed, which is the common case for someone who cloned
+the repo to get spoken notifications and nothing else.
+
+## Why one config file has three readers
+
+`~/Library/Application Support/ava/config.json` is parsed independently by Go
+(`internal/voiceconfig`), bash (`scripts/lib.sh`) and Swift
+(`VoiceSettings.swift`) — because each of those runs in a context where the
+others are unavailable. They must agree, including on malformed input, so
+`internal/voiceconfig/contract_test.go` runs the bash and Go readers against
+shared cases in `testdata/voice-config-cases.json`, and `make
+check-swift-config` is the Swift arm.
+
+The one config bug that ever shipped was a wrong-typed value silently unmuting
+the app — in the one component nothing could test at the time.
+
+## Why speech is a cross-process protocol
+
+A global mute, an activity marker at `/tmp/ava-tts-active`, and an exclusive
+`flock(2)` on `/tmp/ava-tts-playback.lock` are shared by the Go binary,
+`speak.sh`, the menu bar app and the hooks. Two of them speaking over each other
+is the failure this prevents. `internal/speaker`'s package comment has the
+details.

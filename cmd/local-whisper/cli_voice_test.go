@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/pflag"
-
 	"github.com/iksnerd/local-whisper/internal/buildinfo"
 )
 
@@ -240,12 +238,15 @@ func TestRootHasQuietAlongsideVerbose(t *testing.T) {
 // the usage text printed it twice on the root command — the first help anyone
 // sees — while transcribe had already been fixed.
 func TestRootFlagUsageDoesNotRepeatTheDefault(t *testing.T) {
-	newRootCmd().Flags().VisitAll(func(f *pflag.Flag) {
-		lower := strings.ToLower(f.Usage)
-		if strings.Contains(lower, "(default") || strings.Contains(lower, "default:") {
-			t.Errorf("--%s usage %q states its default; cobra already appends it", f.Name, f.Usage)
+	// Reads the rendered usage block rather than walking pflag.Flag values, so
+	// this test does not make pflag a direct dependency of the module — see the
+	// two-dependency rule in CLAUDE.md. Cobra appends its own `(default "x")`,
+	// so a line carrying two of them is the bug.
+	for _, line := range strings.Split(newRootCmd().Flags().FlagUsages(), "\n") {
+		if strings.Count(line, "(default") > 1 || strings.Contains(line, "(default:") {
+			t.Errorf("flag usage states its default twice: %q", strings.TrimSpace(line))
 		}
-	})
+	}
 }
 
 func TestBothBinariesReportAVersion(t *testing.T) {
