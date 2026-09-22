@@ -27,6 +27,10 @@ entry is a summary rather than a record kept as it happened.
   They used to fetch `resolve/main`, a mutable ref, and check nothing.
 
 ### Fixed
+- **`voice-monitor` served the live transcript on every network interface.**
+  It listened on `:8766`, so anyone on the same network could read a call
+  transcript with no authentication, while the README and `SECURITY.md` said
+  it stayed on `127.0.0.1`. It now binds loopback only.
 - The release job published a body containing only the footer. GoReleaser's
   `release.mode` defaults to `keep-existing`, which declines to set the body;
   it is now `replace`, since CI supplies the body from `CHANGELOG.md`

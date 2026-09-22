@@ -145,7 +145,7 @@ func watch(opts watchOptions) error {
 		return fmt.Errorf("failed to start realtime transcription: %w", err)
 	}
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", opts.port), Handler: newMux(h)}
+	server := &http.Server{Addr: listenAddr(opts.port), Handler: newMux(h)}
 
 	procutil.OnInterrupt(func() {
 		fmt.Println("\n⏹️  Stopping...")
@@ -158,4 +158,12 @@ func watch(opts watchOptions) error {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
+}
+
+// listenAddr binds the transcript server to loopback only. It used to be
+// ":port", which listens on every interface: anyone on the same network could
+// read a live call transcript, with no authentication, while the docs and
+// SECURITY.md said it stayed on this machine.
+func listenAddr(port int) string {
+	return fmt.Sprintf("127.0.0.1:%d", port)
 }

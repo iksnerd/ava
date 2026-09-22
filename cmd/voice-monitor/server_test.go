@@ -253,6 +253,14 @@ func TestSetSessionDoesNotTouchTheTranscript(t *testing.T) {
 // exited used to render the same red badge. Guard the pieces that keep them
 // apart: an amber state, a grace timer that onopen clears, and no timer reset
 // on the repeated onerror each retry fires.
+// The transcript of a call must not be served to the network. ":8766" and
+// "0.0.0.0:8766" both listen on every interface.
+func TestTranscriptServerListensOnLoopbackOnly(t *testing.T) {
+	if got := listenAddr(8766); got != "127.0.0.1:8766" {
+		t.Errorf("listenAddr(8766) = %q, want 127.0.0.1:8766", got)
+	}
+}
+
 func TestIndexPageDistinguishesReconnectingFromDisconnected(t *testing.T) {
 	for _, want := range []string{
 		".status.reconnecting",
