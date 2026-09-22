@@ -28,6 +28,11 @@ git checkout-index -a -f --prefix="$SNAP/"
 staged() { git diff --cached --name-only --diff-filter=ACMR -- "$@"; }
 go_files="$(staged '*.go')"
 py_files="$(staged '*.py')"
+# Scripts count for the Go and Python suites too: tests in both read or run
+# them (engine_test.go, the voiceconfig contract, mlx-engine's test_server.py).
+# Gating those suites on their own language let a scripts-only commit land
+# with no test run at all.
+sh_files="$(staged '*.sh' '.githooks/*')"
 
 fail=0
 step() {
@@ -44,21 +49,28 @@ step() {
 echo "pre-commit: checking the staged snapshot"
 
 # Runs in the snapshot, so a missing `git add` fails here rather than in CI.
-if [ -n "$go_files" ]; then
+if [ -n "$go_files$sh_files" ]; then
     step "gofmt"        bash -c "cd '$SNAP' && test -z \"\$(gofmt -l .)\" || { gofmt -l .; false; }"
     step "go build"     bash -c "cd '$SNAP' && go build ./..."
     step "go vet"       bash -c "cd '$SNAP' && go vet ./..."
     step "go test"      bash -c "cd '$SNAP' && go test -count=1 ./..."
 fi
 
-if [ -n "$py_files" ]; then
+if [ -n "$py_files$sh_files" ]; then
     if command -v uvx >/dev/null 2>&1; then
-        step "ruff check"  bash -c "cd '$SNAP' && uvx ruff check mlx-engine/ voxtral/ scripts/voice_hooks/"
-        step "ruff format" bash -c "cd '$SNAP' && uvx ruff format --check mlx-engine/ voxtral/ scripts/voice_hooks/"
+        if [ -n "$py_files" ]; then
+            step "ruff check"  bash -c "cd '$SNAP' && uvx ruff check mlx-engine/ voxtral/ scripts/voice_hooks/"
+            step "ruff format" bash -c "cd '$SNAP' && uvx ruff format --check mlx-engine/ voxtral/ scripts/voice_hooks/"
+        fi
+        step "mlx-engine tests" bash -c "cd '$SNAP' && make -s test-mlx-engine"
+        step "voice hooks tests" bash -c "cd '$SNAP/scripts/voice_hooks' && uvx --with pysbd --with httpx pytest -q -p no:cacheprovider"
     else
-        echo "  – ruff skipped (uvx not installed)"
+        echo "  – ruff and Python tests skipped (uvx not installed)"
     fi
 fi
+
+# A syntax error in any script, checked on every commit: it costs milliseconds.
+step "bash -n scripts" bash -c "cd '$SNAP' && for f in \$(git -C '$REPO' ls-files '*.sh') .githooks/pre-commit; do [ -f \"\$f\" ] && bash -n \"\$f\" || exit 1; done"
 
 # Cheap, and it has caught two real bugs. Runs on every commit, not just Go ones,
 # because a hardcoded path is as likely to land in a script or a doc.
