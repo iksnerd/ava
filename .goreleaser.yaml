@@ -13,12 +13,18 @@
 # sox, whisper-cli, the model and the Kokoro engine, which travels inside the
 # binary (internal/enginedist). No checkout needed.
 #
-# What it cannot do: pass Gatekeeper unsigned. A binary downloaded from a
-# release carries a quarantine attribute and macOS refuses it until the user
-# clears it — `xattr -c ./local-whisper` — or right-clicks Open. Signing needs
-# a Developer ID certificate this project does not have. Homebrew strips
-# quarantine on install, which is the argument for the tap in issue #5 over
-# telling people to curl a binary.
+# What it cannot do: pass Gatekeeper unsigned. Signing for distribution needs a
+# Developer ID Application certificate and notarization, both of which require
+# a paid Apple Developer Program membership. An Xcode "Apple Development" cert
+# is not a substitute — measured: it signs cleanly and `spctl -a -t exec` still
+# rejects the result.
+#
+# That only bites a *browser* download, which is the one thing that attaches
+# com.apple.quarantine. curl and gh do not, so scripts/install.sh never meets
+# Gatekeeper at all. Worth knowing when it does bite, because there is nothing
+# to search for: a quarantined unsigned binary run from a shell is killed with
+# exit 137 and prints nothing, and the GUI dialog offers "Move to Trash" — not
+# "Open". Clearing it afterwards is `xattr -d com.apple.quarantine`.
 version: 2
 
 project_name: local-whisper
@@ -84,13 +90,21 @@ release:
   mode: keep-existing
   prerelease: auto
   footer: |
-    **Apple Silicon only.** After downloading, clear the quarantine attribute
-    macOS adds to anything fetched from the internet, then install the rest:
+    **Apple Silicon only.**
 
     ```bash
-    xattr -c local-whisper voice-monitor
-    ./local-whisper setup
+    bash <(gh api repos/iksnerd/local-whisper/contents/scripts/install.sh -q .content | base64 -d)
+    local-whisper setup
     ```
 
-    `setup` installs sox, whisper-cli, the whisper model and the Kokoro TTS
-    engine. These binaries are not signed with an Apple Developer ID.
+    `install.sh` verifies the checksum and installs both binaries to
+    `~/.local/bin`. `setup` then installs sox, whisper-cli, the speech model and
+    the Kokoro TTS engine.
+
+    **Prefer that over downloading these files in a browser.** These binaries
+    are unsigned — signing for distribution needs a paid Apple Developer
+    Program membership — and macOS attaches a quarantine flag to browser
+    downloads but not to anything `curl` or `gh` fetches. A quarantined
+    unsigned binary is killed with exit 137 and no message, and the dialog
+    macOS shows offers **Move to Trash**, not Open. If you have already hit
+    that: `xattr -d com.apple.quarantine local-whisper voice-monitor`.

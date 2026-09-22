@@ -27,6 +27,14 @@ entry is a summary rather than a record kept as it happened.
   TTS engine is MLX. `make release-snapshot` builds the same artifacts locally
   without publishing, and `make release-notes` prints the newest changelog
   section, which is what CI hands to `--release-notes`.
+- **`scripts/install.sh`** installs the CLI binaries from a release, verifying
+  the checksum before extracting. It fetches with `gh` or `curl`, neither of
+  which attaches `com.apple.quarantine` — a browser does, and the binaries are
+  unsigned, so a browser download is killed with exit 137 and no message while
+  the dialog macOS shows offers **Move to Trash** rather than Open. Measured on
+  macOS 27, including that quarantine survives `tar xzf`, so extracting in a
+  terminal does not launder it.
+
 
 ### Fixed
 - `scripts/setup-deps.sh` still announced "Installing Voxtral inference server

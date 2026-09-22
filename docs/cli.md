@@ -90,6 +90,40 @@ controls, several links that announce identically, skipped heading levels.
 Those findings always cover the whole page, even when `--mode` narrated part
 of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 
+## Installing on another machine
+
+```bash
+bash scripts/install.sh          # latest release; or pass a tag
+local-whisper setup
+```
+
+`install.sh` fetches the release with `gh` (which carries your credentials, so
+it works while the repo is private) or `curl`, verifies the checksum before
+extracting, and installs both binaries to `~/.local/bin` —
+`LOCAL_WHISPER_BIN` overrides that.
+
+**Use it rather than downloading the archive in a browser.** The binaries are
+unsigned: signing for distribution needs a Developer ID certificate and
+notarization, which require a paid Apple Developer Program membership, and an
+Xcode "Apple Development" certificate is not a substitute — it signs cleanly
+and `spctl -a -t exec` still rejects the result.
+
+That only matters for a browser download, because macOS attaches
+`com.apple.quarantine` when a browser fetches a file and not when `curl` or
+`gh` does. Two things are worth knowing about the case where it does happen,
+both measured on macOS 27:
+
+- **Extracting in a terminal does not launder it.** Quarantine survives
+  `tar xzf`, whatever older advice says.
+- **There is nothing to search for.** A quarantined unsigned binary run from a
+  shell is killed with exit 137 and prints nothing at all, and the GUI dialog
+  macOS shows offers **Move to Trash**, not Open. Getting past it means
+  System Settings → Privacy & Security → "Open Anyway", or simply:
+
+  ```bash
+  xattr -d com.apple.quarantine local-whisper voice-monitor
+  ```
+
 ## Setup
 
 ```bash
