@@ -231,6 +231,11 @@ Every flag and every command: [`docs/cli.md`](docs/cli.md).
   loopback setup, engine and language choice, diarization, known gaps.
 - [`AGENTS.md`](AGENTS.md) — architecture and code style, for anyone (human or
   agent) working on this repo.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to build, test, and the three
+  invariants worth knowing before changing them.
+- [`SECURITY.md`](SECURITY.md) — reporting, and what the local attack surface
+  actually is.
+- [`NOTICE`](NOTICE) — third-party licences, including one non-commercial model.
 
 ## Development
 

@@ -1,0 +1,3 @@
+# Single maintainer; this exists so reviewers are unambiguous rather than
+# to gate anything.
+*       @iksnerd
