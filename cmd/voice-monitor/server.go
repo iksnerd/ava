@@ -17,7 +17,10 @@ const indexHTML = `<!doctype html>
      still live, and it used to scroll away about twenty seconds into a call. */
   header { padding: 12px 20px; background: #1b1b1b; border-bottom: 1px solid #333; position: sticky; top: 0; }
   header .status { font-size: 13px; color: #8f8; }
-  header .status.disconnected { color: #f88; }
+  header .status.reconnecting { color: #fc6; }
+  /* Loud on purpose: the server only exits on Ctrl-C, so this state means the
+     call transcript has stopped, not that the network blinked. */
+  header .status.disconnected { color: #fff; background: #a22; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
   header .actions { float: right; }
   header button {
     font: inherit; font-size: 12px; color: #eee; background: #2a2a2a;
@@ -38,7 +41,7 @@ const indexHTML = `<!doctype html>
     <button id="save" type="button">Save</button>
   </span>
   <strong>Voxtral Realtime Monitor</strong>
-  &mdash; <span id="status" class="status disconnected" aria-live="polite">connecting…</span>
+  &mdash; <span id="status" class="status reconnecting" aria-live="polite">connecting…</span>
 </header>
 <main>
   <div id="session" class="hint" aria-live="polite">Waiting for the session to start&hellip;</div>
@@ -65,9 +68,42 @@ const indexHTML = `<!doctype html>
     window.innerHeight + window.scrollY >= document.body.scrollHeight - NEAR_BOTTOM_PX;
   const followTail = () => window.scrollTo(0, document.body.scrollHeight);
 
+  // Three states, because EventSource retries by itself after any blip: a
+  // momentary drop and a server that has exited both fire onerror, and used to
+  // look identical. An error shows amber "reconnecting…"; only if onopen has
+  // not fired again within RECONNECT_GRACE_MS does it escalate to red, which
+  // also marks the tab title so a backgrounded tab still says it.
+  const RECONNECT_GRACE_MS = 10000;
+  const title = document.title;
+  let giveUp = null;
+  const setStatus = (text, cls) => { status.textContent = text; status.className = 'status ' + cls; };
+  const disconnected = () => {
+    giveUp = null;
+    setStatus('disconnected — transcript stopped', 'disconnected');
+    document.title = '⚠ Disconnected — ' + title;
+  };
+
   const es = new EventSource('/events');
-  es.onopen = () => { status.textContent = 'connected'; status.className = 'status'; };
-  es.onerror = () => { status.textContent = 'disconnected'; status.className = 'status disconnected'; };
+  es.onopen = () => {
+    clearTimeout(giveUp);
+    giveUp = null;
+    setStatus('connected', 'connected');
+    document.title = title;
+  };
+  es.onerror = () => {
+    // CLOSED means the browser will not retry (e.g. a non-SSE response), so
+    // there is nothing to wait for.
+    if (es.readyState === EventSource.CLOSED) {
+      clearTimeout(giveUp);
+      disconnected();
+      return;
+    }
+    // Retries fire onerror again every few seconds; restarting the timer on
+    // each would mean it never escalates.
+    if (giveUp !== null || status.classList.contains('disconnected')) return;
+    setStatus('reconnecting…', 'reconnecting');
+    giveUp = setTimeout(disconnected, RECONNECT_GRACE_MS);
+  };
 
   es.addEventListener('session', (e) => {
     session.textContent = JSON.parse(e.data).text;

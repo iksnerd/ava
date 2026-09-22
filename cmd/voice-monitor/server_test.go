@@ -249,6 +249,36 @@ func TestSetSessionDoesNotTouchTheTranscript(t *testing.T) {
 // on disk but not always where they are. Selection survives a delta now, so
 // Cmd+A works, but a button is one click. Guarding the wiring, since a typo in
 // an element id fails silently in the browser.
+// A dropped connection that EventSource is retrying and a server that has
+// exited used to render the same red badge. Guard the pieces that keep them
+// apart: an amber state, a grace timer that onopen clears, and no timer reset
+// on the repeated onerror each retry fires.
+func TestIndexPageDistinguishesReconnectingFromDisconnected(t *testing.T) {
+	for _, want := range []string{
+		".status.reconnecting",
+		".status.disconnected",
+		"'reconnecting'",
+		"'disconnected'",
+		"RECONNECT_GRACE_MS = 10000",
+		"setTimeout(disconnected, RECONNECT_GRACE_MS)",
+		"clearTimeout(giveUp)",
+		"if (giveUp !== null",
+		"EventSource.CLOSED",
+		`getElementById('status')`,
+	} {
+		if !strings.Contains(indexHTML, want) {
+			t.Errorf("index page is missing %q", want)
+		}
+	}
+	// onerror must not jump straight to red, or the three states collapse back
+	// into two.
+	onerror := indexHTML[strings.Index(indexHTML, "es.onerror"):]
+	onerror = onerror[:strings.Index(onerror, "\n  };")]
+	if strings.Index(onerror, "setStatus('reconnecting") < 0 {
+		t.Error("es.onerror never shows the reconnecting state")
+	}
+}
+
 func TestIndexPageOffersCopyAndSave(t *testing.T) {
 	for _, want := range []string{
 		`id="copy"`,

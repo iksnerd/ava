@@ -14,6 +14,11 @@ entry is a summary rather than a record kept as it happened.
   it trades accuracy for speed, mostly worth it on `tiny` (#3).
 
 ### Changed
+- The live transcript page tells a dropped connection from a stopped monitor.
+  An error shows amber **reconnecting…** while `EventSource` retries; only
+  after 10 seconds without reconnecting does it turn red, now labelled
+  "transcript stopped", with a ⚠ in the tab title. Both used to be the same red
+  "disconnected" (#2).
 - Model downloads, from `setup`, `setup-model` and `scripts/setup-model.sh`,
   come from a pinned Hugging Face revision and are checked against its sha256.
   They used to fetch `resolve/main`, a mutable ref, and check nothing.

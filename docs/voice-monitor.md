@@ -49,6 +49,13 @@ machine where you would rather not go hunting through `/tmp`. Copy needs a
 secure context — over plain `http://localhost` browsers allow it, but it reports
 "Blocked" rather than failing silently if yours does not.
 
+The badge beside the title has three states. **connected** is green.
+**reconnecting…** is amber: the browser lost the stream and is retrying, which
+after a network blip or a laptop wake is normal. If it has not reconnected
+within 10 seconds it turns into a red **disconnected — transcript stopped**, and
+the tab title gets a ⚠ prefix. Since the server only exits on Ctrl-C, red means
+the monitor is no longer transcribing the call.
+
 `bin/voice-monitor devices` lists audio devices and their indices. Indices
 shift whenever devices are added or removed — including disconnecting
 headphones — so check them again if capture stops working.
