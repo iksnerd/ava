@@ -5,7 +5,11 @@
 
 MODEL_DIR="$HOME/.local/share/whisper-cpp"
 MODEL_FILE="$MODEL_DIR/ggml-base.en.bin"
-MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+# Pinned to a commit, with its sha256, to match `local-whisper setup-model`
+# (cmd/local-whisper/setup_model.go). resolve/main is a mutable ref.
+MODEL_REVISION="5359861c739e955e79d9a303bcbc70fb988958b1"
+MODEL_SHA256="a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
+MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REVISION/ggml-base.en.bin"
 MODEL_SIZE="141MB"
 
 echo "🎙️  local-whisper Model Setup"
@@ -41,6 +45,11 @@ else
     echo "❌ Neither wget nor curl found. Please install one:"
     echo "   brew install wget"
     exit 1
+fi
+
+if [ $DOWNLOAD_STATUS -eq 0 ] && ! echo "$MODEL_SHA256  $MODEL_FILE" | shasum -a 256 -c --status; then
+    echo "❌ Checksum mismatch: $MODEL_FILE is not the expected model"
+    DOWNLOAD_STATUS=1
 fi
 
 if [ $DOWNLOAD_STATUS -eq 0 ]; then

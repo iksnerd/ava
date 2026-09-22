@@ -29,15 +29,16 @@ func NewClient(modelPath string) *Client {
 func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	// Check if model exists
 	if _, err := os.Stat(c.ModelPath); err != nil {
-		modelFile := filepath.Base(c.ModelPath)
-		// curl, not wget: macOS ships curl and does not ship wget, and this is
-		// the first error anyone who installed the binary without the repo sees.
+		// This is the first error anyone who installed the binary without the
+		// repo sees, so it names the command that fixes it rather than a
+		// make target they have no checkout to run.
+		fix := "local-whisper setup-model"
+		if strings.Contains(filepath.Base(c.ModelPath), "tiny") {
+			fix += " --model tiny"
+		}
 		return "", fmt.Errorf("whisper model not found at %s.\n"+
 			"Download it with:\n"+
-			"  mkdir -p %s\n"+
-			"  curl -L --create-dirs -o %s https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%s\n"+
-			"Or run `make setup-model` from a checkout.",
-			c.ModelPath, filepath.Dir(c.ModelPath), c.ModelPath, modelFile)
+			"  %s", c.ModelPath, fix)
 	}
 
 	cmd := exec.Command("whisper-cli",

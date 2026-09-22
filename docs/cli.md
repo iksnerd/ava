@@ -157,6 +157,19 @@ gigabyte. The default uses 128 of the 160 bytes.
 Apple Silicon only for the engine step; on Intel it is skipped with a note, and
 speech uses the macOS `say` voice.
 
+### Just the model
+
+```bash
+local-whisper setup-model               # base.en (~141 MB)
+local-whisper setup-model --model tiny  # tiny.en (~74 MB), for --model tiny
+```
+
+Downloads one whisper.cpp model to `~/.local/share/whisper-cpp/` and nothing
+else; `setup` only fetches `base`. The download comes from a pinned Hugging
+Face revision and is checked against its sha256 before it is installed. An
+existing file of the right size is left alone, and one of the wrong size (an
+interrupted download) is fetched again.
+
 ## Engine server
 
 ```bash

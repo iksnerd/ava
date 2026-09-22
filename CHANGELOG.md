@@ -5,6 +5,16 @@ entry is a summary rather than a record kept as it happened.
 
 ## Unreleased
 
+### Added
+- **`local-whisper setup-model [--model base|tiny]`** downloads just the
+  whisper.cpp model, including `tiny`, which `setup` never fetched. The
+  model-not-found error now names it instead of printing a `curl` line (#1).
+
+### Changed
+- Model downloads, from `setup`, `setup-model` and `scripts/setup-model.sh`,
+  come from a pinned Hugging Face revision and are checked against its sha256.
+  They used to fetch `resolve/main`, a mutable ref, and check nothing.
+
 ### Fixed
 - The release job published a body containing only the footer. GoReleaser's
   `release.mode` defaults to `keep-existing`, which declines to set the body;

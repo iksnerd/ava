@@ -52,10 +52,12 @@ brew install whisper-cpp
 ## Model not found
 
 ```bash
-make setup-model
+local-whisper setup-model               # or: make setup-model, from a checkout
+local-whisper setup-model --model tiny  # if you run with --model tiny
 ```
 
-Downloads `ggml-base.en.bin` (141MB) to `~/.local/share/whisper-cpp/`.
+Downloads `ggml-base.en.bin` (141MB) or `ggml-tiny.en.bin` (74MB) to
+`~/.local/share/whisper-cpp/`.
 
 ## Transcription feels slow
 

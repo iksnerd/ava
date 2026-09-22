@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,13 +13,6 @@ import (
 
 	"github.com/iksnerd/local-whisper/internal/enginedist"
 )
-
-// modelDirRel is where whisper.cpp models live, relative to $HOME. It matches
-// scripts/setup-model.sh and the path cmd/local-whisper resolves at run time.
-const modelDirRel = ".local/share/whisper-cpp"
-
-// modelURL is whisper.cpp's published base.en weights.
-const modelURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + baseModel
 
 // newSetupCmd installs everything local-whisper needs that is not the binary.
 //
@@ -53,7 +45,7 @@ func newSetupCmd() *cobra.Command {
 			if err := setupTools(out); err != nil {
 				return err
 			}
-			if err := setupModel(out); err != nil {
+			if err := installModel(out, "base"); err != nil {
 				return err
 			}
 			if skipEngine {
@@ -115,56 +107,6 @@ func keysOf(m map[string]string) []string {
 		out = append(out, k)
 	}
 	return out
-}
-
-// setupModel downloads the whisper.cpp weights if they are not already there.
-func setupModel(out io.Writer) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	dir := filepath.Join(home, modelDirRel)
-	path := filepath.Join(dir, baseModel)
-
-	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
-		fmt.Fprintf(out, "✅ Model already present (%s, %s)\n", baseModel, humanBytes(info.Size()))
-		return nil
-	}
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(out, "⬇️  Downloading %s (~141 MB)...\n", baseModel)
-	resp, err := http.Get(modelURL)
-	if err != nil {
-		return fmt.Errorf("download model: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download model: %s returned %s", modelURL, resp.Status)
-	}
-
-	// Download to a temp file in the same directory and rename, so an
-	// interrupted run cannot leave a truncated model that looks installed —
-	// whisper-cli would then fail with a parse error nowhere near the cause.
-	tmp, err := os.CreateTemp(dir, ".model-*.partial")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-
-	n, err := io.Copy(tmp, resp.Body)
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return fmt.Errorf("download model: %w", err)
-	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "✅ Model installed (%s)\n", humanBytes(n))
-	return nil
 }
 
 // setupEngine materializes the embedded bundle and resolves its Python

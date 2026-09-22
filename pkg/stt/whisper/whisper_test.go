@@ -36,6 +36,16 @@ func TestTranscribeModelNotFound(t *testing.T) {
 	if !strings.Contains(err.Error(), "whisper model not found") {
 		t.Errorf("expected 'whisper model not found' in error, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "local-whisper setup-model") {
+		t.Errorf("the error does not name the command that fixes it: %v", err)
+	}
+}
+
+func TestTranscribeModelNotFoundNamesTheTinyModel(t *testing.T) {
+	_, err := NewClient("/nonexistent/ggml-tiny.en.bin").Transcribe(stt.Options{})
+	if err == nil || !strings.Contains(err.Error(), "setup-model --model tiny") {
+		t.Errorf("a missing tiny model should point at `setup-model --model tiny`, got %v", err)
+	}
 }
 
 func TestTranscribeSuccess(t *testing.T) {
