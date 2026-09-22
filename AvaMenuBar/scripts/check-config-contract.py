@@ -56,6 +56,8 @@ HARNESS = """import Foundation
 
 {extension_src}
 
+{write_src}
+
 // Replicates VoiceSettings.load()'s merge (see LOAD_INVARIANTS).
 func load(defaults: [String: Any], live: [String: Any]?) -> VoiceConfig {{
     var merged = defaults
@@ -129,6 +131,29 @@ for raw in fixtures["cases"] as! [[String: Any]] {{
         }}
     }}
 }}
+// The write path. A save used to encode the whole struct, freezing every
+// default into config.json the first time any slider moved, so later changes
+// to voice-defaults.json never reached that user; and writing every key let a
+// save overwrite a setting another process had just changed on disk.
+func check(_ ok: Bool, _ what: String) {{
+    if !ok {{ print("FAIL  save: \\(what)"); failures += 1 }}
+}}
+let base = load(defaults: defaults, live: nil)
+var faster = base
+faster.speed = base.speed + 0.5
+let onlySpeed = ConfigWrite.merge(onDisk: [:], baseline: base, updated: faster)
+check(Set(onlySpeed.keys) == ["speed"], "changing speed wrote \\(onlySpeed.keys.sorted()), want only speed")
+
+var louder = base
+louder.volume = 0.25
+let external: [String: Any] = ["engineAutoStart": false]
+let kept = ConfigWrite.merge(onDisk: external, baseline: base, updated: louder)
+check((kept["engineAutoStart"] as? Bool) == false, "a save overwrote engineAutoStart that another process set")
+check((kept["volume"] as? Double) == 0.25, "the changed volume was not written")
+
+let untouched = ConfigWrite.merge(onDisk: external, baseline: base, updated: base)
+check(untouched.count == 1 && (untouched["engineAutoStart"] as? Bool) == false, "a save with no change rewrote the file: \\(untouched)")
+
 print(failures == 0 ? "PASS  Swift matches the config contract" : "FAILURES: \\(failures)")
 exit(failures == 0 ? 0 : 1)
 """
@@ -145,6 +170,7 @@ def main() -> int:
     harness = HARNESS.format(
         struct_src=extract_block(source, "struct VoiceConfig: Codable, Equatable {"),
         extension_src=extract_block(source, "extension VoiceConfig {"),
+        write_src=extract_block(source, "enum ConfigWrite {"),
     )
 
     with tempfile.TemporaryDirectory() as tmp:

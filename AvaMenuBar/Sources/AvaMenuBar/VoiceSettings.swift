@@ -78,6 +78,32 @@ enum KokoroVoice {
 }
 
 @MainActor
+/// What a save writes. It used to encode the whole struct, which froze every
+/// default into config.json the first time any slider moved, so a later
+/// change to voice-defaults.json (documented as the single source of truth)
+/// never reached that user; and writing every key let a save overwrite a
+/// setting another process had just changed, such as `ava engine stop`
+/// turning engineAutoStart off. Now: the file as it is on disk, plus only the
+/// keys this app changed since it last read or wrote it.
+enum ConfigWrite {
+    nonisolated static func merge(onDisk: [String: Any], baseline: VoiceConfig, updated: VoiceConfig) -> [String: Any] {
+        var out = onDisk
+        let before = asObject(baseline)
+        for (key, value) in asObject(updated) {
+            if let old = before[key] as? NSObject, old.isEqual(value) { continue }
+            out[key] = value
+        }
+        return out
+    }
+
+    nonisolated static func asObject(_ config: VoiceConfig) -> [String: Any] {
+        guard let data = try? JSONEncoder().encode(config),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return object
+    }
+}
+
 final class VoiceSettings: ObservableObject {
     @Published var config: VoiceConfig {
         didSet {
@@ -100,12 +126,18 @@ final class VoiceSettings: ObservableObject {
     nonisolated static let defaultsFileURL = URL(fileURLWithPath: VoicePaths.scriptsDir)
         .appendingPathComponent("voice-defaults.json")
 
+    /// The config as last read from or written to disk: what a save diffs
+    /// against to find the keys this app actually changed.
+    private var baseline: VoiceConfig
+
     private var saveWorkItem: DispatchWorkItem?
     private var externalChangeTimer: Timer?
     private var lastKnownModDate: Date?
 
     init() {
-        config = Self.load()
+        let loaded = Self.load()
+        baseline = loaded
+        config = loaded
         lastKnownModDate = Self.modDate()
         // Mute (and anything else) can also be flipped from outside this
         // process — e.g. the "Toggle Ava Mute" Service, which has
@@ -130,6 +162,9 @@ final class VoiceSettings: ObservableObject {
         // so this only actually reassigns (and re-triggers didSet/save) for
         // a genuinely external change — no feedback loop with our own saves.
         guard onDisk != config else { return }
+        // Baseline first, so the save the assignment schedules finds nothing
+        // of ours to write.
+        baseline = onDisk
         config = onDisk
     }
 
@@ -167,8 +202,12 @@ final class VoiceSettings: ObservableObject {
     }
 
     func save() {
-        guard let data = try? JSONEncoder().encode(config) else { return }
+        let onDisk = Self.readJSONObject(Self.fileURL) ?? [:]
+        let merged = ConfigWrite.merge(onDisk: onDisk, baseline: baseline, updated: config)
+        guard let data = try? JSONSerialization.data(withJSONObject: merged, options: [.prettyPrinted, .sortedKeys])
+        else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
+        baseline = config
     }
 
     /// Flushes any pending debounced save immediately — use before shelling
@@ -184,11 +223,13 @@ final class VoiceSettings: ObservableObject {
     /// instance picks the change up via its own poll above.
     @discardableResult
     nonisolated static func toggleMutedOnDisk() -> Bool {
-        var cfg = load()
-        cfg.muted.toggle()
-        if let data = try? JSONEncoder().encode(cfg) {
+        let muted = !load().muted
+        // Only `muted`, for the same reason as ConfigWrite.
+        var onDisk = readJSONObject(fileURL) ?? [:]
+        onDisk["muted"] = muted
+        if let data = try? JSONSerialization.data(withJSONObject: onDisk, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: fileURL, options: .atomic)
         }
-        return cfg.muted
+        return muted
     }
 }
