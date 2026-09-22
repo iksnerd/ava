@@ -10,7 +10,8 @@ leaves the machine.
 
 It started as a Go CLI for dictation and grew into the stack around it: a menu
 bar app, Claude Code hooks that speak session status out loud, and an MCP server
-so other programs can use the same voice.
+so other programs can use the same voice. If you want a dictation app, the ones
+below are better at that. This is the substrate underneath one.
 
 ## Quick start
 
@@ -75,6 +76,30 @@ wraps.)
 **Spoken Claude Code notifications.** Hooks that say when Claude finishes a turn
 or needs a decision, optionally shortened by a local Ollama model first. They are
 plain bash, so they work on a machine where the Go binary was never installed.
+
+## If you are comparing it to a dictation app
+
+You probably should use a dictation app. [VoiceInk](https://github.com/beingpax/VoiceInk)
+is open source, has a real installer and a large user base;
+[Handy](https://github.com/cjpais/Handy) is cross-platform and states its scope
+perfectly — "one tool, one job";
+[superwhisper](https://superwhisper.com) and [MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper)
+are polished commercial products. All of them run locally too. Privacy is not
+the difference between us.
+
+The difference is shape. Those are applications: the app is the product, and
+dictation is what it does. Here the *protocol* is the product. A CLI, a bash
+hook, an MCP client and a menu bar app are four peers that coordinate through
+the filesystem — one JSON config with three independent readers in Go, bash and
+Swift, one activity marker, one exclusive `flock(2)`. Nothing owns speech. The
+Claude Code hooks deliberately don't call the Go binary, so spoken notifications
+work on a machine where it was never installed.
+
+That buys composability and costs convenience. There is no signed `.dmg`, the
+install is `make`, and most of it needs Apple Silicon. Worth it if you want to
+script speech, drive it from an agent, or have a hook talk — and it is how the
+one capability here with no equivalent elsewhere exists at all: narrating a web
+page's accessibility tree the way a screen reader announces it.
 
 ## How it works
 
