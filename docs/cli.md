@@ -17,6 +17,7 @@ local-whisper
 |---|---|---|
 | `--model` | `base` | `base` (141MB) or `tiny` (74MB, faster, less accurate) |
 | `--lang` | `en` | Language code: `en`, `es`, `fr`, `de`, … |
+| `--beam-size` | whisper's (5) | Beam width; lower is faster and less accurate. See [tuning](tuning.md#whispercpp-speech-to-text) |
 | `--context` | — | Path to a context file (see below) |
 | `--output` | — | Also write the transcript to this file |
 | `--dir` | — | Change to this directory first |
@@ -64,7 +65,7 @@ local-whisper transcribe --lang es clip.wav
 local-whisper transcribe --output notes.txt meeting.wav
 ```
 
-Takes a WAV file. Same `--model` and `--lang` as dictation.
+Takes a WAV file. Same `--model`, `--lang` and `--beam-size` as dictation.
 
 ## Narrate an accessibility tree
 

@@ -161,8 +161,8 @@ func TestListVoicesToolDescribesVoices(t *testing.T) {
 
 func TestTranscribeToolReturnsTheText(t *testing.T) {
 	s := &spy{transcribe: func(model string, opts stt.Options) (string, error) {
-		if opts.AudioPath != "/tmp/clip.wav" || opts.Language != "es" {
-			t.Errorf("opts = %+v, want the requested path and language", opts)
+		if opts.AudioPath != "/tmp/clip.wav" || opts.Language != "es" || opts.BeamSize != 2 {
+			t.Errorf("opts = %+v, want the requested path, language and beam size", opts)
 		}
 		return "hola mundo", nil
 	}}
@@ -171,6 +171,7 @@ func TestTranscribeToolReturnsTheText(t *testing.T) {
 	res := callTool(t, session, "transcribe", map[string]any{
 		"audio_path": "/tmp/clip.wav",
 		"language":   "es",
+		"beam_size":  2,
 	})
 	if res.IsError {
 		t.Fatalf("transcribe returned an error: %s", resultText(t, res))

@@ -27,6 +27,7 @@ type options struct {
 	workDir     string
 	modelName   string
 	language    string
+	beamSize    int
 	noPaste     bool
 	noSound     bool
 	showStatus  bool
@@ -54,6 +55,7 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.workDir, "dir", "", "Run as if started from this directory (affects --context discovery)")
 	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc.")
+	flags.IntVar(&opts.beamSize, "beam-size", 0, beamSizeUsage)
 	flags.BoolVar(&opts.noPaste, "no-paste", false, "Don't auto-paste to clipboard/cursor")
 	flags.BoolVar(&opts.noSound, "no-sound", false, "Disable sound effects")
 	flags.BoolVar(&opts.showStatus, "verbose", true, "Show processing status")
@@ -114,6 +116,9 @@ func newTranscriber(modelName string) (stt.Client, error) {
 // run is the root command's RunE body: record, transcribe, output.
 func run(opts options) error {
 	if err := validateModel(opts.modelName); err != nil {
+		return err
+	}
+	if err := validateBeamSize(opts.beamSize); err != nil {
 		return err
 	}
 
@@ -202,6 +207,7 @@ func run(opts options) error {
 		OutputPath:    filepath.Join(tmpDir, "prompt.txt"),
 		ContextPrompt: contextPrompt,
 		Language:      opts.language,
+		BeamSize:      opts.beamSize,
 	})
 	if transcribeErr != nil {
 		return fmt.Errorf("transcription failed: %w", transcribeErr)

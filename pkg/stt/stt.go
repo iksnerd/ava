@@ -25,6 +25,9 @@ type Options struct {
 	OutputPath    string
 	ContextPrompt string
 	Language      string
+	// BeamSize is whisper.cpp's beam width. Zero leaves whisper-cli's own
+	// default (5) in place; lowering it trades accuracy for speed.
+	BeamSize int
 }
 
 // Client is satisfied by any one-shot transcription engine client

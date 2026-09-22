@@ -82,6 +82,7 @@ type transcribeArgs struct {
 	AudioPath string `json:"audio_path" jsonschema:"path to a 16kHz mono WAV file"`
 	Language  string `json:"language,omitempty" jsonschema:"language code such as en or es; defaults to en"`
 	Model     string `json:"model,omitempty" jsonschema:"whisper model size: base (default) or tiny"`
+	BeamSize  int    `json:"beam_size,omitempty" jsonschema:"beam width for decoding; lower is faster and less accurate. Omit for whisper's default of 5"`
 }
 
 type announceArgs struct {
@@ -147,12 +148,15 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateModel(model); err != nil {
 			return nil, nil, err
 		}
+		if err := validateBeamSize(args.BeamSize); err != nil {
+			return nil, nil, err
+		}
 		language := args.Language
 		if language == "" {
 			language = "en"
 		}
 
-		text, err := deps.Transcribe(model, stt.Options{AudioPath: args.AudioPath, Language: language})
+		text, err := deps.Transcribe(model, stt.Options{AudioPath: args.AudioPath, Language: language, BeamSize: args.BeamSize})
 		if err != nil {
 			return nil, nil, err
 		}

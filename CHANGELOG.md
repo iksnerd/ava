@@ -9,6 +9,9 @@ entry is a summary rather than a record kept as it happened.
 - **`local-whisper setup-model [--model base|tiny]`** downloads just the
   whisper.cpp model, including `tiny`, which `setup` never fetched. The
   model-not-found error now names it instead of printing a `curl` line (#1).
+- **`--beam-size`** on dictation and `transcribe`, and `beam_size` on the MCP
+  `transcribe` tool: whisper.cpp's beam width, passed only when set. Lowering
+  it trades accuracy for speed, mostly worth it on `tiny` (#3).
 
 ### Changed
 - Model downloads, from `setup`, `setup-model` and `scripts/setup-model.sh`,

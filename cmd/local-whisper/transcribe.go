@@ -19,6 +19,7 @@ func newTranscribeCmd() *cobra.Command {
 		language string
 		model    string
 		output   string
+		beamSize int
 	)
 
 	cmd := &cobra.Command{
@@ -30,7 +31,8 @@ func newTranscribeCmd() *cobra.Command {
 			"Runs whisper.cpp locally and works on any Mac.",
 		Example: "  local-whisper transcribe meeting.wav\n" +
 			"  local-whisper transcribe --lang es clip.wav\n" +
-			"  local-whisper transcribe --output notes.txt meeting.wav",
+			"  local-whisper transcribe --output notes.txt meeting.wav\n" +
+			"  local-whisper transcribe --model tiny --beam-size 1 clip.wav",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,6 +40,9 @@ func newTranscribeCmd() *cobra.Command {
 				return err
 			}
 			if err := validateModel(model); err != nil {
+				return err
+			}
+			if err := validateBeamSize(beamSize); err != nil {
 				return err
 			}
 
@@ -50,6 +55,7 @@ func newTranscribeCmd() *cobra.Command {
 				AudioPath:  args[0],
 				OutputPath: output,
 				Language:   language,
+				BeamSize:   beamSize,
 			})
 			if err != nil {
 				return fmt.Errorf("transcription failed: %w", err)
@@ -77,6 +83,7 @@ func newTranscribeCmd() *cobra.Command {
 	flags.StringVar(&language, "lang", "en", "Language code: en, es, fr, de, etc.")
 	flags.StringVar(&model, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
+	flags.IntVar(&beamSize, "beam-size", 0, beamSizeUsage)
 
 	_ = cmd.MarkFlagFilename("output", "txt")
 	_ = cmd.RegisterFlagCompletionFunc("model",

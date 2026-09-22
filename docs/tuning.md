@@ -145,6 +145,12 @@ request does.
 | `-sns` | — | Suppress non-speech tokens `(coughs)`, `[music]` |
 | `-l` | `--lang` | Language code |
 | `--prompt` | the context file | Vocabulary hints — see below |
+| `-bs` | `--beam-size` | Only when set; otherwise whisper-cli's default of 5 applies |
+
+`--beam-size` is on dictation, `transcribe` and the MCP `transcribe` tool
+(`beam_size`). Lowering it trades accuracy for speed, which is mostly worth
+doing on `tiny`: `--model tiny --beam-size 1` is greedy decoding on the
+smallest model.
 
 ### Vocabulary hints do more than any flag
 
@@ -161,13 +167,13 @@ how you stop it writing "cube control". See
 
 ### Flags the wrapper does not expose
 
-`whisper-cli` offers plenty more. None is wired up, and this is the honest
-reason: none has been needed. If you want one, the shape of the change is a
-flag on `local-whisper` plus a field on `stt.Options`.
+`whisper-cli` offers plenty more. None of these is wired up, and this is the
+honest reason: none has been needed. If you want one, follow `--beam-size`:
+a field on `stt.Options`, appended in `pkg/stt/whisper`'s `buildArgs` only when
+set, and a flag on dictation, `transcribe` and the MCP tool.
 
 | Flag | Default | Might matter when |
 | --- | --- | --- |
-| `-bs`, `--beam-size` | 5 | Lowering trades accuracy for speed |
 | `-bo`, `--best-of` | 5 | Same trade |
 | `-tp`, `--temperature` | 0.0 | Greedy by default; raising it rarely helps dictation |
 | `-nth`, `--no-speech-thold` | 0.60 | Recordings it wrongly calls silent |

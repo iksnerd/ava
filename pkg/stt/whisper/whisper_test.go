@@ -93,6 +93,44 @@ func TestTranscribeSuccess(t *testing.T) {
 	}
 }
 
+func TestTranscribePassesBeamSize(t *testing.T) {
+	for _, tc := range []struct {
+		beam int
+		want string
+	}{
+		{beam: 2, want: "beam=2"},
+		// Unset means whisper-cli's own default, so -bs must not be passed.
+		{beam: 0, want: "beam=\n"},
+	} {
+		testutil.PrependPath(t, "testdata/bin")
+		dir := t.TempDir()
+		audioPath := filepath.Join(dir, "audio.wav")
+		os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+		logPath := filepath.Join(dir, "whisper.log")
+		t.Setenv("WHISPER_LOG", logPath)
+
+		if _, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audioPath, BeamSize: tc.beam}); err != nil {
+			t.Fatalf("BeamSize %d: %v", tc.beam, err)
+		}
+		log, _ := os.ReadFile(logPath)
+		if !strings.Contains(string(log), tc.want) {
+			t.Errorf("BeamSize %d: whisper-cli invocation log = %q, want %q", tc.beam, log, tc.want)
+		}
+	}
+}
+
+func TestBuildArgsOmitsBeamSizeWhenUnset(t *testing.T) {
+	for _, a := range buildArgs("m.bin", stt.Options{}) {
+		if a == "-bs" {
+			t.Fatal("-bs was passed with BeamSize unset; that overrides whisper-cli's own default")
+		}
+	}
+	args := strings.Join(buildArgs("m.bin", stt.Options{BeamSize: 3}), " ")
+	if !strings.Contains(args, "-bs 3") {
+		t.Errorf("argv = %q, want -bs 3", args)
+	}
+}
+
 func TestTranscribeTrimsWhisperCliOutput(t *testing.T) {
 	testutil.PrependPath(t, "testdata/bin")
 

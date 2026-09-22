@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/iksnerd/local-whisper/pkg/stt"
@@ -41,13 +42,7 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 			"  %s", c.ModelPath, fix)
 	}
 
-	cmd := exec.Command("whisper-cli",
-		"-m", c.ModelPath,
-		"-f", opts.AudioPath,
-		"-t", "8", "-nt", "-sns",
-		"-l", opts.Language,
-		"--prompt", opts.ContextPrompt,
-	)
+	cmd := exec.Command("whisper-cli", buildArgs(c.ModelPath, opts)...)
 	// cmd.Output() leaves Stderr nil, so it buffers the child's stderr
 	// (whisper-cli's verbose model-load/timing logs) into ExitError.Stderr
 	// instead of printing it — silencing it on success, and giving a real
@@ -65,4 +60,21 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	text := strings.TrimSpace(string(out))
 	stt.WriteOutputIfRequested(opts, text)
 	return text, nil
+}
+
+// buildArgs is whisper-cli's argv. Optional decoding flags are only passed
+// when set, so an unset one keeps whatever default the installed whisper-cli
+// has rather than a copy of it frozen here.
+func buildArgs(modelPath string, opts stt.Options) []string {
+	args := []string{
+		"-m", modelPath,
+		"-f", opts.AudioPath,
+		"-t", "8", "-nt", "-sns",
+		"-l", opts.Language,
+		"--prompt", opts.ContextPrompt,
+	}
+	if opts.BeamSize > 0 {
+		args = append(args, "-bs", strconv.Itoa(opts.BeamSize))
+	}
+	return args
 }

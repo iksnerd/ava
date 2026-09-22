@@ -7,6 +7,7 @@ lang=""
 prompt=""
 audio=""
 model=""
+beam=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -14,6 +15,7 @@ while [ $# -gt 0 ]; do
     --prompt) prompt="$2"; shift 2 ;;
     -f) audio="$2"; shift 2 ;;
     -m) model="$2"; shift 2 ;;
+    -bs) beam="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -24,6 +26,7 @@ if [ -n "$WHISPER_LOG" ]; then
     echo "audio=$audio"
     echo "lang=$lang"
     echo "prompt=$prompt"
+    echo "beam=$beam"
   } > "$WHISPER_LOG"
 fi
 
