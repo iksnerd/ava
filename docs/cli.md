@@ -144,9 +144,10 @@ The word-error-rate figures in
 Whisper **Large-v3**, a far bigger model than the `base.en` here — they were
 never a measurement of this path.
 
-Voxtral is still used, in `voice-monitor`: that path streams at under 500ms,
-which whisper.cpp cannot do at all, since it runs one subprocess per complete
-file. See [`voice-monitor.md`](voice-monitor.md).
+Voxtral is still used, in `voice-monitor`: that path streams, where the wrapper
+here transcribes a complete file per subprocess. (whisper.cpp does ship a
+streaming example; it is not what `pkg/stt/whisper` wraps.) See
+[`voice-monitor.md`](voice-monitor.md).
 
 ## Context files
 

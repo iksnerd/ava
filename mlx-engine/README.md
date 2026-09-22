@@ -74,7 +74,8 @@ This server is TTS-only. It used to also serve Voxtral STT behind
 same 20s sample — whisper.cpp 1.26s against Voxtral's 17s warm and 127s cold
 (including a 108s model load), for a near-identical transcript. One-shot
 transcription is `pkg/stt/whisper`'s job now, and `cmd/voice-monitor` runs
-Voxtral in its own process for streaming, which whisper.cpp cannot do.
+Voxtral in its own process for streaming, which is a different shape from one
+subprocess per complete file.
 
 `mlx_audio` bundles a considerably longer list of STT/TTS models beyond what this
 server currently wires up — worth a look if a different accuracy/speed/voice

@@ -95,8 +95,8 @@ func Execute() {
 // behind --engine voxtral. It was removed after measuring it — on the same
 // 20s sample whisper.cpp took 1.26s and Voxtral 17s warm, 127s cold including
 // a 108s model load, for a near-identical transcript. mlx-engine is TTS-only
-// now; Voxtral still runs in voice-monitor, where it does streaming, which
-// whisper.cpp cannot do at all.
+// now; Voxtral still runs in voice-monitor, which needs streaming rather than
+// one subprocess per complete file.
 func newTranscriber(modelName string) (stt.Client, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

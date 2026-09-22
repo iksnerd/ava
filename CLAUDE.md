@@ -16,8 +16,8 @@ Voxtral STT path through `mlx-engine` was removed after it measured 13x slower
 than whisper.cpp on the same audio for a near-identical transcript.
 
 Voxtral is still the default engine of `cmd/voice-monitor`, which is a different
-problem — streaming a live transcript at under 500ms, which whisper.cpp cannot
-do. That lives in `voxtral/`, is opt-in via `make setup-voxtral`, and downloads
+problem: streaming a live transcript, where `pkg/stt/whisper` transcribes a
+complete file per subprocess. That lives in `voxtral/`, is opt-in via `make setup-voxtral`, and downloads
 its 2.9GB model on first real use. Don't assume it is available.
 
 Start/stop/check the mlx-engine (Kokoro) server with `local-whisper engine

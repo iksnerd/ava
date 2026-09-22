@@ -8,7 +8,9 @@
 //
 // Not to be confused with pkg/stt/realtime, an independent client that shells
 // out to voxtral/realtime.py for cmd/voice-monitor. Voxtral still earns its
-// place there: that path is streaming, which whisper.cpp cannot do at all.
+// place there: that path is streaming, and pkg/stt/whisper transcribes a
+// complete file per subprocess. (whisper.cpp does ship a streaming example;
+// it is simply not what this project wraps.)
 package mlx
 
 import (

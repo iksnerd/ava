@@ -49,8 +49,8 @@ failures that used to happen silently now say so.
   cold, for a near-identical transcript. `mlx-engine` is now TTS-only —
   resident memory dropped from 4056 MB to 834 MB, the 11 GB load peak and the
   2.9 GB model download are gone, and the 15-minute idle shutdown no longer
-  costs 108 seconds to undo. Voxtral still runs in `voice-monitor`, where it
-  streams at under 500ms, which whisper.cpp cannot do.
+  costs 108 seconds to undo. Voxtral still runs in `voice-monitor`, which needs
+  streaming rather than a subprocess per complete file.
 
 ### Fixed
 - `/events` lost any transcript delta broadcast between reading the history

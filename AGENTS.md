@@ -33,8 +33,8 @@ over HTTP through `pkg/mlx/` to the local `mlx-engine/` server.
 `mlx-engine/` used to serve STT as well, behind `--engine voxtral`. That was
 removed after measuring it: whisper.cpp took 1.26s on a 20s sample against
 Voxtral's 17s warm and 127s cold, for a near-identical transcript. Voxtral
-remains in `voxtral/` for `cmd/voice-monitor`, whose job is streaming — a thing
-whisper.cpp cannot do, since it runs one subprocess per complete file.
+remains in `voxtral/` for `cmd/voice-monitor`, whose job is streaming, where
+`pkg/stt/whisper` transcribes a complete file per subprocess.
 
 **Project Structure:**
 ```

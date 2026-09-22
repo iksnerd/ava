@@ -1,11 +1,7 @@
 // Package stt defines the shared shape of local-whisper's one-shot
-// speech-to-text engines, so cmd/local-whisper can select one at runtime
-// without branching on engine-specific types. pkg/stt/whisper implements
-// Client; pkg/mlx also does (its Transcribe method), but lives outside
-// this tree rather than nested under it — mlx-engine, the server it
-// wraps, serves TTS (Kokoro's /speak) as much as STT, so pkg/mlx is a
-// general mlx-engine client that happens to satisfy Client today, not an
-// STT-specific package. pkg/stt/realtime is STT too (used by
+// speech-to-text engine. pkg/stt/whisper is the only implementation now:
+// pkg/mlx used to be a second one, until measuring it removed the reason to
+// keep it. The interface stays because pkg/stt/realtime is STT too (used by
 // cmd/voice-monitor) but has a genuinely different, streaming shape
 // (StreamRealtime/ListInputDevices) so it doesn't implement Client either.
 //
