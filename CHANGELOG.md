@@ -6,6 +6,42 @@ entry is a summary rather than a record kept as it happened.
 ## Unreleased
 
 ### Fixed
+- **A stop could kill `ava` itself, including a running `ava mcp`.** While
+  waiting its turn to play, the Go speaker wrote its own PID into the file
+  every stop signals, so the menu bar's Stop, `ava stop` or a dictation
+  starting killed it, and left the menu bar showing "speaking". It now waits
+  for the stop marker instead, and a stop never signals its own process.
+- **Dictation deleted `ava-monitor`'s call transcripts.** It cleaned up by
+  removing the whole shared temp directory, including a live call's log.
+  Each dictation now gets its own directory and removes only that.
+- **`ava speak --async` did nothing.** The process exited before the
+  background speech started. It now hands the speech to a detached copy of
+  itself.
+- The MCP `speak` and `speak_accessibility_tree` tools and `ava a11y --voice`
+  now reject an unknown voice, as `ava speak` does, instead of speaking in
+  the macOS voice and reporting success; MCP `transcribe` checks the file
+  exists first.
+- `ava engine stop` no longer runs `pkill -f "uvicorn server:app"`, which
+  killed any FastAPI app on the machine started that way. It stops the
+  server with SIGTERM, checks a pid file's PID is really the server, and
+  `status` reports a server that answers `/health` as running.
+- The engine answers `/health` while it is speaking. Synthesis blocked the
+  event loop, so a second speaker during a long sentence decided the engine
+  was down and used the macOS voice, and the menu bar showed Stopped.
+- `ava engine` and speech auto-start find the engine script the same way;
+  `ava engine` ignored `MLX_ENGINE_SCRIPT`, so the two could drive different
+  scripts.
+- The menu bar app saves only the settings you change. It wrote every
+  setting, freezing all defaults into your config so later default changes
+  never reached you, and could overwrite a setting another process had just
+  written.
+- `speak.sh` passed a wrong-typed `sayRate` or `voice` from the config
+  straight through; it now type-checks them like the Go reader does.
+- The live transcript page refuses requests whose `Host` is not localhost,
+  so a web page cannot read it through DNS rebinding.
+- A failed speech auto-start says why, not just "exit status 1", and
+  whisper-cli runs under a 30-minute timeout instead of none.
+- The `.dmg` no longer carries the build machine's checkout path.
 - **The menu bar app never used Kokoro unless a server was already running.**
   Its bundled copy of `scripts/` looked for `mlx-engine/` inside the app,
   never found it, and its Start button waited two minutes before failing, so
@@ -17,6 +53,15 @@ entry is a summary rather than a record kept as it happened.
 - `MLX_ENGINE_PID_FILE` was never actually passed to the server: a comment
   after a line continuation turned it into a plain shell variable. Harmless so
   far only because the server's default is the same path.
+
+### Changed
+- The pre-commit hook runs the Go and Python suites when only scripts
+  change (tests in both read the scripts), and syntax-checks every script.
+  CI is tag-only, so a scripts-only commit used to land untested.
+- `scripts/mlx-engine-server.sh` is now tested as a process against temp
+  layouts (checkout, Ava.app, installed bundle, none) through `AVA_ENGINE_*`
+  test-hook overrides, and speech auto-start, `ava setup`'s engine step and
+  undecodable audio have tests where they had none.
 
 ## [0.6.0] — 2026-09-22
 
