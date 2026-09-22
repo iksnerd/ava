@@ -21,6 +21,20 @@ entry is a summary rather than a record kept as it happened.
   rather than the working tree, so a file importing something you never
   `git add`ed fails locally instead of on someone else's checkout.
 - `docs/tuning.md` and `docs/architecture.md`.
+- **`internal/protocol/protocol.json`, the one place the constants every runtime
+  shares are written** — the TTS activity dir and its env override, the playback
+  lock, the sidecar suffixes, mlx-engine's URL and pid file, the temp dir.
+  `make generate-protocol` renders it into Go, bash, Swift and Python; `make
+  check-protocol` fails when a rendered file is stale. It generates rather than
+  having each runtime read one file at startup because `go:embed` cannot reach a
+  parent directory, an installed binary has no `scripts/` beside it, and the app
+  bundle carries only what it was told to.
+- **`make check-names`** rejects a tracked filename that breaks another
+  checkout: a character outside `A-Za-z0-9._-`, a leading dash, a Windows
+  reserved device name, or two paths differing only by case.
+- A test that reads the flags out of the Makefile's Raycast generator and
+  asserts the CLI still defines them, so a generated launcher cannot outlive the
+  flags it passes.
 
 ### Changed
 - **CI now runs only on version tags.** No checks on pull requests or pushes to
@@ -49,6 +63,13 @@ entry is a summary rather than a record kept as it happened.
   subprocess.
 - `pkg/stt`'s package comment described a `Transcribe` method deleted when
   Voxtral left the dictation path.
+- **`internal/speaker` and `internal/ttscontrol` had drifted apart while still
+  agreeing on the value.** Both spelled `/tmp/ava-tts-active`, but only
+  ttscontrol honoured `TTSCONTROL_ACTIVITY_DIR`, so the variable that exists to
+  keep tests off the real shared directory redirected half the system. Both now
+  resolve through one function.
+- Three byte-identical `--server-url` help strings naming a port none of them
+  derived from the client, and four spellings of `/tmp/voice-input`.
 - **`make install-raycast` generated a command that could not run.** The two
   Voxtral Raycast generators went with the `--engine` flag; the whisper one
   kept emitting `--engine=whisper`, so the installed "Dictate with Whisper"
