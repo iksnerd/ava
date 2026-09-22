@@ -3,7 +3,12 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## Unreleased
+## [0.4.0] — 2026-09-22
+
+The release that makes the binary self-sufficient. `local-whisper setup`
+installs the dependencies, the speech model and the Kokoro engine — which now
+travels inside the binary — so a machine with no checkout gets the real voice
+rather than the macOS fallback. Tagged builds publish binaries.
 
 ### Added
 - **`local-whisper setup`** installs everything that is not the binary: `sox`
@@ -206,6 +211,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.4.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.4.0
 [0.3.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.2.0
 [0.1.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.1.0
