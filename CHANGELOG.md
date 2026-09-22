@@ -49,6 +49,21 @@ entry is a summary rather than a record kept as it happened.
   subprocess.
 - `pkg/stt`'s package comment described a `Transcribe` method deleted when
   Voxtral left the dictation path.
+- **`make install-raycast` generated a command that could not run.** The two
+  Voxtral Raycast generators went with the `--engine` flag; the whisper one
+  kept emitting `--engine=whisper`, so the installed "Dictate with Whisper"
+  command exited on `❌ unknown flag: --engine`. The flag survived the removal
+  pass because the Makefile writes it through an `@echo` line, where it reads
+  like prose rather than like a call site.
+- Four more references to the removed engine: `CLAUDE.md` contradicted itself
+  (one line says the flag is gone, another documented it), `AGENTS.md` called
+  `pkg/mlx` one of "the two engines", `scripts/setup-model.sh` told you Voxtral
+  models download on first run, and `mcp.go`'s doc comment still named Voxtral
+  as something the CLI uses.
+- A file whose name was a fragment of `check-portable-paths.sh` — a mistyped
+  redirect turned a shell snippet into a filename, and it was committed. `|` is
+  not legal on NTFS, so it broke a Windows checkout; neither guard in `make
+  lint` looks at filenames, only at contents.
 
 ## [0.2.0] — 2026-09-22
 

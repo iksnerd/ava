@@ -30,7 +30,7 @@ type mcpDeps struct {
 
 // newMcpCmd serves the local voice stack over MCP on stdio, so any MCP
 // client — Claude Code in another repo, another agent — can use the same
-// on-device Kokoro/Voxtral engines the CLI and the menu bar app use,
+// on-device whisper.cpp and Kokoro engines the CLI and the menu bar app use,
 // without this repo's scripts/ directory being on disk.
 //
 // Nothing here may write to stdout: that's the JSON-RPC channel, and a

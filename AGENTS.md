@@ -70,9 +70,10 @@ internal/speaker/               - synthesis + playback, joining scripts/speak.sh
 internal/ttscontrol/            - cancels speech in flight (Go port of stop-speaking.sh)
 internal/a11y/                  - accessibility tree -> screen-reader announcements + findings.
                                   Pure functions; rendering must be identical run to run
-pkg/stt/stt.go                  - Options/Client shapes shared by the two engines below,
-                                  plus WriteOutputIfRequested() they both call
-pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper (--engine whisper)
+pkg/stt/stt.go                  - Options/Client shapes every STT engine satisfies,
+                                  plus WriteOutputIfRequested() they call
+pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper; local-whisper's only
+                                  transcription engine
 pkg/mlx/mlx.go                  - mlx-engine HTTP client (Kokoro TTS) — lives at
                                   the top level, not nested under pkg/stt, since
                                   mlx-engine itself serves TTS as much as STT

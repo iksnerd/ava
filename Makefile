@@ -176,7 +176,7 @@ install-raycast: build setup-model
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# Local whisper voice transcription" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-$(abspath .)}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "exec $(abspath $(BINARY_PATH)) --engine=whisper" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "exec $(abspath $(BINARY_PATH))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/whisper-transcribe.sh
 
 
