@@ -45,6 +45,30 @@ that imports something you never `git add`ed fails here rather than on someone
 else's checkout. Docs-only commits skip the language checks and finish fast.
 `git commit --no-verify` skips it when you mean to.
 
+## Cutting a release
+
+Tagging is the whole trigger. `v*` starts CI, and once both test jobs pass a
+third job builds the two CLI binaries with GoReleaser and attaches them to the
+release.
+
+1. Move `CHANGELOG.md`'s `## Unreleased` section under the new version, and add
+   its link at the bottom.
+2. Commit, tag `vX.Y.Z`, push both.
+
+`make release-snapshot` builds exactly what the tag would publish and publishes
+nothing — worth running first, since the alternative is finding out from a
+release. `make release-notes` prints the newest changelog section, which is
+what CI feeds to `--release-notes`; GoReleaser's own commit-list generator is
+off, so the hand-written notes are the only ones.
+
+Two things about the artifacts. They are **Apple Silicon only** — the code
+shells out to `afplay`, `pbcopy`, `osascript` and `sox`, and the TTS engine is
+MLX, so a Linux build would compile and then fail at the first thing it did.
+And they are **unsigned**: macOS quarantines anything downloaded, so a
+recipient runs `xattr -c` before the binary will start. Signing needs an Apple
+Developer ID this project does not have, which is also why the menu bar app is
+not distributed this way.
+
 ## Things worth knowing before you change them
 
 **One config file, three readers.** `~/Library/Application Support/ava/config.json`

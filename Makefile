@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -24,6 +24,8 @@ help:
 	@echo "  make check-protocol     - Fail if a generated constants file is stale"
 	@echo "  make generate-enginedist - Refresh the engine bundle embedded in the binary"
 	@echo "  make check-enginedist   - Fail if the embedded engine bundle is stale"
+	@echo "  make release-snapshot   - Build the release artifacts locally, publishing nothing"
+	@echo "  make release-notes      - Print the newest CHANGELOG.md section (for --release-notes)"
 	@echo "  make check-names        - Fail if a tracked filename breaks another checkout"
 	@echo "  make check-docs         - Fail if a make target or script is documented nowhere"
 	@echo "  make install-hooks      - Enable the pre-commit hook (CI only runs on tags)"
@@ -137,6 +139,18 @@ generate-enginedist:
 
 check-enginedist:
 	@go run ./internal/enginedist/gen -check
+
+# Build exactly what a tag would publish, without publishing it. The --clean
+# is what makes the check meaningful: a stale dist/ from an earlier run is
+# indistinguishable from a successful build of the current tree.
+release-snapshot:
+	@goreleaser release --snapshot --clean
+
+# The newest CHANGELOG.md section, for `goreleaser release --release-notes`.
+# The changelog is written by hand and is the release notes; GoReleaser's own
+# commit-list generator is disabled so the two cannot contradict each other.
+release-notes:
+	@awk '/^## /{n++} n==1' CHANGELOG.md | tail -n +2
 
 check-docs:
 	@bash scripts/check-doc-coverage.sh

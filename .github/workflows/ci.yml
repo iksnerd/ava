@@ -83,3 +83,43 @@ jobs:
       # CUDA stack. uvx gets the same linting without the multi-gigabyte sync.
       - name: Lint Python
         run: uvx ruff check mlx-engine/ voxtral/ scripts/voice_hooks/
+
+  # Publishes the CLI binaries for a tag, and only for a tag: `if` guards
+  # against workflow_dispatch, which has no tag to release. It waits on both
+  # test jobs, because a release built from a tree that failed its own suite is
+  # worse than no release.
+  #
+  # The release itself is created by hand from CHANGELOG.md; `mode: keep-existing`
+  # in .goreleaser.yaml means this attaches artifacts without overwriting those
+  # notes, whichever order the two happen in.
+  #
+  # The binaries are unsigned. macOS quarantines anything downloaded, so a
+  # recipient clears it with `xattr -c` — the release footer says so. Signing
+  # needs a Developer ID certificate this project does not have.
+  release:
+    needs: [go, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # GoReleaser derives the version from `git describe`, which needs the
+          # tags and the history. A shallow clone would stamp every binary with
+          # the fallback version instead.
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Release notes from CHANGELOG.md
+        run: make release-notes > /tmp/release-notes.md
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean --release-notes /tmp/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

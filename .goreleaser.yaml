@@ -1,0 +1,96 @@
+# GoReleaser builds the two CLI binaries for a tagged release.
+#
+# Scope: the CLI only. The menu bar app is a Swift package that needs
+# notarization before a .dmg is worth distributing, which is blocked on an
+# Apple Developer Program membership (see TODO/issue #5).
+#
+# darwin/arm64 alone is deliberate. Cross-compilation is GoReleaser's usual
+# selling point and it is moot here: the code shells out to afplay, pbcopy,
+# osascript, say and sox, and the TTS engine is MLX, which has no Intel build.
+# A linux binary would compile and then fail at the first thing it did.
+#
+# What a downloaded binary can do on its own: `local-whisper setup` installs
+# sox, whisper-cli, the model and the Kokoro engine, which travels inside the
+# binary (internal/enginedist). No checkout needed.
+#
+# What it cannot do: pass Gatekeeper unsigned. A binary downloaded from a
+# release carries a quarantine attribute and macOS refuses it until the user
+# clears it — `xattr -c ./local-whisper` — or right-clicks Open. Signing needs
+# a Developer ID certificate this project does not have. Homebrew strips
+# quarantine on install, which is the argument for the tap in issue #5 over
+# telling people to curl a binary.
+version: 2
+
+project_name: local-whisper
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # The -X path must stay in step with the Makefile's LDFLAGS. It fails
+  # silently if it stops resolving — the build succeeds and --version quietly
+  # reports "dev" — so TestVersionStampingAgreesAcrossBuildSystems pins the two
+  # together rather than trusting this comment.
+  - id: local-whisper
+    main: ./cmd/local-whisper
+    binary: local-whisper
+    env: [CGO_ENABLED=0]
+    goos: [darwin]
+    goarch: [arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/iksnerd/local-whisper/internal/buildinfo.Version={{ .Summary }}
+
+  - id: voice-monitor
+    main: ./cmd/voice-monitor
+    binary: voice-monitor
+    env: [CGO_ENABLED=0]
+    goos: [darwin]
+    goarch: [arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/iksnerd/local-whisper/internal/buildinfo.Version={{ .Summary }}
+
+archives:
+  - id: default
+    ids: [local-whisper, voice-monitor]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - NOTICE
+      - CHANGELOG.md
+      # Nothing from scripts/ or mlx-engine/: the engine is embedded in the
+      # binary, and shipping a second copy beside it is how the two drift.
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ .Summary }}"
+
+changelog:
+  # CHANGELOG.md is written by hand and is the release notes; a second
+  # machine-generated list of commits beside it would contradict it within a
+  # release. `make release-notes` extracts the top section for --release-notes.
+  disable: true
+
+release:
+  # keep-existing so a release created by hand from CHANGELOG.md keeps its
+  # notes and just gains the artifacts.
+  mode: keep-existing
+  prerelease: auto
+  footer: |
+    **Apple Silicon only.** After downloading, clear the quarantine attribute
+    macOS adds to anything fetched from the internet, then install the rest:
+
+    ```bash
+    xattr -c local-whisper voice-monitor
+    ./local-whisper setup
+    ```
+
+    `setup` installs sox, whisper-cli, the whisper model and the Kokoro TTS
+    engine. These binaries are not signed with an Apple Developer ID.

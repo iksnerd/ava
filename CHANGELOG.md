@@ -21,6 +21,12 @@ entry is a summary rather than a record kept as it happened.
 - `setup` refuses an install path too long for espeak-ng's 160-byte data-path
   buffer. Past it the server starts, loads Kokoro, and dies on a missing
   `phontab` against a path that names neither the length nor the directory.
+- **GoReleaser builds the two CLI binaries for a tag** (`.goreleaser.yaml`), and
+  a third CI job attaches them to the release once both test jobs pass.
+  `darwin/arm64` only, deliberately: the code shells out to macOS tools and the
+  TTS engine is MLX. `make release-snapshot` builds the same artifacts locally
+  without publishing, and `make release-notes` prints the newest changelog
+  section, which is what CI hands to `--release-notes`.
 
 ### Fixed
 - `scripts/setup-deps.sh` still announced "Installing Voxtral inference server
