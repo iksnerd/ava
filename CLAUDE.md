@@ -39,6 +39,8 @@ make start-engine          # Start mlx-engine (Kokoro TTS server)
 make setup-voice-hooks     # Create the venv for scripts/voice_hooks/ (needed before hook-stop.sh/hook-notify.sh can summarize/truncate)
 ```
 
+To smoke-test mlx-engine for real (not the stubbed `make test-mlx-engine`), run it from a short path such as the repo's own `mlx-engine/` on a spare `--port`: espeak-ng truncates its data path at 160 bytes, so a venv under a long temp or scratch directory dies with a missing `phontab` that looks like a dependency bug (see `checkPathBudget` in `cmd/local-whisper/setup.go`).
+
 Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtral/`, `scripts/voice_hooks/`) are linted/formatted with `ruff` (a `uv` dev dependency in each's `pyproject.toml`); `E501` is intentionally off there since `ruff format` governs code line length and the rest is unwrappable help/print strings.
 
 ## Project Structure
