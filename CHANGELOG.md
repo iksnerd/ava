@@ -3,7 +3,12 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## Unreleased
+## [0.3.0] — 2026-09-22
+
+The release that gave the shared constants one owner. A protocol spelled out
+separately in Go, bash, Python and Swift is where most of this project's bugs
+have come from; it is now generated from one file, and the copies that cannot
+be generated fail a test when they disagree.
 
 ### Added
 - `go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest` is
@@ -163,5 +168,6 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.3.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.2.0
 [0.1.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.1.0
