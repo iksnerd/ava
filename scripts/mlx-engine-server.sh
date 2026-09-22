@@ -41,7 +41,11 @@ case "$1" in
         # `uv run` can fork a child rather than exec into it, in which case
         # $! captures the wrapper's PID, not the real server, and killing it
         # later leaves an orphaned uvicorn process still bound to the port.
-        nohup .venv/bin/uvicorn server:app --host 127.0.0.1 --port 8765 > "$LOG_FILE" 2>&1 &
+        # MLX_ENGINE_PID_FILE tells the server which file to clean up when it
+        # shuts itself down on idle. It used to hardcode a different path than
+        # this script writes, so a self-exit left the real pid file behind.
+        MLX_ENGINE_PID_FILE="$PID_FILE" \
+            nohup .venv/bin/uvicorn server:app --host 127.0.0.1 --port 8765 > "$LOG_FILE" 2>&1 &
         PID=$!
         echo $PID > "$PID_FILE"
         echo "✅ Server started with PID $PID. Logs at $LOG_FILE"

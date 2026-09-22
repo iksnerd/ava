@@ -16,6 +16,13 @@ TTS_MODEL_PATH = "mlx-community/Kokoro-82M-bf16"
 last_request_time = time.time()
 IDLE_TIMEOUT_SEC = 15 * 60  # 15 minutes
 
+# Which pid file to remove when shutting down on idle. scripts/mlx-engine-server.sh
+# passes the path it actually writes; the default matches that script so a
+# hand-started server still cleans up after itself. This was a hardcoded
+# "/tmp/voxtral-server.pid" — a path nothing else used — so every idle self-exit
+# left the real pid file on disk.
+PID_FILE = os.environ.get("MLX_ENGINE_PID_FILE", "/tmp/mlx-engine-server.pid")
+
 
 class SpeakRequest(BaseModel):
     text: str
@@ -66,7 +73,6 @@ async def idle_shutdown_checker():
             print(
                 f"Server idle for {IDLE_TIMEOUT_SEC / 60:.0f} minutes. Shutting down to free RAM..."
             )
-            PID_FILE = "/tmp/voxtral-server.pid"
             if os.path.exists(PID_FILE):
                 with contextlib.suppress(OSError):
                     os.remove(PID_FILE)

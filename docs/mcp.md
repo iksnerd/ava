@@ -7,10 +7,20 @@ Claude Desktop, or another agent, without this repo's `scripts/` directory
 being on disk.
 
 ```bash
-claude mcp add -s user local-whisper -- local-whisper mcp
+claude mcp add -s user local-whisper \
+  -e MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh" \
+  -- "$HOME/.local/bin/local-whisper" mcp
 ```
 
 MCP servers load when a session starts, so restart the session afterwards.
+
+Both details in that command matter for an installed binary. An absolute path
+to it, because the MCP client's working directory is not this repo. And
+`MLX_ENGINE_SCRIPT`, because `speak` starts the Kokoro server on demand by
+resolving `scripts/mlx-engine-server.sh` relative to the working directory —
+which will not be here. Without it, `speak` still works but falls back to the
+macOS `say` voice, and says so on stderr.
+
 Pass `--server-url` if `mlx-engine` isn't on the default
 `http://127.0.0.1:8765`.
 

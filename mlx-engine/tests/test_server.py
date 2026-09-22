@@ -152,6 +152,23 @@ class TestLazyModel:
 
 
 class TestIdleShutdown:
+    def test_pid_file_defaults_to_the_path_the_start_script_writes(self, server):
+        """The idle self-exit removes PID_FILE. It used to be a hardcoded
+        "/tmp/voxtral-server.pid" while scripts/mlx-engine-server.sh wrote
+        "/tmp/mlx-engine-server.pid", so shutting down on idle cleaned up a file
+        nothing created and left the real one behind.
+        """
+        assert server.PID_FILE == "/tmp/mlx-engine-server.pid"
+
+    def test_pid_file_follows_the_env_the_start_script_sets(self, monkeypatch):
+        monkeypatch.setenv("MLX_ENGINE_PID_FILE", "/tmp/somewhere-else.pid")
+        import sys
+
+        sys.modules.pop("server", None)
+        import server as reloaded
+
+        assert reloaded.PID_FILE == "/tmp/somewhere-else.pid"
+
     def test_timeout_is_fifteen_minutes(self, server):
         assert server.IDLE_TIMEOUT_SEC == 15 * 60
 
