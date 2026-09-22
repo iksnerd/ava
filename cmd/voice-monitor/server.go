@@ -18,6 +18,13 @@ const indexHTML = `<!doctype html>
   header { padding: 12px 20px; background: #1b1b1b; border-bottom: 1px solid #333; position: sticky; top: 0; }
   header .status { font-size: 13px; color: #8f8; }
   header .status.disconnected { color: #f88; }
+  header .actions { float: right; }
+  header button {
+    font: inherit; font-size: 12px; color: #eee; background: #2a2a2a;
+    border: 1px solid #444; border-radius: 5px; padding: 3px 9px; cursor: pointer;
+  }
+  header button:hover { background: #333; }
+  header button:disabled { opacity: .5; cursor: default; }
   main { padding: 20px; }
   #transcript { white-space: pre-wrap; font-size: 18px; line-height: 1.6; max-width: 70ch; }
   .hint { color: #888; font-size: 13px; margin-top: 20px; }
@@ -26,6 +33,10 @@ const indexHTML = `<!doctype html>
 </head>
 <body>
 <header>
+  <span class="actions">
+    <button id="copy" type="button">Copy</button>
+    <button id="save" type="button">Save</button>
+  </span>
   <strong>Voxtral Realtime Monitor</strong>
   &mdash; <span id="status" class="status disconnected" aria-live="polite">connecting…</span>
 </header>
@@ -79,6 +90,35 @@ const indexHTML = `<!doctype html>
     append(JSON.parse(e.data).text);
     waiting.hidden = true;
     if (stick) followTail();
+  };
+
+  // The transcript is also on disk, but the log path is not always where the
+  // reader is. Selection survives a delta now, so Cmd+A works — these just make
+  // it one click, and the Save name carries the date so two calls do not collide.
+  const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const flash = (btn, word) => {
+    const had = btn.textContent;
+    btn.textContent = word;
+    setTimeout(() => { btn.textContent = had; }, 1200);
+  };
+
+  document.getElementById('copy').onclick = async (e) => {
+    try {
+      await navigator.clipboard.writeText(el.textContent);
+      flash(e.target, 'Copied');
+    } catch {
+      flash(e.target, 'Blocked');   // clipboard needs a secure context
+    }
+  };
+
+  document.getElementById('save').onclick = (e) => {
+    const blob = new Blob([el.textContent], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'transcript-' + stamp() + '.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    flash(e.target, 'Saved');
   };
 </script>
 </body>

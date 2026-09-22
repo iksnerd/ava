@@ -63,6 +63,7 @@ fi
 # Cheap, and it has caught two real bugs. Runs on every commit, not just Go ones,
 # because a hardcoded path is as likely to land in a script or a doc.
 step "no hardcoded home dirs" bash -c "cd '$SNAP' && bash scripts/check-portable-paths.sh >/dev/null"
+step "docs mention every target" bash -c "cd '$SNAP' && bash scripts/check-doc-coverage.sh >/dev/null"
 
 # Swift is deliberately not built here: it needs Xcode, takes seconds, and would
 # make this hook something people turn off. `make check-swift-config` covers the

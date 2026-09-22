@@ -18,10 +18,14 @@ menu bar app do.
 ## Before you open a PR
 
 ```bash
-make lint           # go vet, gofmt, ruff, and the hardcoded-path check
+make lint           # go vet, gofmt, ruff, hardcoded paths, doc coverage
 make test
 make check-swift-config    # if you touched VoiceSettings.swift (needs swiftc)
 ```
+
+`make test` runs everything. To narrow it while iterating: `make test-mlx-engine`
+for the Kokoro server's HTTP contract, `make test-voxtral` for the filter and
+device resolution. `make uninstall-hooks` turns the pre-commit hook back off.
 
 **CI only runs on version tags here**, so a pull request will not get a green
 tick and a push to `main` will not be checked. Run the above yourself; that is

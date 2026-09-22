@@ -87,3 +87,19 @@ A global mute, an activity marker at `/tmp/ava-tts-active`, and an exclusive
 `speak.sh`, the menu bar app and the hooks. Two of them speaking over each other
 is the failure this prevents. `internal/speaker`'s package comment has the
 details.
+
+## The checks that hold this together
+
+Three scripts run in `make lint`, each written after the bug it now prevents:
+
+- `scripts/check-portable-paths.sh` (`make check-paths`) fails on a hardcoded
+  `/Users/<name>` in any tracked file. It was written after a PATH entry in `scripts/lib.sh` and a
+  dev-checkout fallback in `Paths.swift` both shipped.
+- `scripts/check-doc-coverage.sh` (`make check-docs`) fails when a Makefile
+  target or a `scripts/*.sh` is mentioned in no markdown file.
+  `make setup-blackhole` and `make setup` both existed for months, documented
+  nowhere. It caught itself on the first run, which is the correct behaviour.
+- `AvaMenuBar/scripts/check-config-contract.py` extracts `VoiceConfig` from the
+  Swift source, compiles it, and runs it against the same cases the Go and bash
+  readers face. It is `make check-swift-config`, kept out of `make test` because
+  it needs `swiftc`.

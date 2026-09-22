@@ -99,7 +99,9 @@ local-whisper engine stop
 ```
 
 Run from the repo root, or pass `--script` — it drives
-`scripts/mlx-engine-server.sh`, which owns the Python venv.
+`scripts/mlx-engine-server.sh`, which owns the Python venv. `make start-engine`,
+`make stop-engine` and `make status-engine` are thin wrappers around the same
+three commands.
 
 `stop` also disarms on-demand auto-start (`engineAutoStart` in the config), so
 the server stays stopped instead of the next hook bringing it back up; `start`

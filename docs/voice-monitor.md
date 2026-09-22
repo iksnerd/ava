@@ -43,6 +43,12 @@ bin/voice-monitor --device BlackHole --engine whisper --language de
 Open `http://localhost:8766` and watch the transcript. It is also written live
 to `/tmp/voice-input/transcript-<timestamp>.txt`.
 
+The page has **Copy** and **Save** buttons in the header. Save downloads a
+timestamped `.txt`, so it is the quickest way to keep a transcript from a
+machine where you would rather not go hunting through `/tmp`. Copy needs a
+secure context — over plain `http://localhost` browsers allow it, but it reports
+"Blocked" rather than failing silently if yours does not.
+
 `bin/voice-monitor devices` lists audio devices and their indices. Indices
 shift whenever devices are added or removed — including disconnecting
 headphones — so check them again if capture stops working.

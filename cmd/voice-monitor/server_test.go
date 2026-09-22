@@ -244,3 +244,28 @@ func TestSetSessionDoesNotTouchTheTranscript(t *testing.T) {
 		t.Errorf("sessionInfo = %q", h.sessionInfo())
 	}
 }
+
+// The page is the only place a reader sees the transcript live; the log file is
+// on disk but not always where they are. Selection survives a delta now, so
+// Cmd+A works, but a button is one click. Guarding the wiring, since a typo in
+// an element id fails silently in the browser.
+func TestIndexPageOffersCopyAndSave(t *testing.T) {
+	for _, want := range []string{
+		`id="copy"`,
+		`id="save"`,
+		"navigator.clipboard.writeText",
+		"a.download",
+		// Save names the file by timestamp so two calls in a session don't collide.
+		"transcript-",
+	} {
+		if !strings.Contains(indexHTML, want) {
+			t.Errorf("index page is missing %q", want)
+		}
+	}
+	// Both handlers must bind to ids that exist, or the click does nothing.
+	for _, id := range []string{"copy", "save"} {
+		if !strings.Contains(indexHTML, `getElementById('`+id+`')`) {
+			t.Errorf("no handler bound for #%s", id)
+		}
+	}
+}

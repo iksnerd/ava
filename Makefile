@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-docs check-swift-config install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -20,6 +20,7 @@ help:
 	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
 	@echo "  make check-swift-config - Check VoiceSettings.swift resolves the config like bash and Go (needs swift)"
 	@echo "  make check-paths        - Fail if any tracked file hardcodes a home directory"
+	@echo "  make check-docs         - Fail if a make target or script is documented nowhere"
 	@echo "  make install-hooks      - Enable the pre-commit hook (CI only runs on tags)"
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
@@ -117,6 +118,9 @@ check-swift-config:
 check-paths:
 	@bash scripts/check-portable-paths.sh
 
+check-docs:
+	@bash scripts/check-doc-coverage.sh
+
 # CI only runs on version tags, so this hook is the pre-merge signal. It checks
 # the staged snapshot rather than the working tree — see .githooks/pre-commit.
 install-hooks:
@@ -128,7 +132,7 @@ uninstall-hooks:
 	@git config --unset core.hooksPath || true
 	@echo "✅ hooks disabled"
 
-lint: vet fmt-check check-paths
+lint: vet fmt-check check-paths check-docs
 	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
 	@cd mlx-engine && uv run ruff check .
 	@cd voxtral && uv run ruff check .
