@@ -1,0 +1,79 @@
+#!/bin/bash
+# Checks the commit you are about to make — not the files lying in your working
+# directory. Those are different things, and the difference is the whole reason
+# this script is more than three lines.
+#
+# `git checkout-index` exports exactly the staged tree to a scratch directory,
+# and everything below runs there. A hook that instead runs `go build` in the
+# working tree passes when an unstaged edit or an untracked file supplies
+# something the commit itself is missing — a new import whose target was never
+# `git add`ed is the classic one. That combination never existed on disk for
+# anyone else, and the failure surfaces on someone else's checkout.
+#
+# CI is tag-only in this repo, so this is the only automated check between a
+# change and `main`. Bypass with `git commit --no-verify` when you mean to.
+set -uo pipefail
+
+# Nothing staged (e.g. `git commit` during a merge with no changes) — nothing to check.
+git diff --cached --quiet --diff-filter=ACMR && exit 0
+
+REPO="$(git rev-parse --show-toplevel)"
+SNAP="$(mktemp -d)/staged"
+mkdir -p "$SNAP"
+trap 'rm -rf "$(dirname "$SNAP")"' EXIT
+
+git checkout-index -a -f --prefix="$SNAP/"
+
+# Paths staged in this commit, by language, so a docs-only commit stays fast.
+staged() { git diff --cached --name-only --diff-filter=ACMR -- "$@"; }
+go_files="$(staged '*.go')"
+py_files="$(staged '*.py')"
+
+fail=0
+step() {
+    local label="$1"; shift
+    if ! out="$("$@" 2>&1)"; then
+        printf '  ✗ %s\n' "$label"
+        printf '%s\n' "$out" | sed 's/^/      /' | head -25
+        fail=1
+    else
+        printf '  ✓ %s\n' "$label"
+    fi
+}
+
+echo "pre-commit: checking the staged snapshot"
+
+# Runs in the snapshot, so a missing `git add` fails here rather than in CI.
+if [ -n "$go_files" ]; then
+    step "gofmt"        bash -c "cd '$SNAP' && test -z \"\$(gofmt -l .)\" || { gofmt -l .; false; }"
+    step "go build"     bash -c "cd '$SNAP' && go build ./..."
+    step "go vet"       bash -c "cd '$SNAP' && go vet ./..."
+    step "go test"      bash -c "cd '$SNAP' && go test -count=1 ./..."
+fi
+
+if [ -n "$py_files" ]; then
+    if command -v uvx >/dev/null 2>&1; then
+        step "ruff check"  bash -c "cd '$SNAP' && uvx ruff check mlx-engine/ voxtral/ scripts/voice_hooks/"
+        step "ruff format" bash -c "cd '$SNAP' && uvx ruff format --check mlx-engine/ voxtral/ scripts/voice_hooks/"
+    else
+        echo "  – ruff skipped (uvx not installed)"
+    fi
+fi
+
+# Cheap, and it has caught two real bugs. Runs on every commit, not just Go ones,
+# because a hardcoded path is as likely to land in a script or a doc.
+step "no hardcoded home dirs" bash -c "cd '$SNAP' && bash scripts/check-portable-paths.sh >/dev/null"
+
+# Swift is deliberately not built here: it needs Xcode, takes seconds, and would
+# make this hook something people turn off. `make check-swift-config` covers the
+# config contract when VoiceSettings.swift changes — run it yourself then.
+if [ -n "$(staged 'AvaMenuBar/Sources/AvaMenuBar/VoiceSettings.swift')" ]; then
+    echo "  ! VoiceSettings.swift is staged — run 'make check-swift-config' before pushing"
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "pre-commit failed. Fix the above, or 'git commit --no-verify' to skip."
+    exit 1
+fi
+echo "pre-commit: ok"

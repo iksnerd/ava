@@ -1,16 +1,22 @@
 name: CI
 
+# Deliberately tag-only: this fires on a release tag and at no other time.
+# Nothing runs on a pull request or on a push to main, so `make lint && make
+# test` locally is the only pre-merge signal — see CONTRIBUTING.md, which says
+# so rather than promising a green tick that will not appear.
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Not cancel-in-progress: a tag build is a release check, and cancelling one
+  # because another tag landed would leave the first release unverified.
+  cancel-in-progress: false
 
 jobs:
   # The Go code shells out to macOS tools but imports nothing platform-specific:

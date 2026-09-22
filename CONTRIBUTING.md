@@ -8,6 +8,7 @@ so the honest expectation is slow but real responses.
 ```bash
 brew install sox whisper-cpp go
 make setup          # system deps + the whisper model
+make install-hooks  # pre-commit checks; see below for why this matters here
 make test           # Go, mlx-engine, voxtral, and the voice hooks
 ```
 
@@ -22,8 +23,18 @@ make test
 make check-swift-config    # if you touched VoiceSettings.swift (needs swiftc)
 ```
 
-CI runs the same things on ubuntu and macOS. It needs no secrets, so a PR from
-a fork gets the same green tick you do.
+**CI only runs on version tags here**, so a pull request will not get a green
+tick and a push to `main` will not be checked. Run the above yourself; that is
+the deal. The workflow still exists and still runs on ubuntu and macOS, it just
+fires at release time.
+
+`make install-hooks` points `core.hooksPath` at `.githooks/`, which fills the
+gap: gofmt, build, vet, tests, ruff and the hardcoded-path check on every
+commit. It runs against the **staged snapshot**, exported with
+`git checkout-index`, not against your working directory — so staging a file
+that imports something you never `git add`ed fails here rather than on someone
+else's checkout. Docs-only commits skip the language checks and finish fast.
+`git commit --no-verify` skips it when you mean to.
 
 ## Things worth knowing before you change them
 
