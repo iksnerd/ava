@@ -2,10 +2,11 @@
 # Shared setup for ava's voice scripts (server control, speak, hooks).
 # Source this — never execute it directly.
 
-# Claude Code hooks run with a minimal PATH (no shell rc sourced), so pin the
-# dirs our dependencies actually live in (uv is under ~/.local/bin, not a
-# default system dir) regardless of who invokes us.
-export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+# Claude Code hooks run with a minimal PATH (no shell rc sourced), so make
+# sure the dirs our dependencies live in (uv is under ~/.local/bin, not a
+# default system dir) are on it. Appended, not prepended: the caller's PATH
+# still wins, which is what lets a test put a stub binary in front.
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

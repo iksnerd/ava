@@ -182,6 +182,7 @@ throwaway path instead of the real one; nothing in normal operation sets those.
 | `MLX_ENGINE_PID_FILE` | `mlx-engine/server.py` | The pid file the server removes on idle exit. `scripts/mlx-engine-server.sh` sets it so the two cannot disagree; also a test hook |
 | `VOICECONFIG_PATH` | `internal/voiceconfig` | Test hook: the config file the Go reader loads |
 | `VOICE_CONFIG_FILE`, `VOICE_DEFAULTS_FILE` | `scripts/lib.sh` | Test hook: the config and defaults files the bash reader loads, so the contract test can hand both readers the same fixture |
+| `AVA_ENGINE_PID_FILE`, `AVA_ENGINE_LOG`, `AVA_ENGINE_LOCKDIR`, `AVA_ENGINE_URL` | `scripts/mlx-engine-server.sh` | Test hook: throwaway pid file, log, start lock and URL, so the engine-script tests in `cmd/ava/engine_script_test.go` never touch the real engine |
 | `TTSCONTROL_ACTIVITY_DIR` | `internal/ttsproto` | Test hook: the speech activity-marker directory. Only the Go side honours it; `speak.sh`, the menu bar app and mlx-engine always use `/tmp/ava-tts-active` |
 
 The test suites also set a few variables (`AFPLAY_LOG`, `SOX_LOG`,

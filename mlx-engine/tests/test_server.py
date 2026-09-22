@@ -176,7 +176,7 @@ class TestIdleShutdown:
             "scripts/mlx-engine-server.sh no longer sources the generated "
             "protocol.sh, so its pid path can drift from server.py's again"
         )
-        match = re.search(r'^PID_FILE="([^"]*)"', script, re.MULTILINE)
+        match = re.search(r'^PID_FILE="\$\{AVA_ENGINE_PID_FILE:-([^}]*)\}"', script, re.MULTILINE)
         assert match, "scripts/mlx-engine-server.sh no longer assigns PID_FILE="
         assert match.group(1) == "$ENGINE_PID_FILE", (
             f"the start script sets PID_FILE={match.group(1)!r} instead of the "

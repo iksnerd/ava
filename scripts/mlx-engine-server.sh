@@ -1,6 +1,20 @@
 #!/bin/bash
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
+# engine_pid_alive: the pid file names a live process, and that process is
+# our server. kill -0 alone trusts a PID the OS may have handed to something
+# else after a crash, which made `start` report "already running" and `stop`
+# signal a stranger.
+engine_pid_alive() {
+    server_pidfile_alive "$PID_FILE" &&
+        ps -p "$(cat "$PID_FILE")" -o command= 2>/dev/null | grep -q "uvicorn server:app"
+}
+
+# engine_healthy: something is answering on the engine's URL.
+engine_healthy() {
+    curl -s -f -m 2 "$ENGINE_URL/health" >/dev/null 2>&1
+}
+
 # engine_root prints the directory holding a usable mlx-engine/ (one whose venv
 # exists), or fails. A checkout and the bundle `ava setup` installs both keep
 # it beside scripts/. The copy of scripts/ bundled inside Ava.app does not:
@@ -24,9 +38,13 @@ engine_root() {
 # Generated from internal/protocol/protocol.json; supplies ENGINE_PID_FILE
 # and ENGINE_URL. Never edit protocol.sh; run `make generate-protocol`.
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
-PID_FILE="$ENGINE_PID_FILE"
-LOG_FILE="/tmp/mlx-engine-server.log"
-START_LOCKDIR="/tmp/mlx-engine-server-start.lockdir"
+# The AVA_ENGINE_* overrides are test hooks: they point this script at
+# throwaway paths and a spare port, so a test of start/stop can never touch
+# the real engine. Nothing in normal operation sets them.
+PID_FILE="${AVA_ENGINE_PID_FILE:-$ENGINE_PID_FILE}"
+LOG_FILE="${AVA_ENGINE_LOG:-/tmp/mlx-engine-server.log}"
+START_LOCKDIR="${AVA_ENGINE_LOCKDIR:-/tmp/mlx-engine-server-start.lockdir}"
+ENGINE_URL="${AVA_ENGINE_URL:-$ENGINE_URL}"
 START_LOCK_STALE_SEC=30
 
 case "$1" in
@@ -48,11 +66,11 @@ case "$1" in
         fi
         trap 'server_lock_release "$START_LOCKDIR"' EXIT
 
-        if server_pidfile_alive "$PID_FILE"; then
+        if engine_pid_alive; then
             echo "✅ mlx-engine server is already running (PID: $(cat "$PID_FILE"))"
             exit 0
         fi
-        if curl -s -f $ENGINE_URL/health > /dev/null 2>&1; then
+        if engine_healthy; then
             echo "✅ Server already responding on $ENGINE_URL (started outside this script; not touching its PID)."
             exit 0
         fi
@@ -127,20 +145,28 @@ case "$1" in
             config_set_bool engineAutoStart false
         fi
 
-        if server_pidfile_alive "$PID_FILE"; then
+        # SIGTERM first so the server can shut down cleanly, KILL only if it
+        # will not. There used to be a `pkill -f "uvicorn server:app"` sweep
+        # here, for when `uv run` forked and $! was not the server; start now
+        # execs the venv's uvicorn directly, so the PID is exact, and the
+        # sweep only ever hit other projects' FastAPI apps.
+        if engine_pid_alive; then
             PID=$(cat "$PID_FILE")
             echo "🛑 Stopping mlx-engine server (PID: $PID)..."
-            kill -9 "$PID"
+            kill "$PID" 2>/dev/null
+            for _ in $(seq 1 50); do
+                kill -0 "$PID" 2>/dev/null || break
+                sleep 0.1
+            done
+            kill -9 "$PID" 2>/dev/null || true
+            echo "✅ Server stopped."
+        elif engine_healthy; then
+            echo "⚠️ A server is answering on $ENGINE_URL, but it was not started by"
+            echo "   this script, so it was left alone."
         else
-            echo "⚠️ Server is not running (per PID file)."
+            echo "⚠️ Server is not running."
         fi
         rm -f "$PID_FILE"
-        # `uv run` may fork rather than exec, leaving the actual uvicorn
-        # process alive as an orphan even after the tracked PID is killed —
-        # sweep for it explicitly so `stop` can't leave a stale server behind.
-        if pkill -f "uvicorn server:app" 2>/dev/null; then
-            echo "✅ Server stopped."
-        fi
         # Say what else changed. This flips a setting that outlives the
         # command, and printing only "Server stopped" is how a caller learns
         # about it later, from hooks that have quietly gone silent.
@@ -152,8 +178,12 @@ case "$1" in
         fi
         ;;
     status)
-        if server_pidfile_alive "$PID_FILE"; then
+        # Same test as start and the menu bar app: /health, not only the pid
+        # file, which a server started some other way never wrote.
+        if engine_pid_alive; then
             echo "🟢 mlx-engine server is RUNNING (PID: $(cat "$PID_FILE"))"
+        elif engine_healthy; then
+            echo "🟢 mlx-engine server is RUNNING on $ENGINE_URL (not started by this script, so no PID)"
         else
             echo "🔴 mlx-engine server is STOPPED"
         fi

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -29,23 +26,4 @@ func TestStopOffersAWayToKeepAutoStart(t *testing.T) {
 		return
 	}
 	t.Fatal("engine has no stop subcommand")
-}
-
-func TestStopScriptHandlesKeepAutoStartAndSaysWhatItChanged(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "scripts", "mlx-engine-server.sh"))
-	if err != nil {
-		t.Fatalf("read mlx-engine-server.sh: %v", err)
-	}
-	body := string(data)
-
-	if !strings.Contains(body, "--keep-autostart") {
-		t.Error("the control script does not handle --keep-autostart, so the CLI flag " +
-			"is accepted and then silently ignored — worse than not offering it")
-	}
-	// The disclosure is the point: a stop that prints only "Server stopped"
-	// is how a caller finds out about engineAutoStart later, from hooks that
-	// have quietly gone silent.
-	if !strings.Contains(body, "Hook auto-start is now OFF") {
-		t.Error("the control script no longer says that it turned hook auto-start off")
-	}
 }
