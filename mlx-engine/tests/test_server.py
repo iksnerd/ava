@@ -240,3 +240,15 @@ class TestRequestSurface:
         assert res.status_code == 200
         assert gen.last["voice"] == "bf_emma"
         assert gen.last["speed"] == 1.4
+
+    def test_split_pattern_is_forwarded_when_given(self, client, server, tmp_path):
+        gen = _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "a. b. c.", "split_pattern": r"\. "})
+        assert gen.last["split_pattern"] == r"\. "
+
+    def test_split_pattern_is_omitted_when_absent(self, client, server, tmp_path):
+        """Kokoro has its own default. Passing None would override it with
+        nothing rather than leaving it alone."""
+        gen = _stub_successful_tts(server, tmp_path)
+        client.post("/speak", json={"text": "hi"})
+        assert "split_pattern" not in gen.last

@@ -30,8 +30,14 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	// Check if model exists
 	if _, err := os.Stat(c.ModelPath); err != nil {
 		modelFile := filepath.Base(c.ModelPath)
-		return "", fmt.Errorf("whisper model not found at %s. Download with: wget -O %s https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%s",
-			c.ModelPath, c.ModelPath, modelFile)
+		// curl, not wget: macOS ships curl and does not ship wget, and this is
+		// the first error anyone who installed the binary without the repo sees.
+		return "", fmt.Errorf("whisper model not found at %s.\n"+
+			"Download it with:\n"+
+			"  mkdir -p %s\n"+
+			"  curl -L --create-dirs -o %s https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%s\n"+
+			"Or run `make setup-model` from a checkout.",
+			c.ModelPath, filepath.Dir(c.ModelPath), c.ModelPath, modelFile)
 	}
 
 	cmd := exec.Command("whisper-cli",

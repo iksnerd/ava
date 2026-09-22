@@ -24,7 +24,7 @@ Kokoro's own `generate()` accepts exactly five things:
 | `voice` | `voice` | A voice id, or several comma-separated to blend |
 | `speed` | `speed` | Rate multiplier; 1.0 is natural |
 | `lang_code` | *derived* | Taken from the voice id's first letter — see below |
-| `split_pattern` | not exposed | Defaults to splitting on blank lines |
+| `split_pattern` | `split_pattern` | Chunking regex. Defaults to blank lines |
 
 So the API surface is not missing much. `/speak` takes `text`, `voice` and
 `speed`, and derives `lang_code`. **Anything else is rejected with a 422**
@@ -99,8 +99,11 @@ style vectors, and the pipeline picks one by phoneme count
 different prosody for a short utterance than a long one.** That is by design,
 not drift.
 
-`split_pattern` (default: split on blank lines) is the other unexposed knob.
-Neither has been needed; both would be small additions if they were.
+`split_pattern` is exposed on `/speak`. Kokoro's default splits on blank lines,
+which is the wrong unit for text that arrives as one long paragraph — that lands
+as a single chunk and runs into the token cap. Pass `"\\. "` to chunk by
+sentence instead. Omit it entirely to keep Kokoro's default; sending `null` is
+the same as omitting it.
 
 ### Output is not deterministic
 

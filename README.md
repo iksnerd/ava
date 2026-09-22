@@ -32,6 +32,17 @@ export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
 local-whisper           # speak; the text lands wherever your cursor is
 ```
 
+Just want the CLI and no checkout?
+
+```bash
+brew install sox whisper-cpp
+go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest
+```
+
+That gets you the binary but not the 141MB model. Run `local-whisper` once and
+the error tells you the exact `curl` to fetch it. You lose the hooks, the menu
+bar app and the Kokoro server, all of which live in the repo.
+
 Switch to the app you want to dictate into before running it. On a first run
 your cursor is still in the terminal you just typed the command into, so your
 words get pasted at your own shell prompt — that is the tool working, not

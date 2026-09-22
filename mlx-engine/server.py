@@ -37,6 +37,11 @@ class SpeakRequest(BaseModel):
     text: str
     voice: str = "af_heart"
     speed: float = 1.0
+    # Kokoro's own chunking regex. Its default splits on blank lines, which is
+    # wrong for text that arrives as one long paragraph — that lands as a single
+    # chunk and hits the token cap. Exposed because it is one of the five things
+    # Kokoro's generate() actually accepts; see docs/tuning.md.
+    split_pattern: str | None = None
 
 
 class LazyModel:
@@ -159,6 +164,7 @@ async def speak(req: SpeakRequest):
                 voice=req.voice,
                 speed=req.speed,
                 lang_code=lang_code,
+                **({"split_pattern": req.split_pattern} if req.split_pattern else {}),
                 output_path=tmpdir,
                 file_prefix=prefix,
                 audio_format="wav",
