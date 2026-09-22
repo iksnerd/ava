@@ -53,9 +53,20 @@ else
     echo "✅ uv already installed"
 fi
 
+# mlx-engine is MLX, so Apple Silicon only. The README promises the default
+# engine works on any Mac, and it does — sox and whisper-cli above are the whole
+# of it. Attempting this sync on an Intel Mac failed the entire setup at the last
+# step, after everything that actually mattered had already succeeded.
+if [ "$(uname -m)" != "arm64" ]; then
+    echo "⏭️  Skipping mlx-engine (Apple Silicon only — MLX has no Intel build)."
+    echo "    The default whisper engine is fully set up and needs nothing else."
+    echo "    Voxtral, the Kokoro TTS server and call monitoring are unavailable"
+    echo "    on this Mac."
+    exit 0
+fi
+
 echo "⬇️  Installing Voxtral inference server dependencies..."
-cd mlx-engine && uv sync
-if [ $? -ne 0 ]; then
+if ! (cd mlx-engine && uv sync); then
     echo "❌ Failed to setup mlx-engine dependencies"
     exit 1
 fi

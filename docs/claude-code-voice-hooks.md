@@ -65,7 +65,8 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 | `stopMaxChars` | `TTS_STOP_MAX_CHARS` | 600 | Length cap for Stop-hook messages |
 | `notifyMaxChars` | `TTS_NOTIFY_MAX_CHARS` | 500 | Length cap for Notification messages |
 | `llmSummary` | — | `false` | Summarize over-length Stop messages with Ollama instead of truncating |
-| `summaryModel` | — | `qwen2.5:3b` | Ollama model used when `llmSummary` is on |
+| `summaryModel` | — | `qwen2.5:3b` | Ollama model used when `llmSummary` is on. Not checked for existence: if Ollama isn't installed or hasn't pulled this model, summarization silently falls back to truncation |
+| `engineAutoStart` | — | `true` | Whether a hook may start `mlx-engine` on demand. `local-whisper engine stop` and the menu bar app's Stop button both set this to `false`, so stopping the server stays stopped instead of the next hook bringing it straight back; `engine start` re-arms it. With it off, speech falls back to macOS `say` |
 
 A length cap of `0` or less means **unlimited** (the menu bar app's "No
 limit" toggle sets this).

@@ -23,8 +23,17 @@ make install-bin        # builds, downloads the 141MB model, installs to ~/.loca
 
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
 
-local-whisper           # speak; it lands wherever your cursor is
+local-whisper           # speak; the text lands wherever your cursor is
 ```
+
+Switch to the app you want to dictate into before running it — on a first run
+your cursor is still in the terminal you just typed the command into, so your
+words get pasted at your own shell prompt. That is the tool working, not
+failing. Binding it to a hotkey (below) is what makes this natural.
+
+`make install-bin` covers the default engine. `make setup` is the one-shot
+version if you also want the Voxtral and Kokoro path: it installs the system
+dependencies and downloads the model in one go.
 
 Two macOS permission prompts on first run. **Microphone**, for whatever you
 ran it from — if you miss or deny this one, recording still "succeeds" and

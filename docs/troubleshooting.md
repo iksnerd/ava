@@ -2,11 +2,37 @@
 
 ← [Back to the README](../README.md)
 
-## Recording never stops, or no speech is detected
+## `no audio recorded` — almost always the microphone permission
 
-Silence detection needs 2 seconds below a 3% threshold, so a noisy room can
-keep it recording. Check the input device in System Settings → Sound, and speak
-after the audio cue, not over it.
+This is the most common first-run failure, and the least self-explanatory,
+because a denied microphone does not look like an error: `sox` exits
+successfully and writes an empty file.
+
+Grant **Microphone** access to whatever you ran the command from — Terminal,
+iTerm, Raycast, your editor — under System Settings → Privacy & Security →
+Microphone. macOS asks once, per app. If you dismissed that prompt, or the app
+already had a stale denial, it will not ask again; add it by hand.
+
+Two things make this easy to misdiagnose:
+
+- The permission belongs to the **parent process**, not to `local-whisper`. The
+  same binary works from one terminal and records silence from another.
+- Running it over SSH, or from anything without a UI session, cannot prompt at
+  all.
+
+Once the permission is right and it still fails, check the input device in
+System Settings → Sound.
+
+## `no speech detected` — it heard something, just no words
+
+Different failure: audio was captured, and the transcriber found nothing in it.
+Silence detection needs 2 seconds below a 3% threshold, so a noisy room can also
+keep the recording going longer than you expect. Speak after the audio cue
+rather than over it, and check the input level in System Settings → Sound.
+
+If you passed a file to `local-whisper transcribe` and got this, the file is
+readable audio but silent. A file that is not decodable at all reports that
+instead, naming what it found in place of a RIFF/WAVE header.
 
 ## Nothing pastes
 

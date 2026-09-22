@@ -49,7 +49,7 @@ flowchart TB
         blackhole[("BlackHole 2ch\n(virtual loopback driver)")]
         speakers[("🔊 Real speakers\n(so you still hear the call)")]
 
-        vm["cmd/voice-monitor\nnet/http, stdlib only\n--diarize, --highpass-hz flags"]
+        vm["cmd/voice-monitor\nnet/http + cobra\n--diarize, --highpass-hz flags"]
         sse["/events (SSE)"]
         page["/ - live transcript page\n(EventSource, auto-updates)"]
         logf[("/tmp/voice-input/\ntranscript-&lt;ts&gt;.txt\n[Speaker N] prefixed on change")]

@@ -102,6 +102,24 @@ local-whisper engine stop
 Run from the repo root, or pass `--script` — it drives
 `scripts/mlx-engine-server.sh`, which owns the Python venv.
 
+`stop` also disarms on-demand auto-start (`engineAutoStart` in the config), so
+the server stays stopped instead of the next hook bringing it back up; `start`
+re-arms it. See
+[`claude-code-voice-hooks.md`](claude-code-voice-hooks.md#settings).
+
+`--script` only covers the explicit `engine` commands. The **implicit**
+auto-start — the one a hook or `local-whisper speak` triggers when the server is
+down — resolves the same script relative to the working directory, which is
+wrong for a binary installed to `~/.local/bin`. Set `MLX_ENGINE_SCRIPT` to an
+absolute path for that case:
+
+```bash
+export MLX_ENGINE_SCRIPT="$HOME/src/local-whisper/scripts/mlx-engine-server.sh"
+```
+
+Without it, an installed binary run from anywhere else falls back to macOS `say`
+rather than starting Kokoro — and now says so on stderr when it does.
+
 ## MCP server
 
 ```bash
