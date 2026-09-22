@@ -79,19 +79,20 @@ snapshot:
   version_template: "{{ .Summary }}"
 
 changelog:
-  # CHANGELOG.md is written by hand and is the release notes; a second
-  # machine-generated list of commits beside it would contradict it within a
-  # release. `make release-notes` extracts the top section for --release-notes.
-  disable: true
+  # CHANGELOG.md is written by hand and is the release notes; `make
+  # release-notes` extracts the top section for --release-notes. Do NOT set
+  # `disable: true` to avoid a generated commit list: disabling skips the whole
+  # changelog pipe, which is also the only place --release-notes is read, so
+  # the notes are silently dropped and the body is just the footer. That is
+  # how v0.4.0 and v0.5.0 went out. Given a notes file the pipe uses it and
+  # generates nothing (internal/pipe/changelog/changelog.go, Run).
+  disable: false
 
 release:
-  # replace, not the keep-existing default. CI creates the release and supplies
-  # the body from CHANGELOG.md via --release-notes, so the body is something we
-  # mean rather than something to preserve. v0.4.0 published with only the
-  # footer for a body under the default, which is what this is fixing — the
-  # notes file was 42 lines locally, so the mode is the likelier of the two
-  # candidates, and the CI step now also refuses an empty one to rule out the
-  # other.
+  # replace, not the keep-existing default: CI supplies the body from
+  # CHANGELOG.md via --release-notes, so the body is something we mean rather
+  # than something to preserve. (This alone did not fix the footer-only body;
+  # see `changelog` above.)
   mode: replace
   prerelease: auto
   footer: |
