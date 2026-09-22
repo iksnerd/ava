@@ -32,13 +32,18 @@ cp "$DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 # runtime, falling back to the dev-checkout path only when unbundled).
 # .venv/__pycache__ are excluded: per-machine and uv-managed — voice_hooks/
 # syncs its own fresh on first use, same as `make setup-voice-hooks` today.
-# mlx-engine/ is deliberately NOT bundled (its venv alone is 1.3GB, plus a
-# 2.9GB Voxtral model download) — Dictate uses ava's default
-# `whisper` engine instead, and speak.sh already falls back to macOS `say`
-# when mlx-engine isn't set up, so the app is fully functional without it.
+# mlx-engine/ is deliberately NOT bundled: its venv alone is ~1.2GB, and the
+# Kokoro model downloads on first use anyway. The app runs the checkout's
+# engine instead (engine-root, below), or the one `ava setup` installed, and
+# speak.sh falls back to macOS `say` when neither exists.
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' \
     "$REPO_ROOT/scripts/" "$APP_DIR/Contents/Resources/scripts/"
 cp "$REPO_ROOT/bin/ava" "$APP_DIR/Contents/Resources/ava"
+# mlx-engine/ is not bundled (see above), so record where it lives: the
+# bundled mlx-engine-server.sh reads this to find the checkout's engine, which
+# is what the menu bar's Start button and speech auto-start run. Without it
+# the app could only use a server that something else had already started.
+echo "$REPO_ROOT" > "$APP_DIR/Contents/Resources/engine-root"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

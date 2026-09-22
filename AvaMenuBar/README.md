@@ -63,13 +63,18 @@ checkout's paths only when running unbundled (`swift run`).
 `mlx-engine/` is deliberately **not** bundled — its venv alone is 1.2GB, not
 something to freeze into a distributable app. Dictate is unaffected: it
 transcribes with whisper.cpp, which needs only `sox`, `whisper-cli` and a
-model. Speech is what changes. The bundled scripts look for `mlx-engine/`
-beside themselves and never find it, so the Server section's Start/Stop
-button fails and on-demand auto-start does nothing. `speak.sh` falls back to
-macOS's built-in `say` whenever the server is unreachable, so the app still
-works, with `say` in place of Kokoro. A server that is already running, from
-a checkout or from `ava engine start` after `ava setup`,
-is used as normal.
+model. For speech, `build-app.sh` records the checkout it was built from in
+`Resources/engine-root`, and the bundled `mlx-engine-server.sh` starts the
+engine from there: the Server section's Start button and on-demand
+auto-start run that checkout's `mlx-engine/`. Failing that it uses the engine
+`ava setup` installed. With neither, Start says so at once, and `speak.sh`
+falls back to macOS's built-in `say`, so the app still works with the system
+voice.
+
+The recorded path is why a checkout that moves needs the app rebuilt: until
+then Start finds no engine there. (Before 0.6.1 the bundled scripts only looked
+beside themselves, so Start always failed and speech was always `say` unless a
+server was already running.)
 
 **No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
 (`codesign -s -`), not notarized. Verified directly (mounted the `.dmg`,

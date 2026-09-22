@@ -1,6 +1,26 @@
 #!/bin/bash
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
-DIR="$ROOT_DIR"
+
+# engine_root prints the directory holding a usable mlx-engine/ (one whose venv
+# exists), or fails. A checkout and the bundle `ava setup` installs both keep
+# it beside scripts/. The copy of scripts/ bundled inside Ava.app does not:
+# there ROOT_DIR is the app's Resources/, so the menu bar's Start button
+# looked for Resources/mlx-engine, failed, and waited two minutes for a server
+# that had never started. build-app.sh records the checkout it was built from
+# in Resources/engine-root; the installed bundle is the last resort.
+engine_root() {
+    local recorded=""
+    [ -f "$ROOT_DIR/engine-root" ] && recorded="$(cat "$ROOT_DIR/engine-root")"
+    local installed="${AVA_ENGINE_DIR:-${LOCAL_WHISPER_ENGINE_DIR:-$HOME/Library/Application Support/ava/engine}}"
+    local d
+    for d in "$ROOT_DIR" "$recorded" "$installed"; do
+        if [ -n "$d" ] && [ -x "$d/mlx-engine/.venv/bin/uvicorn" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    return 1
+}
 # Generated from internal/protocol/protocol.json; supplies ENGINE_PID_FILE
 # and ENGINE_URL. Never edit protocol.sh; run `make generate-protocol`.
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
@@ -37,8 +57,15 @@ case "$1" in
             exit 0
         fi
 
-        echo "🚀 Starting local voice MLX server in the background..."
-        cd "$DIR/mlx-engine"
+        if ! DIR="$(engine_root)"; then
+            echo "❌ No mlx-engine to start: none beside these scripts ($ROOT_DIR),"
+            echo "   in the checkout this app was built from, or installed by \`ava setup\`."
+            echo "   Run \`ava setup\`, or \`make setup\` in a checkout."
+            exit 1
+        fi
+
+        echo "🚀 Starting the Kokoro TTS server from $DIR/mlx-engine..."
+        cd "$DIR/mlx-engine" || exit 1
         uv sync -q
         # Exec the venv's own uvicorn directly instead of `uv run uvicorn` —
         # `uv run` can fork a child rather than exec into it, in which case
@@ -47,13 +74,15 @@ case "$1" in
         # MLX_ENGINE_PID_FILE tells the server which file to clean up when it
         # shuts itself down on idle. It used to hardcode a different path than
         # this script writes, so a self-exit left the real pid file behind.
-        MLX_ENGINE_PID_FILE="$PID_FILE" \
-            # Host and port split out of the generated ENGINE_URL, so this cannot
-            # bind somewhere the clients are not looking.
-            engine_hostport="${ENGINE_URL#*//}"
-            nohup .venv/bin/uvicorn server:app \
-                --host "${engine_hostport%%:*}" --port "${engine_hostport##*:}" \
-                > "$LOG_FILE" 2>&1 &
+        # (It was never actually passed: a comment sat after the line
+        # continuation, turning the assignment into a plain shell variable.
+        # Harmless only because the server's default is the same path.)
+        # Host and port are split out of the generated ENGINE_URL, so this
+        # cannot bind somewhere the clients are not looking.
+        engine_hostport="${ENGINE_URL#*//}"
+        MLX_ENGINE_PID_FILE="$PID_FILE" nohup .venv/bin/uvicorn server:app \
+            --host "${engine_hostport%%:*}" --port "${engine_hostport##*:}" \
+            > "$LOG_FILE" 2>&1 &
         PID=$!
         echo $PID > "$PID_FILE"
         echo "✅ Server started with PID $PID. Logs at $LOG_FILE"
@@ -63,6 +92,14 @@ case "$1" in
             if curl -s -f $ENGINE_URL/health > /dev/null; then
                 echo "🎉 Server is up and ready!"
                 exit 0
+            fi
+            # A server that died at startup will not come up by waiting; say
+            # so now rather than after the full two minutes.
+            if ! kill -0 "$PID" 2>/dev/null; then
+                rm -f "$PID_FILE"
+                echo "❌ The server exited during startup. Last lines of $LOG_FILE:"
+                tail -5 "$LOG_FILE" | sed 's/^/   /'
+                exit 1
             fi
             sleep 1
         done

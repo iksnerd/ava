@@ -3,6 +3,21 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## Unreleased
+
+### Fixed
+- **The menu bar app never used Kokoro unless a server was already running.**
+  Its bundled copy of `scripts/` looked for `mlx-engine/` inside the app,
+  never found it, and its Start button waited two minutes before failing, so
+  every word came out in the macOS `say` voice. `build-app.sh` now records the
+  checkout the app was built from, and the start script looks there, then in
+  the engine `ava setup` installed. With neither it fails at once and says
+  what to run, and a server that dies during startup is reported immediately
+  instead of after the timeout.
+- `MLX_ENGINE_PID_FILE` was never actually passed to the server: a comment
+  after a line continuation turned it into a plain shell variable. Harmless so
+  far only because the server's default is the same path.
+
 ## [0.6.0] — 2026-09-22
 
 The project is called Ava now, after the menu bar app it already shipped. The
