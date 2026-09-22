@@ -6,7 +6,9 @@ and until now nothing checked any of it. It is TTS-only: the STT half moved out
 (see TestHealth).
 """
 
+import re
 import time
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -157,8 +159,23 @@ class TestIdleShutdown:
         "/tmp/voxtral-server.pid" while scripts/mlx-engine-server.sh wrote
         "/tmp/mlx-engine-server.pid", so shutting down on idle cleaned up a file
         nothing created and left the real one behind.
+
+        Read out of the script rather than written here: asserting the literal
+        would keep passing after someone moved the script's PID_FILE, which is
+        the half of the original bug this test existed to catch.
         """
-        assert server.PID_FILE == "/tmp/mlx-engine-server.pid"
+        script = (
+            Path(__file__).resolve().parents[2] / "scripts" / "mlx-engine-server.sh"
+        ).read_text()
+        match = re.search(r'^PID_FILE="([^"]*)"', script, re.MULTILINE)
+        assert match, (
+            "scripts/mlx-engine-server.sh no longer assigns PID_FILE= at the start "
+            "of a line; if it was renamed, rename it here too"
+        )
+        assert match.group(1) == server.PID_FILE, (
+            f"server.py writes {server.PID_FILE} but the start script writes "
+            f"{match.group(1)} — the idle exit will clean up a file nothing created"
+        )
 
     def test_pid_file_follows_the_env_the_start_script_sets(self, monkeypatch):
         monkeypatch.setenv("MLX_ENGINE_PID_FILE", "/tmp/somewhere-else.pid")

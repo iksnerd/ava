@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/iksnerd/local-whisper/internal/audio"
 	"github.com/iksnerd/local-whisper/internal/buildinfo"
 	"github.com/iksnerd/local-whisper/internal/procutil"
 	"github.com/iksnerd/local-whisper/pkg/stt/realtime"
@@ -67,7 +68,7 @@ func newRootCmd() *cobra.Command {
 	// Not 8765: that is mlx-engine's, and it is running whenever anything has
 	// used --engine voxtral or spoken (see CLAUDE.md's Ports convention).
 	flags.IntVar(&opts.port, "port", 8766, "Local HTTP port to serve the live transcript on")
-	flags.StringVar(&opts.logPath, "log", "", "Path to write the transcript log (default: /tmp/voice-input/transcript-<timestamp>.txt)")
+	flags.StringVar(&opts.logPath, "log", "", fmt.Sprintf("Path to write the transcript log (default: %s/transcript-<timestamp>.txt)", audio.TempDir))
 
 	cmd.AddCommand(newDevicesCmd(&opts.rootOptions))
 
@@ -89,10 +90,10 @@ func watch(opts watchOptions) error {
 
 	resolvedLog := opts.logPath
 	if resolvedLog == "" {
-		if err := os.MkdirAll("/tmp/voice-input", 0755); err != nil {
-			return fmt.Errorf("failed to create /tmp/voice-input: %w", err)
+		if err := os.MkdirAll(audio.TempDir, 0755); err != nil {
+			return fmt.Errorf("failed to create %s: %w", audio.TempDir, err)
 		}
-		resolvedLog = defaultLogPath("/tmp/voice-input", time.Now())
+		resolvedLog = defaultLogPath(audio.TempDir, time.Now())
 	}
 
 	logFile, err := os.OpenFile(resolvedLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)

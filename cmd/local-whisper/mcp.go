@@ -13,6 +13,7 @@ import (
 	"github.com/iksnerd/local-whisper/internal/speaker"
 	"github.com/iksnerd/local-whisper/internal/ttscontrol"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 	"github.com/iksnerd/local-whisper/pkg/stt"
 )
 
@@ -65,7 +66,7 @@ func newMcpCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "mlx-engine base URL (default http://127.0.0.1:8765)")
+	cmd.Flags().StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
 
 	return cmd
 }

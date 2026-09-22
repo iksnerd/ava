@@ -27,10 +27,19 @@ type Client struct {
 	ServerURL string
 }
 
+// DefaultServerURL is where mlx-engine binds. Exported because every command
+// that takes a --server-url flag has to name this default in its help text,
+// and three commands each spelling the port produced three help strings that
+// would have lied the moment the default moved. mlx-engine/server.py,
+// mlx-engine/Makefile and scripts/mlx-engine-server.sh spell it too — those
+// are pinned by TestDefaultServerURLMatchesEngine rather than shared, since
+// Go cannot hand a constant to Python or bash.
+const DefaultServerURL = "http://127.0.0.1:8765"
+
 // NewClient creates a new mlx-engine HTTP client.
 func NewClient(serverURL string) *Client {
 	if serverURL == "" {
-		serverURL = "http://127.0.0.1:8765"
+		serverURL = DefaultServerURL
 	}
 	return &Client{
 		ServerURL: serverURL,

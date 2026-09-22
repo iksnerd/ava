@@ -90,11 +90,18 @@ details.
 
 ## The checks that hold this together
 
-Three scripts run in `make lint`, each written after the bug it now prevents:
+Four scripts run in `make lint`, each written after the bug it now prevents:
 
 - `scripts/check-portable-paths.sh` (`make check-paths`) fails on a hardcoded
   `/Users/<name>` in any tracked file. It was written after a PATH entry in `scripts/lib.sh` and a
   dev-checkout fallback in `Paths.swift` both shipped.
+- `scripts/check-filenames.sh` (`make check-names`) fails on a tracked filename
+  that breaks another checkout: a character outside `A-Za-z0-9._-`, a leading
+  dash, a Windows reserved device name, or two paths differing only by case. It
+  exists because every other guard here reads file *contents*, so a file named
+  ``c -l)|count=$(list_files …`` — a shell fragment a mistyped redirect turned
+  into a filename — was committed, pushed and survived every green run. `|` is
+  illegal on NTFS, so that one also broke the clone on Windows outright.
 - `scripts/check-doc-coverage.sh` (`make check-docs`) fails when a Makefile
   target or a `scripts/*.sh` is mentioned in no markdown file.
   `make setup-blackhole` and `make setup` both existed for months, documented

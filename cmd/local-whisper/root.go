@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/iksnerd/local-whisper/internal/audio"
 	"github.com/iksnerd/local-whisper/internal/buildinfo"
 	"github.com/iksnerd/local-whisper/internal/clipboard"
 	"github.com/iksnerd/local-whisper/internal/procutil"
@@ -15,7 +16,9 @@ import (
 	"github.com/iksnerd/local-whisper/pkg/stt/whisper"
 )
 
-const tmpDir = "/tmp/voice-input"
+// tmpDir is internal/audio's, shared with voice-monitor so the two cannot
+// drift onto different directories.
+const tmpDir = audio.TempDir
 
 // options holds the parsed --flag values for the root command's RunE.
 type options struct {

@@ -22,10 +22,13 @@
 // kill the whole server. Cancellation mid-synthesis is instead observed
 // through the .stopped sidecar after the request returns.
 //
-// Keep this in sync with scripts/speak.sh by hand if the protocol changes —
-// same standing constraint internal/ttscontrol documents, for the same
-// reason: local-whisper is usually installed standalone to ~/.local/bin and
-// can't assume the repo's scripts/ directory is on disk.
+// The protocol's constants are not spelled here: they live in
+// internal/ttsproto, which both this package and internal/ttscontrol read,
+// and which carries the test pinning them to scripts/speak.sh. That pin is
+// the standing constraint, replacing the hand-sync note this comment used to
+// carry — local-whisper is usually installed standalone to ~/.local/bin and
+// can't assume the repo's scripts/ directory is on disk, so the bash copy
+// cannot simply be imported.
 package speaker
 
 import (
@@ -38,16 +41,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/iksnerd/local-whisper/internal/ttsproto"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
-
-// DefaultActivityDir mirrors speak.sh's ACTIVITY_DIR and the directory
-// internal/ttscontrol scans.
-const DefaultActivityDir = "/tmp/ava-tts-active"
-
-// DefaultLockPath mirrors speak.sh's PLAYBACK_LOCK.
-const DefaultLockPath = "/tmp/ava-tts-playback.lock"
 
 // playbackTimeout matches speak.sh's PLAYBACK_TIMEOUT_SEC: long enough for a
 // whole article read aloud in one go, short enough that one wedged player
@@ -107,8 +104,8 @@ func New(serverURL string) *Speaker {
 		Engine:      mlx.NewClient(serverURL),
 		Settings:    voiceconfig.Load,
 		AutoStart:   startEngine,
-		ActivityDir: DefaultActivityDir,
-		LockPath:    DefaultLockPath,
+		ActivityDir: ttsproto.ActivityDir(),
+		LockPath:    ttsproto.LockPath,
 	}
 	s.Play = s.playLocked
 	s.Say = renderWithSay

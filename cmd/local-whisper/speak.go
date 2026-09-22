@@ -9,6 +9,7 @@ import (
 
 	"github.com/iksnerd/local-whisper/internal/speaker"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and
@@ -60,7 +61,7 @@ func newSpeakCmd() *cobra.Command {
 	flags.StringVar(&voice, "voice", "", "Kokoro voice id, or two comma-separated to blend (default: the configured voice)")
 	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
-	flags.StringVar(&serverURL, "server-url", "", "mlx-engine base URL (default http://127.0.0.1:8765)")
+	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
 
 	// Shell completion for --voice: the ids are a closed set this binary
 	// already knows, so there is no reason to make anyone look them up.

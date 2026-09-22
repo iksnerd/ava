@@ -11,6 +11,7 @@ import (
 	"github.com/iksnerd/local-whisper/internal/a11y"
 	"github.com/iksnerd/local-whisper/internal/speaker"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
+	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
 
 // newA11yCmd renders a Chrome accessibility tree as screen-reader
@@ -90,7 +91,7 @@ func newA11yCmd() *cobra.Command {
 	flags.BoolVar(&quiet, "quiet", false, "Print the announcements without speaking them")
 	flags.StringVar(&voice, "voice", "", "Kokoro voice id to narrate with (default: the configured voice)")
 	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
-	flags.StringVar(&serverURL, "server-url", "", "mlx-engine base URL (default http://127.0.0.1:8765)")
+	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
 
 	_ = cmd.RegisterFlagCompletionFunc("mode",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
