@@ -7,6 +7,7 @@ and until now nothing checked any of it. It is TTS-only: the STT half moved out
 """
 
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -276,3 +277,63 @@ class TestRequestSurface:
         gen = _stub_successful_tts(server, tmp_path)
         client.post("/speak", json={"text": "hi"})
         assert "split_pattern" not in gen.last
+
+
+class TestSpeakDoesNotBlockHealth:
+    """generate_audio is blocking. Called from an `async def` handler it ran on
+    the event loop, so /health went unanswered for as long as a synthesis
+    took. The Go speaker gives /health 2s, and the menu bar polls it, so during
+    a long sentence a second speaker concluded the engine was down and fell
+    back to `say`, and the menu bar showed Stopped.
+    """
+
+    def test_health_answers_while_speak_is_synthesizing(self, client, server, tmp_path):
+        def slow_generate(**kwargs):
+            time.sleep(1.0)
+            (Path(kwargs["output_path"]) / f"{kwargs['file_prefix']}.wav").write_bytes(b"RIFF")
+
+        server.generate_audio = slow_generate
+        speaking = threading.Thread(
+            target=client.post,
+            args=("/speak",),
+            kwargs={"json": {"text": "a long sentence", "voice": "af_heart"}},
+        )
+        speaking.start()
+        time.sleep(0.2)
+
+        started = time.monotonic()
+        resp = client.get("/health")
+        waited = time.monotonic() - started
+        speaking.join()
+
+        assert resp.status_code == 200
+        assert waited < 0.5, f"/health took {waited:.2f}s while /speak was synthesizing"
+
+    def test_concurrent_speaks_still_synthesize_one_at_a_time(self, client, server, tmp_path):
+        """Moving synthesis off the event loop must not let two requests into
+        the model at once; MLX inference is not written to be re-entered."""
+        active = []
+        overlap = []
+
+        def tracked_generate(**kwargs):
+            active.append(1)
+            if len(active) > 1:
+                overlap.append(True)
+            time.sleep(0.3)
+            active.pop()
+            (Path(kwargs["output_path"]) / f"{kwargs['file_prefix']}.wav").write_bytes(b"RIFF")
+
+        server.generate_audio = tracked_generate
+        threads = [
+            threading.Thread(
+                target=client.post,
+                args=("/speak",),
+                kwargs={"json": {"text": f"line {i}", "voice": "af_heart"}},
+            )
+            for i in range(3)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert not overlap, "two /speak requests ran generate_audio at the same time"

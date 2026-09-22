@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import os
 import tempfile
+import threading
 import time
 
 from fastapi import FastAPI, HTTPException
@@ -140,14 +141,28 @@ async def health_check():
     }
 
 
+# One synthesis at a time. /speak is a plain `def`, so FastAPI runs it on a
+# worker thread and the event loop stays free to answer /health; it used to be
+# `async def`, and the blocking generate_audio held the loop for the whole
+# synthesis, so a concurrent speaker's health check timed out and it fell back
+# to `say`. The lock keeps the old single-flight behaviour: MLX inference is
+# not written to be re-entered, and the lazy model load must not run twice.
+synthesis_lock = threading.Lock()
+
+
 @app.post("/speak")
-async def speak(req: SpeakRequest):
+def speak(req: SpeakRequest):
     global last_request_time
     last_request_time = time.time()
 
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text must not be empty.")
 
+    with synthesis_lock:
+        return _synthesize(req)
+
+
+def _synthesize(req: SpeakRequest) -> Response:
     tts_model_instance = tts_model.get()
 
     # Kokoro voice ids are prefixed by language+locale (af_/am_ = American
