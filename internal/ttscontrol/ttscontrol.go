@@ -83,7 +83,9 @@ func killFromPidFile(pidFile string) {
 		return
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
+	// Never our own PID: a stop runs inside `ava`, and a pid file naming
+	// this process would make it SIGTERM itself.
+	if err != nil || pid == os.Getpid() {
 		return
 	}
 	_ = syscall.Kill(pid, syscall.SIGTERM)

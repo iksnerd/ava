@@ -3,10 +3,14 @@ package ttscontrol
 import (
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/iksnerd/ava/internal/ttsproto"
 )
 
 func TestStopSpeakingUsesEnvOverride(t *testing.T) {
@@ -104,5 +108,32 @@ func waitExited(t *testing.T, cmd *exec.Cmd, label string) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Errorf("%s process was not killed", label)
+	}
+}
+
+// A stop runs inside `ava` (dictation, `ava stop`, the MCP stop_speaking
+// tool), and a pid file naming that same process — as the Go speaker's used
+// to while queued — made it SIGTERM itself. Whatever a pid file says, a stop
+// must not signal its own process.
+func TestStopNeverSignalsItsOwnProcess(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "self")
+	if err := os.WriteFile(marker, nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(marker+ttsproto.PlayPIDSuffix, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := make(chan os.Signal, 1)
+	signal.Notify(got, syscall.SIGTERM)
+	defer signal.Stop(got)
+
+	stop(dir)
+
+	select {
+	case <-got:
+		t.Fatal("stop sent SIGTERM to its own process")
+	case <-time.After(100 * time.Millisecond):
 	}
 }

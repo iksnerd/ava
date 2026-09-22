@@ -32,12 +32,14 @@
 package speaker
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -259,11 +261,19 @@ func stopped(marker string) bool {
 	return err == nil
 }
 
+// lockPollInterval is how often a queued speak retries the playback lock
+// and checks whether it has been stopped.
+const lockPollInterval = 50 * time.Millisecond
+
 // playLocked runs afplay under an exclusive flock so concurrent speaks —
 // another Claude Code session's hook, a manual Read Aloud — queue instead of
-// overlapping. The PID file is written before the lock is acquired as well
-// as after the player starts, so a speak still waiting its turn can be
-// cancelled rather than only one already making noise.
+// overlapping.
+//
+// The PID file only ever names the player. It used to name this process
+// while it waited for the lock, so that a stop could cancel a queued speak;
+// but every stop SIGTERMs that PID, and this process is `ava` itself — for
+// `ava mcp`, the MCP server. A queued speak is cancelled instead by polling
+// for the .stopped sidecar, which every stop writes before it signals.
 func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) error {
 	lock, err := os.OpenFile(s.LockPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -271,9 +281,19 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 	}
 	defer lock.Close()
 
-	writePid(pidFile, os.Getpid())
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
-		return fmt.Errorf("acquire playback lock: %w", err)
+	marker := strings.TrimSuffix(pidFile, ttsproto.PlayPIDSuffix)
+	for {
+		err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			return fmt.Errorf("acquire playback lock: %w", err)
+		}
+		if stopped(marker) {
+			return nil
+		}
+		time.Sleep(lockPollInterval)
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 
