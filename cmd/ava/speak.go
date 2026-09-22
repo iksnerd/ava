@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -49,10 +53,12 @@ func newSpeakCmd() *cobra.Command {
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
 			}
+			if async {
+				return spawnDetached(detachedSpeakArgs(text, voice, speed, serverURL))
+			}
 			return speaker.New(serverURL).Speak(text, speaker.Options{
 				Voice: voice,
 				Speed: speed,
-				Async: async,
 			})
 		},
 	}
@@ -125,4 +131,43 @@ func validateVoice(voice string) error {
 		}
 	}
 	return nil
+}
+
+// detachedSpeakArgs is the child's command line for `speak --async`: the same
+// speech, synchronous, with the text after "--" so text starting with a dash
+// is not read as a flag.
+func detachedSpeakArgs(text, voice string, speed float64, serverURL string) []string {
+	args := []string{"speak"}
+	if voice != "" {
+		args = append(args, "--voice", voice)
+	}
+	if speed != 0 {
+		args = append(args, "--speed", strconv.FormatFloat(speed, 'f', -1, 64))
+	}
+	if serverURL != "" {
+		args = append(args, "--server-url", serverURL)
+	}
+	return append(args, "--", text)
+}
+
+// spawnDetached runs this binary with args in a new session, detached from
+// the caller's terminal, and returns without waiting.
+//
+// `speak --async` used to start a goroutine inside this process and return,
+// and the process exited with the goroutine still running: nothing was ever
+// spoken. Async only works where the process outlives the call, which for
+// the CLI means a second process. (The MCP server is long-lived, so it keeps
+// speaker.Options.Async.) A variable so tests can see what would be launched
+// without launching it.
+var spawnDetached = func(args []string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("find own binary for --async: %w", err)
+	}
+	cmd := exec.Command(self, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start background speaker: %w", err)
+	}
+	return cmd.Process.Release()
 }
