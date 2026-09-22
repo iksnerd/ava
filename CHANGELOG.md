@@ -31,6 +31,12 @@ entry is a summary rather than a record kept as it happened.
   It listened on `:8766`, so anyone on the same network could read a call
   transcript with no authentication, while the README and `SECURITY.md` said
   it stayed on `127.0.0.1`. It now binds loopback only.
+- mlx-engine's lockfile pinned versions with published advisories, including
+  `starlette` 1.0.0 and `python-multipart` 0.0.22, which serve the engine's
+  local port. Upgraded to 1.6.0 and 0.0.32, with `transformers`, `urllib3`,
+  `anyio`, `click`, `idna` and `msgpack`; `pip-audit` now reports nothing.
+  The copy embedded in the binary is regenerated, so `local-whisper setup`
+  installs the same set.
 - The release job published a body containing only the footer. GoReleaser's
   `release.mode` defaults to `keep-existing`, which declines to set the body;
   it is now `replace`, since CI supplies the body from `CHANGELOG.md`
