@@ -47,15 +47,13 @@ in this repo since it's a per-machine login item, not project config.
 ### Packaging for distribution
 
 `build-app.sh` also bundles `scripts/` (36MB) and a built `local-whisper`
-binary (8.3MB) into `Contents/Resources/`, and produces `.build/Claude
-Voice.dmg` — so the resulting `.app` runs from *any* checkout, not just
+binary (8.3MB) into `Contents/Resources/`, and produces `.build/Ava.dmg` — so the resulting `.app` runs from *any* checkout, not just
 this one. `Paths.swift` resolves `scriptsDir`/`dictateBinary` from that
 bundled `Resources/` at runtime when present, falling back to this dev
 checkout's paths only when running unbundled (`swift run`).
 
-`mlx-engine/` is deliberately **not** bundled — its venv alone is 1.3GB,
-plus a 2.9GB Voxtral model download, not something to freeze into a
-distributable app. This has two consequences on a machine that hasn't
+`mlx-engine/` is deliberately **not** bundled — its venv alone is 1.2GB, not
+something to freeze into a distributable app. This has two consequences on a machine that hasn't
 separately run `make setup-voxtral`:
 - Dictate uses `local-whisper`'s own default `whisper` engine instead of
   Voxtral, so it works with zero extra setup.

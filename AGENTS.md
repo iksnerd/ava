@@ -90,7 +90,7 @@ scaffolding), wrapped by `internal/speaker` (see `pkg/stt`'s own package doc
 comment for why).
 
 **External dependencies** (not in go.mod):
-- `whisper-cli` - OpenAI Whisper C++ implementation (`--engine whisper`, the default)
+- `whisper-cli` - OpenAI Whisper C++ implementation; the transcription engine
 - `sox` - Audio recording with silence detection
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
@@ -121,15 +121,15 @@ comment for why).
 - **Resource cleanup**: always check `os.Open`/HTTP response errors and `defer Close()` — a past leak in the voxtral health check (unclosed response body) is exactly the class of bug to avoid here.
 
 ## CLI Flags
-- `--engine string` (default "whisper") - Transcription engine: "whisper" (whisper.cpp subprocess) or "voxtral" (mlx-engine HTTP server)
-- `--context string` - Custom context file path (overrides global ~/.whisper-context) — whisper engine only, not yet sent to voxtral
+- `--context string` - Custom context file path (overrides global ~/.whisper-context)
 - `--dir string` - Change working directory before recording
 - `--lang string` (default "en") - Language code (en, es, fr, de, etc.)
-- `--model string` (default "base") - Model size: "base" (141MB, accurate) or "tiny" (74MB, faster) — whisper engine only
+- `--model string` (default "base") - Model size: "base" (141MB, accurate) or "tiny" (74MB, faster)
 - `--output string` - Save transcription to file (in addition to clipboard)
 - `--no-paste` - Skip auto-paste to cursor (still copies to clipboard)
 - `--no-sound` - Disable Blow.aiff and Pop.aiff audio cues
 - `--verbose` (default true) - Show processing status messages (🎤, 🧠, ✅, etc.)
+- `--quiet` - Inverse of `--verbose`, for symmetry with `a11y --quiet`
 
 ## CLI Subcommands
 - `local-whisper engine start` / `stop` / `status` - Manage the `mlx-engine` background server (wraps `scripts/mlx-engine-server.sh`; override its path with `--script`)
@@ -143,7 +143,7 @@ comment for why).
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- ~130 test functions across `cmd/local-whisper`, `cmd/voice-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,voiceconfig,speaker,ttscontrol,clipboard,recording,procutil}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
+- ~140 test functions across `cmd/local-whisper`, `cmd/voice-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,voiceconfig,speaker,ttscontrol,clipboard,recording,procutil}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio` and `pkg/stt` (the top-level Options/Client interface) have no test files (constants/interface only, nothing to unit-test)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations, HTTP client behavior, subprocess/signal helpers
 
