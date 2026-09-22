@@ -3,6 +3,15 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## Unreleased
+
+### Fixed
+- The release job published a body containing only the footer. GoReleaser's
+  `release.mode` defaults to `keep-existing`, which declines to set the body;
+  it is now `replace`, since CI supplies the body from `CHANGELOG.md`
+  deliberately. The CI step also refuses an empty notes file, because the two
+  causes are indistinguishable after the fact and only one of them was proven.
+
 ## [0.4.0] — 2026-09-22
 
 The release that makes the binary self-sufficient. `local-whisper setup`

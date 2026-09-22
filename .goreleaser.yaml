@@ -85,9 +85,14 @@ changelog:
   disable: true
 
 release:
-  # keep-existing so a release created by hand from CHANGELOG.md keeps its
-  # notes and just gains the artifacts.
-  mode: keep-existing
+  # replace, not the keep-existing default. CI creates the release and supplies
+  # the body from CHANGELOG.md via --release-notes, so the body is something we
+  # mean rather than something to preserve. v0.4.0 published with only the
+  # footer for a body under the default, which is what this is fixing — the
+  # notes file was 42 lines locally, so the mode is the likelier of the two
+  # candidates, and the CI step now also refuses an empty one to rule out the
+  # other.
+  mode: replace
   prerelease: auto
   footer: |
     **Apple Silicon only.**
