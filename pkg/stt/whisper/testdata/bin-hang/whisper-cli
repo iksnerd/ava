@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fixture whisper-cli that never finishes, for the timeout test.
+sleep 30

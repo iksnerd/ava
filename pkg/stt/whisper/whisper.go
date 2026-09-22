@@ -1,6 +1,7 @@
 package whisper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,19 +9,27 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/iksnerd/ava/pkg/stt"
 )
 
+// DefaultTimeout bounds one transcription. base.en runs at roughly 16x real
+// time, so this covers files of several hours; it exists so that a hung
+// whisper-cli cannot block its caller (an MCP transcribe call, say) forever.
+const DefaultTimeout = 30 * time.Minute
+
 // Client wraps the whisper-cli command-line tool
 type Client struct {
 	ModelPath string
+	Timeout   time.Duration
 }
 
 // NewClient creates a new Whisper client
 func NewClient(modelPath string) *Client {
 	return &Client{
 		ModelPath: modelPath,
+		Timeout:   DefaultTimeout,
 	}
 }
 
@@ -42,13 +51,26 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 			"  %s", c.ModelPath, fix)
 	}
 
-	cmd := exec.Command("whisper-cli", buildArgs(c.ModelPath, opts)...)
+	timeout := c.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "whisper-cli", buildArgs(c.ModelPath, opts)...)
+	// Killing whisper-cli is not enough if something it started still holds
+	// the output pipe (a wrapper script's child): Output() would wait on the
+	// pipe regardless. WaitDelay bounds that wait after the kill.
+	cmd.WaitDelay = 2 * time.Second
 	// cmd.Output() leaves Stderr nil, so it buffers the child's stderr
 	// (whisper-cli's verbose model-load/timing logs) into ExitError.Stderr
 	// instead of printing it — silencing it on success, and giving a real
 	// diagnostic instead of a bare "exit status 1" on failure.
 
 	out, err := cmd.Output()
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", fmt.Errorf("whisper-cli timed out after %s", timeout)
+	}
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iksnerd/ava/internal/testutil"
 	"github.com/iksnerd/ava/pkg/stt"
@@ -209,5 +210,32 @@ func TestTranscribeCommandFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "whisper-cli: fixture failure") {
 		t.Errorf("err = %v, want it to include the captured stderr", err)
+	}
+}
+
+// whisper-cli ran with no timeout, so a hung process blocked its caller
+// forever: the CLI, and an MCP transcribe call with the session waiting on it.
+func TestTranscribeGivesUpOnAHungWhisperCli(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-hang")
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "audio.wav")
+	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
+
+	client := NewClient(fixtureModelPath)
+	client.Timeout = 200 * time.Millisecond
+
+	start := time.Now()
+	_, err := client.Transcribe(stt.Options{AudioPath: audioPath})
+	if err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("err = %v, want a timeout", err)
+	}
+	if took := time.Since(start); took > 5*time.Second {
+		t.Errorf("Transcribe returned after %s; the timeout did not stop whisper-cli", took)
+	}
+}
+
+func TestNewClientHasATimeout(t *testing.T) {
+	if NewClient("m.bin").Timeout <= 0 {
+		t.Error("a default client has no timeout, so a hung whisper-cli blocks forever")
 	}
 }
