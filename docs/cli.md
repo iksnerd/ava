@@ -96,6 +96,7 @@ of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 local-whisper engine start    # background the mlx-engine Kokoro TTS server
 local-whisper engine status
 local-whisper engine stop
+local-whisper engine stop --keep-autostart   # temporary stop; hooks stay armed
 ```
 
 Run from the repo root, or pass `--script` — it drives
@@ -105,8 +106,14 @@ three commands.
 
 `stop` also disarms on-demand auto-start (`engineAutoStart` in the config), so
 the server stays stopped instead of the next hook bringing it back up; `start`
-re-arms it. See
+re-arms it, and `stop` now says which it did. See
 [`claude-code-voice-hooks.md`](claude-code-voice-hooks.md#settings).
+
+Use `stop --keep-autostart` when the stop is temporary — you started the engine
+to check on it and want the machine back as you found it. Without it, undoing a
+throwaway stop means starting the server again, which is the opposite of
+tidying up, and the setting it changed outlives the command: every later hook
+speaks through macOS `say` until something re-arms it.
 
 `--script` only covers the explicit `engine` commands. The **implicit**
 auto-start — the one a hook or `local-whisper speak` triggers when the server is

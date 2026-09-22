@@ -35,6 +35,10 @@ entry is a summary rather than a record kept as it happened.
 - A test that reads the flags out of the Makefile's Raycast generator and
   asserts the CLI still defines them, so a generated launcher cannot outlive the
   flags it passes.
+- **`local-whisper engine stop --keep-autostart`**, for a stop that is meant to
+  be temporary. A plain `stop` writes `engineAutoStart=false` on purpose, but
+  that setting outlives the command, and undoing a throwaway stop previously
+  meant starting the server again — the opposite of putting things back.
 
 ### Changed
 - **CI now runs only on version tags.** No checks on pull requests or pushes to
@@ -70,6 +74,10 @@ entry is a summary rather than a record kept as it happened.
   resolve through one function.
 - Three byte-identical `--server-url` help strings naming a port none of them
   derived from the client, and four spellings of `/tmp/voice-input`.
+- **`engine stop` changed a persistent setting and said nothing.** It printed
+  only "Server stopped" while turning hook auto-start off, so the way you found
+  out was later, from hooks that had quietly started speaking through macOS
+  `say`. It now names what it changed and how to undo it.
 - **`make install-raycast` generated a command that could not run.** The two
   Voxtral Raycast generators went with the `--engine` flag; the whisper one
   kept emitting `--engine=whisper`, so the installed "Dictate with Whisper"

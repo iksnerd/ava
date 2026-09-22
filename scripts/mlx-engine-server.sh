@@ -74,7 +74,21 @@ case "$1" in
         # on-demand auto-start so the next Notification/Stop hook doesn't
         # silently bring the server right back up. See
         # voice_engine_autostart_enabled in lib.sh.
-        config_set_bool engineAutoStart false
+        #
+        # --keep-autostart opts out, for the case this flag exists to serve:
+        # something started the engine to check on it and wants to put the
+        # machine back as it found it. Without it the only way to undo a
+        # throwaway stop is to start the server again, which is the opposite
+        # of tidying up. Two sessions have now tripped over that.
+        if [ "${2:-}" = "--keep-autostart" ]; then
+            keep_autostart=true
+        elif [ -n "${2:-}" ]; then
+            echo "❌ Unknown option for stop: $2 (only --keep-autostart)" >&2
+            exit 1
+        else
+            keep_autostart=false
+            config_set_bool engineAutoStart false
+        fi
 
         if server_pidfile_alive "$PID_FILE"; then
             PID=$(cat "$PID_FILE")
@@ -89,6 +103,15 @@ case "$1" in
         # sweep for it explicitly so `stop` can't leave a stale server behind.
         if pkill -f "uvicorn server:app" 2>/dev/null; then
             echo "✅ Server stopped."
+        fi
+        # Say what else changed. This flips a setting that outlives the
+        # command, and printing only "Server stopped" is how a caller learns
+        # about it later, from hooks that have quietly gone silent.
+        if [ "$keep_autostart" = true ]; then
+            echo "   Hook auto-start left armed (--keep-autostart)."
+        else
+            echo "   Hook auto-start is now OFF, so speech will use macOS \`say\`"
+            echo "   until you run: local-whisper engine start"
         fi
         ;;
     status)
