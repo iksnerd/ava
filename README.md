@@ -183,6 +183,7 @@ Start here:
 | [`docs/cli.md`](docs/cli.md) | Every command and flag, context files |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | When nothing pastes, or nothing plays |
 | [`docs/tuning.md`](docs/tuning.md) | What the engines really expose: Kokoro's five parameters, inline stress and IPA markup, whisper.cpp flags |
+| [`docs/uninstall.md`](docs/uninstall.md) | Everything an install leaves on disk, and `make uninstall` |
 
 By component:
 [`docs/mcp.md`](docs/mcp.md) (the five MCP tools) ·

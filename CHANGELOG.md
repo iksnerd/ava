@@ -12,6 +12,9 @@ entry is a summary rather than a record kept as it happened.
 - **`--beam-size`** on dictation and `transcribe`, and `beam_size` on the MCP
   `transcribe` tool: whisper.cpp's beam width, passed only when set. Lowering
   it trades accuracy for speed, mostly worth it on `tiny` (#3).
+- **`docs/uninstall.md`** and **`make uninstall`**. The target removes what only
+  this project uses (the binaries, the Raycast script, the engine bundle) and
+  lists the rest, never touching the shared Hugging Face cache (#4).
 
 ### Changed
 - The live transcript page tells a dropped connection from a stopped monitor.

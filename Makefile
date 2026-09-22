@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -46,6 +46,7 @@ help:
 	@echo "  make status-engine      - Check if the Voxtral MLX server is running"
 	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
 	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
+	@echo "  make uninstall          - Remove the installed binaries, Raycast script and engine bundle"
 	@echo "  make clean              - Remove bin/ directory"
 	@echo ""
 
@@ -235,6 +236,25 @@ install-bin: build setup-model
 	@echo ""
 	@echo "Optional: Add to your PATH in ~/.zshrc or ~/.bash_profile:"
 	@echo "  export PATH=\"$(INSTALL_BIN_DIR):\$$PATH\""
+# Only what nothing else could be using. The whisper models, the Hugging Face
+# cache (shared with every MLX tool), Ava.app and its config are left alone and
+# listed instead; docs/uninstall.md covers them. --keep-autostart so stopping
+# the server does not rewrite the config the menu bar app may still be using.
+ENGINE_DIR=$(HOME)/Library/Application Support/ava/engine
+uninstall:
+	@if [ -x "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" ]; then \
+		"$(INSTALL_BIN_DIR)/$(BINARY_NAME)" engine stop --keep-autostart >/dev/null 2>&1 || true; \
+	fi
+	@for f in "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" "$(INSTALL_BIN_DIR)/$(MONITOR_BINARY_NAME)" \
+		"$(RAYCAST_DIR)/whisper-transcribe.sh" "$(ENGINE_DIR)"; do \
+		if [ -e "$$f" ]; then rm -rf "$$f" && echo "🗑️  Removed $$f"; fi; \
+	done
+	@echo "✅ Uninstalled. Left in place, see docs/uninstall.md to remove them:"
+	@echo "   ~/.local/share/whisper-cpp/ (whisper models)"
+	@echo "   ~/.cache/huggingface/hub/models--mlx-community--* (Kokoro, Voxtral; shared cache)"
+	@echo "   /Applications/Ava.app and ~/Library/Application Support/ava/config.json"
+	@echo "   Voice hook and MCP entries in ~/.claude/settings.json, if you added them"
+	@echo "   Microphone and Accessibility grants in System Settings"
 
 clean:
 	@echo "🧹 Cleaning up..."
