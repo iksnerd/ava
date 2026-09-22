@@ -265,12 +265,18 @@ func (e *stoppingEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
 // voice" unanswerable from the outside, which is exactly what happened before.
 func TestSpeakWarnsWhenItFallsBackToSay(t *testing.T) {
 	var notice strings.Builder
-	s, rec := newTestSpeaker(t, &stubEngine{healthy: false}, voiceconfig.Settings{})
+	s, rec := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(c *voiceconfig.Settings) { c.EngineAutoStart = true }))
 	s.Notice = &notice
-	s.AutoStart = func() error { return errors.New("mlx-engine not installed") }
+	started := 0
+	s.AutoStart = func() error { started++; return errors.New("mlx-engine not installed") }
 
 	if err := s.Speak("build finished", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
+	}
+	// With auto-start off (the zero Settings this test used to pass), the
+	// fallback happened without AutoStart ever being tried.
+	if started != 1 {
+		t.Errorf("AutoStart called %d times, want 1 before falling back", started)
 	}
 
 	if rec.saidText != "build finished" {
@@ -324,5 +330,57 @@ func TestEngineScriptPrefersTheOverride(t *testing.T) {
 	t.Setenv(EngineScriptEnv, "/custom/mlx-engine-server.sh")
 	if got := engineScript(); got != "/custom/mlx-engine-server.sh" {
 		t.Errorf("engineScript() = %q, want the %s override", got, EngineScriptEnv)
+	}
+}
+
+func autoStartOn(c *voiceconfig.Settings) { c.EngineAutoStart = true }
+
+func TestSpeakAutoStartsTheEngineAndUsesKokoro(t *testing.T) {
+	// Down until AutoStart brings it up, like the real server.
+	engine := &stubEngine{healthy: false, audio: []byte("RIFF")}
+	s, rec := newTestSpeaker(t, engine, settingsWith(autoStartOn))
+	started := 0
+	s.AutoStart = func() error { started++; engine.healthy = true; return nil }
+
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+	if started != 1 {
+		t.Errorf("AutoStart called %d times, want 1", started)
+	}
+	if len(engine.calls) != 1 || rec.saidText != "" {
+		t.Errorf("engine calls %d, said %q; want Kokoro once and no `say`", len(engine.calls), rec.saidText)
+	}
+}
+
+// Auto-start can exit 0 without a server answering (another start already
+// in flight, a server that dies right after). That is a fallback, and it has
+// to say why.
+func TestSpeakFallsBackWhenAutoStartDoesNotBringTheEngineUp(t *testing.T) {
+	var notice strings.Builder
+	engine := &stubEngine{healthy: false}
+	s, rec := newTestSpeaker(t, engine, settingsWith(autoStartOn))
+	s.Notice = &notice
+	s.AutoStart = func() error { return nil }
+
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+	if rec.saidText != "hello" {
+		t.Errorf("said %q, want the `say` fallback", rec.saidText)
+	}
+	if !strings.Contains(notice.String(), "did not come up") {
+		t.Errorf("notice %q does not say the engine did not come up", notice.String())
+	}
+}
+
+// A deliberate `ava engine stop` turns auto-start off; speech must then not
+// quietly start the engine again.
+func TestSpeakDoesNotAutoStartWhenTheUserStoppedTheEngine(t *testing.T) {
+	s, _ := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(c *voiceconfig.Settings) { c.EngineAutoStart = false }))
+	s.AutoStart = func() error { t.Error("auto-started although the user stopped the engine"); return nil }
+
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
 	}
 }
