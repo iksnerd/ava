@@ -14,20 +14,20 @@ Kokoro voice it installed rather than the macOS fallback.
 ### Added
 - **`local-whisper setup-model [--model base|tiny]`** downloads just the
   whisper.cpp model, including `tiny`, which `setup` never fetched. The
-  model-not-found error now names it instead of printing a `curl` line (#1).
+  model-not-found error now names it instead of printing a `curl` line.
 - **`--beam-size`** on dictation and `transcribe`, and `beam_size` on the MCP
   `transcribe` tool: whisper.cpp's beam width, passed only when set. Lowering
-  it trades accuracy for speed, mostly worth it on `tiny` (#3).
+  it trades accuracy for speed, mostly worth it on `tiny`.
 - **`docs/uninstall.md`** and **`make uninstall`**. The target removes what only
   this project uses (the binaries, the Raycast script, the engine bundle) and
-  lists the rest, never touching the shared Hugging Face cache (#4).
+  lists the rest, never touching the shared Hugging Face cache.
 
 ### Changed
 - The live transcript page tells a dropped connection from a stopped monitor.
   An error shows amber **reconnecting…** while `EventSource` retries; only
   after 10 seconds without reconnecting does it turn red, now labelled
   "transcript stopped", with a ⚠ in the tab title. Both used to be the same red
-  "disconnected" (#2).
+  "disconnected".
 - Model downloads, from `setup`, `setup-model` and `scripts/setup-model.sh`,
   come from a pinned Hugging Face revision and are checked against its sha256.
   They used to fetch `resolve/main`, a mutable ref, and check nothing.
