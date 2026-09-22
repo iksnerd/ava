@@ -66,9 +66,15 @@ elif command -v curl >/dev/null 2>&1; then
     version="${TAG#v}"
     echo "⬇️  Downloading $TAG..."
     base="https://github.com/$REPO/releases/download/$TAG"
+    # Keep the published file name: checksums.txt lists the archive by that
+    # name, and saving it as anything else left the check nothing to verify.
     # Releases before 0.6.0 were published as local-whisper_<version>_...
-    curl -fsSL -o "$tmp/ava.tar.gz" "$base/ava_${version}_darwin_arm64.tar.gz" 2>/dev/null ||
-        curl -fsSL -o "$tmp/ava.tar.gz" "$base/local-whisper_${version}_darwin_arm64.tar.gz"
+    asset="ava_${version}_darwin_arm64.tar.gz"
+    curl -fsSL -o "$tmp/$asset" "$base/$asset" 2>/dev/null || {
+        rm -f "$tmp/$asset"   # a failed curl can leave an empty file for find to pick
+        asset="local-whisper_${version}_darwin_arm64.tar.gz"
+        curl -fsSL -o "$tmp/$asset" "$base/$asset"
+    }
     curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
 else
     echo "❌ Neither gh nor curl is available to download with."
