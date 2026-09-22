@@ -3,7 +3,7 @@
 // recorded wav must agree on it.
 package audio
 
-import "github.com/iksnerd/local-whisper/internal/protocol"
+import "github.com/iksnerd/ava/internal/protocol"
 
 // Target format sox is asked to produce/consume throughout this repo.
 const (
@@ -12,7 +12,7 @@ const (
 )
 
 // TempDir is where both binaries put the audio and transcripts they produce:
-// local-whisper's per-dictation wav (cleaned up on exit) and voice-monitor's
+// ava's per-dictation wav (cleaned up on exit) and ava-monitor's
 // transcript logs (kept — see the README's privacy section). One spelling,
 // because two spellings is how one of them ends up writing somewhere the
 // other never cleans.

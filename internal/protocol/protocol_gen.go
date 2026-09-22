@@ -41,6 +41,6 @@ const (
 	SynthPIDSuffix = ".synth.pid"
 
 	// Where both binaries put what they produce: per-dictation audio, cleaned
-	// up on exit, and voice-monitor transcript logs, which are kept.
+	// up on exit, and ava-monitor transcript logs, which are kept.
 	TempDir = "/tmp/voice-input"
 )

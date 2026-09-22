@@ -38,7 +38,7 @@ struct SettingsRow<Trailing: View>: View {
         // The title lives in a sibling view from the control, so VoiceOver read
         // the two separately: "slider, 50 percent" with no way to tell which
         // slider. Combining them makes the row announce "Volume, 50 percent".
-        // Ironic omission in the repo that ships `local-whisper a11y`.
+        // Ironic omission in the repo that ships `ava a11y`.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(subtitle.map { "\(title), \($0)" } ?? title)
     }

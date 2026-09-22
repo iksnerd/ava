@@ -1,15 +1,15 @@
 # MCP server
 
-`local-whisper mcp` serves the local voice stack to any MCP client over
+`ava mcp` serves the local voice stack to any MCP client over
 stdio. Same on-device Kokoro TTS and whisper.cpp STT the CLI, the hooks
 and the menu bar app use — but reachable from Claude Code in any repo,
 Claude Desktop, or another agent, without this repo's `scripts/` directory
 being on disk.
 
 ```bash
-claude mcp add -s user local-whisper \
+claude mcp add -s user ava \
   -e MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh" \
-  -- "$HOME/.local/bin/local-whisper" mcp
+  -- "$HOME/.local/bin/ava" mcp
 ```
 
 MCP servers load when a session starts, so restart the session afterwards.
@@ -72,7 +72,7 @@ client that keeps the pipe open — the repo's own tests do this over the
 SDK's in-memory transport:
 
 ```bash
-go test ./cmd/local-whisper/ -run 'Mcp|Tool|SpeakAccessibilityTree' -v
+go test ./cmd/ava/ -run 'Mcp|Tool|SpeakAccessibilityTree' -v
 ```
 
 That pattern selects the tests in `mcp_test.go`; they are named after the
@@ -80,7 +80,7 @@ tool they exercise rather than after MCP.
 
 ## Implementation notes
 
-- The server is `cmd/local-whisper/mcp.go`, built on
+- The server is `cmd/ava/mcp.go`, built on
   [`github.com/modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk).
 - Nothing may write to stdout while it runs: that's the JSON-RPC channel.
   Diagnostics go to stderr.

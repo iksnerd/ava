@@ -1,7 +1,11 @@
 # Build artifacts
 /bin/
 /dist/
+/ava
+/ava-monitor
+# Pre-0.6.0 binary names, still built by old checkouts and scripts.
 /local-whisper
+/voice-monitor
 
 # Python / mlx-engine
 mlx-engine/.venv/
@@ -53,7 +57,7 @@ scripts/voice_hooks/.ruff_cache/
 /SETUP.md
 
 # Transcripts: output, not source. mlx-engine/transcript.txt slipped into a
-# commit this way once, from a manual `local-whisper transcribe` run.
+# commit this way once, from a manual `ava transcribe` run.
 transcript.txt
 transcript-*.txt
 

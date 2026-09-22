@@ -1,8 +1,8 @@
-# voice-monitor — live call transcripts
+# ava-monitor — live call transcripts
 
 [← Back to the README](../README.md)
 
-`voice-monitor` streams a running transcript of whatever audio it is pointed
+`ava-monitor` streams a running transcript of whatever audio it is pointed
 at, serves it at `http://localhost:8766` over SSE, and writes it to a log file.
 Point it at your microphone for a room, or at a loopback device to capture a
 video call.
@@ -14,7 +14,7 @@ Apple Silicon only — it runs through MLX. See
 
 ```bash
 make setup-voxtral          # uv sync into voxtral/.venv; re-run after editing voxtral/pyproject.toml
-make build-voice-monitor
+make build-ava-monitor
 ```
 
 To capture a call rather than a microphone you also need a loopback device.
@@ -34,10 +34,10 @@ not distributed with this project.
 
 ```bash
 # Voxtral Realtime: <500ms latency, 13 languages
-bin/voice-monitor --device BlackHole
+bin/ava-monitor --device BlackHole
 
 # Whisper: ~1s latency, 99+ languages
-bin/voice-monitor --device BlackHole --engine whisper --language de
+bin/ava-monitor --device BlackHole --engine whisper --language de
 ```
 
 Open `http://localhost:8766` and watch the transcript. It is also written live
@@ -56,7 +56,7 @@ within 10 seconds it turns into a red **disconnected — transcript stopped**, a
 the tab title gets a ⚠ prefix. Since the server only exits on Ctrl-C, red means
 the monitor is no longer transcribing the call.
 
-`bin/voice-monitor devices` lists audio devices and their indices. Indices
+`bin/ava-monitor devices` lists audio devices and their indices. Indices
 shift whenever devices are added or removed — including disconnecting
 headphones — so check them again if capture stops working.
 
@@ -120,7 +120,7 @@ print(f'peak={np.abs(rec).max():.6f} rms={np.sqrt(np.mean(rec**2)):.6f} non-zero
 "
 ```
 
-Replace `INDEX` with the device index from `bin/voice-monitor devices`. A
+Replace `INDEX` with the device index from `bin/ava-monitor devices`. A
 `peak` of `0.000000` with `non-zero=0/64000` means audio is not reaching the
 device, and no amount of STT tuning will help.
 

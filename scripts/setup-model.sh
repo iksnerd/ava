@@ -5,14 +5,14 @@
 
 MODEL_DIR="$HOME/.local/share/whisper-cpp"
 MODEL_FILE="$MODEL_DIR/ggml-base.en.bin"
-# Pinned to a commit, with its sha256, to match `local-whisper setup-model`
-# (cmd/local-whisper/setup_model.go). resolve/main is a mutable ref.
+# Pinned to a commit, with its sha256, to match `ava setup-model`
+# (cmd/ava/setup_model.go). resolve/main is a mutable ref.
 MODEL_REVISION="5359861c739e955e79d9a303bcbc70fb988958b1"
 MODEL_SHA256="a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
 MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REVISION/ggml-base.en.bin"
 MODEL_SIZE="141MB"
 
-echo "🎙️  local-whisper Model Setup"
+echo "🎙️  ava Model Setup"
 echo ""
 
 # Create directory

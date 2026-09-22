@@ -57,7 +57,7 @@ func TestUngeneratedPortSpellingAgreesWithTheConstant(t *testing.T) {
 // The invariant is deliberately weak: it cannot tell which service a sentence
 // means, so it only asks that the number exist somewhere in the code. An
 // earlier, stronger version asserted every documented port was one this repo
-// *binds*, and failed twice on correct docs — once on voice-monitor's port,
+// *binds*, and failed twice on correct docs — once on ava-monitor's port,
 // once on Ollama's, which this project talks to but does not serve.
 func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 	root := filepath.Join("..", "..")
@@ -105,7 +105,7 @@ func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 	}
 
 	docRe := regexp.MustCompile(`(?:127\.0\.0\.1|localhost):(\d+)`)
-	for _, doc := range [][]string{{"SECURITY.md"}, {"README.md"}, {"docs", "architecture.md"}, {"docs", "mcp.md"}, {"docs", "voice-monitor.md"}, {"docs", "troubleshooting.md"}} {
+	for _, doc := range [][]string{{"SECURITY.md"}, {"README.md"}, {"docs", "architecture.md"}, {"docs", "mcp.md"}, {"docs", "ava-monitor.md"}, {"docs", "troubleshooting.md"}} {
 		for _, m := range docRe.FindAllStringSubmatch(mustRead(t, doc...), -1) {
 			if !inCode[m[1]] {
 				t.Errorf("%s quotes port %s, which appears in no source file — stale doc",

@@ -16,10 +16,10 @@ every Claude Code session):
 {
   "hooks": {
     "Notification": [
-      { "hooks": [{ "type": "command", "command": "bash /path/to/local-whisper/scripts/hook-notify.sh" }] }
+      { "hooks": [{ "type": "command", "command": "bash /path/to/ava/scripts/hook-notify.sh" }] }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "bash /path/to/local-whisper/scripts/hook-stop.sh" }] }
+      { "hooks": [{ "type": "command", "command": "bash /path/to/ava/scripts/hook-stop.sh" }] }
     ]
   }
 }
@@ -57,7 +57,7 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 
 | Config key | Env override | Default | Meaning |
 |---|---|---|---|
-| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. The Go side honours the same flag through `internal/voiceconfig`, so `local-whisper speak`/`a11y` and the MCP `speak` tool are silent too — they say so rather than reporting success. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Ava Mute` Service (see `../AvaMenuBar/README.md`). |
+| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. The Go side honours the same flag through `internal/voiceconfig`, so `ava speak`/`a11y` and the MCP `speak` tool are silent too — they say so rather than reporting success. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Ava Mute` Service (see `../AvaMenuBar/README.md`). |
 | `speed` | `TTS_SPEED` | 1.3 | Kokoro playback speed |
 | `volume` | `TTS_VOLUME` | 1.0 | `afplay` volume |
 | `voice` | — (2nd positional arg to `speak.sh`) | `af_heart` | Kokoro voice name |
@@ -66,7 +66,7 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 | `notifyMaxChars` | `TTS_NOTIFY_MAX_CHARS` | 500 | Length cap for Notification messages |
 | `llmSummary` | — | `false` | Summarize over-length Stop messages with Ollama instead of truncating |
 | `summaryModel` | — | `qwen2.5:3b` | Ollama model used when `llmSummary` is on. Not checked for existence: if Ollama isn't installed or hasn't pulled this model, summarization silently falls back to truncation |
-| `engineAutoStart` | — | `true` | Whether a hook may start `mlx-engine` on demand. `local-whisper engine stop` and the menu bar app's Stop button both set this to `false`, so stopping the server stays stopped instead of the next hook bringing it straight back; `engine start` re-arms it. With it off, speech falls back to macOS `say` |
+| `engineAutoStart` | — | `true` | Whether a hook may start `mlx-engine` on demand. `ava engine stop` and the menu bar app's Stop button both set this to `false`, so stopping the server stays stopped instead of the next hook bringing it straight back; `engine start` re-arms it. With it off, speech falls back to macOS `say` |
 
 A length cap of `0` or less means **unlimited** (the menu bar app's "No
 limit" toggle sets this).

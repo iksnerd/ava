@@ -1,8 +1,8 @@
-local-whisper
+ava
 Copyright (c) 2025 iksnerd
 Licensed under the MIT License. See LICENSE.
 
-This file records third-party components that local-whisper installs, invokes or
+This file records third-party components that ava installs, invokes or
 downloads but does not redistribute. Their licences are their own, and two of
 them are more restrictive than this project's — read the two headed WARNING if
 you are doing commercial work or redistributing a bundle.
@@ -71,7 +71,7 @@ mlx-community/whisper-large-v3-turbo-asr-fp16         MIT
   Multilingual speech-to-text fallback.
 
 WARNING: mlx-community/diar_sortformer_4spk-v1-fp32   CC-BY-NC-4.0
-  Speaker diarization, used only by `voice-monitor --diarize`.
+  Speaker diarization, used only by `ava-monitor --diarize`.
   Derived from nvidia/diar_sortformer_4spk-v1, whose model card states the
   licence covers use of the model and is accepted on download.
 

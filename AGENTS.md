@@ -1,29 +1,29 @@
-# local-whisper Agent Guide
+# Ava Agent Guide
 
-This repo is six components: the `local-whisper` Go CLI (dictation, speech,
-transcription, accessibility narration, and an MCP server), `cmd/voice-monitor`
+This repo is six components: the `ava` Go CLI (dictation, speech,
+transcription, accessibility narration, and an MCP server), `cmd/ava-monitor`
 (realtime call-transcript monitor), the `mlx-engine` Python server (local
 Kokoro TTS, used by the CLI, the hooks and the menu bar app), `voxtral/` (Python/MLX
-primitives used by `voice-monitor`), `scripts/` (Claude Code voice hooks), and
+primitives used by `ava-monitor`), `scripts/` (Claude Code voice hooks), and
 `AvaMenuBar` (a Swift menu bar app for tuning voice settings). This
-guide covers the Go CLI (`local-whisper`) specifically; see each other
-component's own docs — `docs/voice-monitor.md` (`voice-monitor`), `mlx-engine/README.md`,
+guide covers the Go CLI (`ava`) specifically; see each other
+component's own docs — `docs/ava-monitor.md` (`ava-monitor`), `mlx-engine/README.md`,
 `docs/claude-code-voice-hooks.md`, `AvaMenuBar/README.md`,
 `docs/mcp.md`.
 
 ## Build Commands
-- `make build` - Compile binary to `bin/local-whisper`
+- `make build` - Compile binary to `bin/ava`
 - `make test` - Run all Go tests, the `scripts/voice_hooks/` pytest suite, and the `mlx-engine` and `voxtral` test suites (`make test-mlx-engine`, `make test-voxtral`)
 - `make lint` - `go vet`, format check, `check-paths`, `check-names`, `check-protocol`, `check-enginedist`, `check-docs`, then `ruff check` on the three Python projects
 - `make check-swift-config` - Check VoiceSettings.swift resolves the voice config the same way bash and Go do (needs swift; not part of `make test`)
 - `make check-paths` - Fail if any tracked file hardcodes a home directory (part of `make lint`)
-- `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/ (pinned revision, sha256-verified; `local-whisper setup-model` does the same without a checkout)
+- `make setup-model` - Download Whisper model to ~/.local/share/whisper-cpp/ (pinned revision, sha256-verified; `ava setup-model` does the same without a checkout)
 - `make install-raycast` - Build, download model, install Raycast command
 - `make install-bin` - Build, download model, install to ~/.local/bin
-- `make uninstall` - Remove what `install-bin`, `install-raycast` and `local-whisper setup` installed; see `docs/uninstall.md` for what it leaves
-- `make start-engine` / `stop-engine` / `status-engine` - Manage the `mlx-engine` background server (Kokoro TTS); thin wrappers around `local-whisper engine start` / `stop` / `status`
+- `make uninstall` - Remove what `install-bin`, `install-raycast` and `ava setup` installed; see `docs/uninstall.md` for what it leaves
+- `make start-engine` / `stop-engine` / `status-engine` - Manage the `mlx-engine` background server (Kokoro TTS); thin wrappers around `ava engine start` / `stop` / `status`
 - `make clean` - Remove bin/ directory
-- `go run ./cmd/local-whisper [flags]` - Run directly without building
+- `go run ./cmd/ava [flags]` - Run directly without building
 
 ## Architecture
 Multi-package CLI tool for local voice, in both directions. Transcription is
@@ -34,29 +34,29 @@ Multi-package CLI tool for local voice, in both directions. Transcription is
 `mlx-engine/` used to serve STT as well, behind `--engine voxtral`. That was
 removed after measuring it: whisper.cpp took 1.26s on a 20s sample against
 Voxtral's 17s warm and 127s cold, for a near-identical transcript. Voxtral
-remains in `voxtral/` for `cmd/voice-monitor`, whose job is streaming, where
+remains in `voxtral/` for `cmd/ava-monitor`, whose job is streaming, where
 `pkg/stt/whisper` transcribes a complete file per subprocess.
 
 **Project Structure:**
 ```
-cmd/local-whisper/main.go       - func main() { Execute() }
-cmd/local-whisper/root.go       - cobra root command: flags, RunE (record → transcribe → output)
-cmd/local-whisper/engine.go     - `engine` subcommand group (start/stop/status), wraps
+cmd/ava/main.go       - func main() { Execute() }
+cmd/ava/root.go       - cobra root command: flags, RunE (record → transcribe → output)
+cmd/ava/engine.go     - `engine` subcommand group (start/stop/status), wraps
                                   scripts/mlx-engine-server.sh
-cmd/local-whisper/model.go      - --model and --beam-size validation, model filename selection
-cmd/local-whisper/context.go    - .whisper-context loading
-cmd/local-whisper/dependencies.go - external dependency checks (sox, whisper-cli)
-cmd/local-whisper/speak.go      - `speak` (Kokoro or the `say` fallback; reads stdin with no args)
-cmd/local-whisper/stop.go       - `stop` (cancels speech from any source, incl. the hooks)
-cmd/local-whisper/voices.go     - `voices`, plus formatVoices() shared with the MCP list_voices tool
-cmd/local-whisper/transcribe.go - `transcribe <file>` (an existing WAV, vs. the root command recording one)
-cmd/local-whisper/a11y.go       - `a11y` (accessibility tree -> screen-reader announcements)
-cmd/local-whisper/mcp.go        - `mcp`: stdio MCP server exposing the five above to any MCP client.
+cmd/ava/model.go      - --model and --beam-size validation, model filename selection
+cmd/ava/context.go    - .whisper-context loading
+cmd/ava/dependencies.go - external dependency checks (sox, whisper-cli)
+cmd/ava/speak.go      - `speak` (Kokoro or the `say` fallback; reads stdin with no args)
+cmd/ava/stop.go       - `stop` (cancels speech from any source, incl. the hooks)
+cmd/ava/voices.go     - `voices`, plus formatVoices() shared with the MCP list_voices tool
+cmd/ava/transcribe.go - `transcribe <file>` (an existing WAV, vs. the root command recording one)
+cmd/ava/a11y.go       - `a11y` (accessibility tree -> screen-reader announcements)
+cmd/ava/mcp.go        - `mcp`: stdio MCP server exposing the five above to any MCP client.
                                   Nothing in this command may write to stdout — that's the JSON-RPC
                                   channel. See docs/mcp.md
-cmd/local-whisper/setup.go      - `setup`: sox + whisper-cli via Homebrew, the model, and the Kokoro
+cmd/ava/setup.go      - `setup`: sox + whisper-cli via Homebrew, the model, and the Kokoro
                                   engine bundle (from internal/enginedist); --skip-engine
-cmd/local-whisper/setup_model.go - `setup-model`: pinned-revision, sha256-verified model download
+cmd/ava/setup_model.go - `setup-model`: pinned-revision, sha256-verified model download
 internal/recording/recorder.go  - Audio recording, silence detection, and peak
                                   normalization (norm -3) in one sox invocation
 internal/audio/audio.go         - shared sox format constants (SampleRateHz, Channels)
@@ -86,18 +86,18 @@ internal/a11y/                  - accessibility tree -> screen-reader announceme
                                   Pure functions; rendering must be identical run to run
 pkg/stt/stt.go                  - Options/Client shapes of the one-shot STT engine,
                                   plus WriteOutputIfRequested()
-pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper; local-whisper's only
+pkg/stt/whisper/whisper.go      - whisper-cli subprocess wrapper; ava's only
                                   transcription engine
 pkg/mlx/mlx.go                  - mlx-engine HTTP client: Speak and Healthy. Lives at the
                                   top level, not under pkg/stt, because it is not STT
 mlx-engine/                     - the local Kokoro TTS server (separate Python/uv project)
 scripts/setup-model.sh          - Auto-download whisper model script
-scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine, wrapped by `local-whisper engine`
+scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine, wrapped by `ava engine`
 ```
 
 Not covered here: `pkg/stt/realtime` (a *different*, independent client —
-wraps `voxtral/realtime.py` via `os/exec`, used only by `cmd/voice-monitor`)
-and `voxtral/` itself. See `docs/voice-monitor.md`. There is no `pkg/tts`:
+wraps `voxtral/realtime.py` via `os/exec`, used only by `cmd/ava-monitor`)
+and `voxtral/` itself. See `docs/ava-monitor.md`. There is no `pkg/tts`:
 synthesis is `pkg/mlx.Client.Speak` (same server, same HTTP-client
 scaffolding), wrapped by `internal/speaker` (see `pkg/stt`'s own package doc
 comment for why).
@@ -107,12 +107,12 @@ comment for why).
 - `sox` - Audio recording with silence detection
 - `afplay` - Sound playback (macOS, async)
 - `osascript` - AppleScript for auto-paste (macOS)
-- `uv` - runs `mlx-engine`, the Kokoro TTS server (start it with `local-whisper engine start`, which shells out to `scripts/mlx-engine-server.sh`)
+- `uv` - runs `mlx-engine`, the Kokoro TTS server (start it with `ava engine start`, which shells out to `scripts/mlx-engine-server.sh`)
 
-**Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, downloaded by `make setup-model` or `local-whisper setup-model`)
+**Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, downloaded by `make setup-model` or `ava setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)
 
-**Voxtral**: used only by `cmd/voice-monitor`, through `voxtral/` and `pkg/stt/realtime`, never by `local-whisper`. See `docs/voice-monitor.md`.
+**Voxtral**: used only by `cmd/ava-monitor`, through `voxtral/` and `pkg/stt/realtime`, never by `ava`. See `docs/ava-monitor.md`.
 
 **Temp directory**: `/tmp/voice-input/` (raw/processed WAV files, transcript)
 
@@ -122,7 +122,7 @@ comment for why).
 - Normalizes audio before transcription
 
 ## Code Style
-- **Imports**: two external Go dependencies — `github.com/spf13/cobra` (and its `pflag` dependency) for the CLI command tree, and `github.com/modelcontextprotocol/go-sdk` used only by `cmd/local-whisper/mcp.go`; everything else is stdlib. Don't add a third without the same kind of reason
+- **Imports**: two external Go dependencies — `github.com/spf13/cobra` (and its `pflag` dependency) for the CLI command tree, and `github.com/modelcontextprotocol/go-sdk` used only by `cmd/ava/mcp.go`; everything else is stdlib. Don't add a third without the same kind of reason
 - **Naming**: CamelCase for functions; descriptive names (e.g., `recordAudio`, `pasteWithAppleScript`)
 - **Error handling**: `RunE` returns errors up to `Execute()`, which prints `❌ <error>` and exits 1; warn but continue on non-critical errors (e.g., sound/paste)
 - **Functions**: One responsibility per function; helpers at bottom
@@ -165,7 +165,7 @@ comment for why).
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- Go tests in `cmd/local-whisper`, `cmd/voice-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,buildinfo,clipboard,enginedist,procutil,protocol,recording,speaker,ttscontrol,voiceconfig}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio`, `internal/ttsproto`, `internal/testutil` and `pkg/stt` have no test files (constants, helpers and interface only)
+- Go tests in `cmd/ava`, `cmd/ava-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,buildinfo,clipboard,enginedist,procutil,protocol,recording,speaker,ttscontrol,voiceconfig}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio`, `internal/ttsproto`, `internal/testutil` and `pkg/stt` have no test files (constants, helpers and interface only)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations, HTTP client behavior, subprocess/signal helpers
 

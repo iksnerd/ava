@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs the local-whisper CLI binaries from a GitHub release.
+# Installs the ava CLI binaries from a GitHub release.
 #
 # Run it rather than downloading in a browser, and Gatekeeper never enters the
 # picture: macOS attaches com.apple.quarantine only when an app that opts into
@@ -16,15 +16,16 @@
 # Usage:
 #   bash scripts/install.sh              # latest release
 #   bash scripts/install.sh v0.3.0       # a specific tag
-#   LOCAL_WHISPER_BIN=~/bin bash scripts/install.sh
+#   AVA_BIN=~/bin bash scripts/install.sh
 set -euo pipefail
 
-REPO="iksnerd/local-whisper"
-BIN_DIR="${LOCAL_WHISPER_BIN:-$HOME/.local/bin}"
+REPO="iksnerd/ava"
+# LOCAL_WHISPER_BIN is the name before the 0.6.0 rename, still honoured.
+BIN_DIR="${AVA_BIN:-${LOCAL_WHISPER_BIN:-$HOME/.local/bin}}"
 TAG="${1:-}"
 
 if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
-    echo "❌ local-whisper is macOS on Apple Silicon only."
+    echo "❌ ava is macOS on Apple Silicon only."
     echo "   It shells out to afplay, pbcopy, osascript and sox, and the TTS"
     echo "   engine is MLX, which has no Intel build."
     exit 1
@@ -63,7 +64,9 @@ elif command -v curl >/dev/null 2>&1; then
     version="${TAG#v}"
     echo "⬇️  Downloading $TAG..."
     base="https://github.com/$REPO/releases/download/$TAG"
-    curl -fsSL -o "$tmp/local-whisper.tar.gz" "$base/local-whisper_${version}_darwin_arm64.tar.gz"
+    # Releases before 0.6.0 were published as local-whisper_<version>_...
+    curl -fsSL -o "$tmp/ava.tar.gz" "$base/ava_${version}_darwin_arm64.tar.gz" 2>/dev/null ||
+        curl -fsSL -o "$tmp/ava.tar.gz" "$base/local-whisper_${version}_darwin_arm64.tar.gz"
     curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
 else
     echo "❌ Neither gh nor curl is available to download with."
@@ -91,7 +94,8 @@ fi
 
 tar xzf "$archive" -C "$tmp"
 mkdir -p "$BIN_DIR"
-for binary in local-whisper voice-monitor; do
+# The old names cover installing a release from before the 0.6.0 rename.
+for binary in ava ava-monitor local-whisper voice-monitor; do
     [ -f "$tmp/$binary" ] || continue
     install -m 0755 "$tmp/$binary" "$BIN_DIR/$binary"
     # Belt and braces: nothing above should have set quarantine, and if
@@ -100,11 +104,19 @@ for binary in local-whisper voice-monitor; do
     echo "✅ Installed $binary to $BIN_DIR"
 done
 
+# The CLI was called local-whisper until 0.6.0. The alias keeps an MCP
+# registration, a Raycast launcher or an Ava.app built against the old name
+# working for one release; it goes away in 0.7.0.
+if [ -f "$BIN_DIR/ava" ]; then
+    ln -sf ava "$BIN_DIR/local-whisper"
+    echo "✅ Linked local-whisper -> ava (the old name, kept for one release)"
+fi
+
 echo ""
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *)  echo "⚠️  $BIN_DIR is not on your PATH. Add it:"
         echo "      echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.zshrc" ;;
 esac
-echo "Next: local-whisper setup"
+echo "Next: ava setup"
 echo "   Installs sox, whisper-cli, the speech model and the Kokoro TTS engine."

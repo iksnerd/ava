@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iksnerd/local-whisper/internal/enginedist"
-	"github.com/iksnerd/local-whisper/internal/voiceconfig"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
+	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // stubEngine stands in for the mlx-engine HTTP client.
@@ -300,7 +300,7 @@ func TestSpeakIsSilentWhenTheEngineWorks(t *testing.T) {
 }
 
 // A release install has no checkout, so auto-start has to find the bundle
-// `local-whisper setup` wrote, or every line falls back to the macOS voice.
+// `ava setup` wrote, or every line falls back to the macOS voice.
 func TestEngineScriptFindsTheInstalledBundle(t *testing.T) {
 	t.Setenv(EngineScriptEnv, "")
 	t.Chdir(t.TempDir()) // no scripts/ here, as for a binary in ~/.local/bin

@@ -1,4 +1,4 @@
-// Package buildinfo reports which build of local-whisper is running.
+// Package buildinfo reports which build of ava is running.
 //
 // There was no way to ask before, which made bug reports unanswerable: a stale
 // binary sitting in ~/.local/bin advertises whatever it was compiled from, and

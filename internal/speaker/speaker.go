@@ -26,7 +26,7 @@
 // internal/ttsproto, which both this package and internal/ttscontrol read,
 // and which carries the test pinning them to scripts/speak.sh. That pin is
 // the standing constraint, replacing the hand-sync note this comment used to
-// carry — local-whisper is usually installed standalone to ~/.local/bin and
+// carry — ava is usually installed standalone to ~/.local/bin and
 // can't assume the repo's scripts/ directory is on disk, so the bash copy
 // cannot simply be imported.
 package speaker
@@ -41,10 +41,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/iksnerd/local-whisper/internal/enginedist"
-	"github.com/iksnerd/local-whisper/internal/ttsproto"
-	"github.com/iksnerd/local-whisper/internal/voiceconfig"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
+	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/internal/ttsproto"
+	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // playbackTimeout matches speak.sh's PLAYBACK_TIMEOUT_SEC: long enough for a
@@ -54,7 +54,7 @@ const playbackTimeout = 600 * time.Second
 
 // EngineScriptEnv overrides where the mlx-engine control script lives, for
 // an installed binary that isn't running from the repo root. Same escape
-// hatch `local-whisper engine --script` offers.
+// hatch `ava engine --script` offers.
 const EngineScriptEnv = "MLX_ENGINE_SCRIPT"
 
 const defaultEngineScript = "scripts/mlx-engine-server.sh"
@@ -161,7 +161,7 @@ func (s *Speaker) speak(text string, opts Options) error {
 
 	s.notef("mlx-engine unavailable (%v) — speaking through macOS `say` instead, "+
 		"so this will not use your configured Kokoro voice. "+
-		"Start it with `local-whisper engine start`.", synthErr)
+		"Start it with `ava engine start`.", synthErr)
 	return s.speakWithSay(text, settings, marker)
 }
 
@@ -305,16 +305,16 @@ func renderWithSay(text string, rate int, outPath string) error {
 	return exec.Command("say", "-r", strconv.Itoa(rate), "-o", outPath, text).Run()
 }
 
-// startEngine shells out to the same control script `local-whisper engine
+// startEngine shells out to the same control script `ava engine
 // start` uses, rather than reimplementing its PID-file locking and uvicorn
 // management here.
 func startEngine() error {
 	return exec.Command("bash", engineScript(), "start").Run()
 }
 
-// engineScript resolves the control script in the same order `local-whisper
+// engineScript resolves the control script in the same order `ava
 // engine` does: the override, then a checkout's copy, then the bundle
-// `local-whisper setup` installed. Without the last step a release install
+// `ava setup` installed. Without the last step a release install
 // ran setup, got Kokoro, and then spoke every line in the macOS voice,
 // because auto-start only ever looked relative to the working directory.
 func engineScript() string {

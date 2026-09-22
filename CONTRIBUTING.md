@@ -4,7 +4,7 @@ Bug reports and patches are welcome. This is a small, single-maintainer project,
 so the honest expectation is slow but real responses.
 
 If you are looking for somewhere to start, the
-[`good first issue`](https://github.com/iksnerd/local-whisper/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+[`good first issue`](https://github.com/iksnerd/ava/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 label marks issues that name the files to touch, the existing pattern to follow,
 and what "done" means.
 
@@ -88,7 +88,7 @@ failure this prevents. `internal/speaker`'s package comment documents the
 contract.
 
 **The hooks deliberately do not use the Go binary.** They are plain bash so
-speech still works on a machine where `local-whisper` was never installed. Keep
+speech still works on a machine where `ava` was never installed. Keep
 it that way.
 
 **No hardcoded home directories.** `make lint` fails on `/Users/<name>` or
@@ -105,10 +105,10 @@ code it guards and check that it actually goes red.
 
 ## Reporting bugs
 
-Include `local-whisper --version`. If it's a speech problem, say whether you
+Include `ava --version`. If it's a speech problem, say whether you
 heard the Kokoro voice or the macOS `say` fallback — they sound obviously
 different, and it narrows the cause immediately.
 
 Security issues go through
-[private vulnerability reporting](https://github.com/iksnerd/local-whisper/security/advisories/new),
+[private vulnerability reporting](https://github.com/iksnerd/ava/security/advisories/new),
 not the issue tracker. See [SECURITY.md](SECURITY.md).

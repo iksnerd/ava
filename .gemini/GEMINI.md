@@ -1,4 +1,4 @@
-# local-whisper — Gemini instructions
+# Ava — Gemini instructions
 
 See [`AGENTS.md`](../AGENTS.md) in the repo root. It is the single source of
 truth for build commands, project layout and conventions, and it is kept

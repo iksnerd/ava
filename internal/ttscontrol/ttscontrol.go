@@ -1,10 +1,10 @@
-// Package ttscontrol lets other local-whisper commands cancel any Claude
+// Package ttscontrol lets other ava commands cancel any Claude
 // Voice TTS currently in flight from scripts/speak.sh — needed before
 // opening the mic, since speech still playing goes out the speakers and
 // back in through the mic while sox is capturing.
 //
 // This is a Go port of scripts/stop-speaking.sh's marker-file protocol, not
-// a wrapper around the script itself: local-whisper is typically installed
+// a wrapper around the script itself: ava is typically installed
 // to ~/.local/bin standalone (see `make install-bin`), so it can't assume
 // the repo's scripts/ directory is reachable. The protocol's constants live
 // in internal/ttsproto, which is also where the test pinning them to the
@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/iksnerd/local-whisper/internal/ttsproto"
+	"github.com/iksnerd/ava/internal/ttsproto"
 )
 
 // ActivityDirEnv is re-exported from internal/ttsproto, which owns the

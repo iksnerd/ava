@@ -46,13 +46,13 @@ stacked style vectors, so a blend is a plain arithmetic average and **any number
 of voices works**:
 
 ```bash
-local-whisper speak --voice af_heart,bf_emma "a fifty-fifty blend"
-local-whisper speak --voice af_heart,bf_emma,am_adam "three-way average"
+ava speak --voice af_heart,bf_emma "a fifty-fifty blend"
+ava speak --voice af_heart,bf_emma,am_adam "three-way average"
 ```
 
 Verified against the running server: three ids return 200 and produce audio.
 Each id must be known — an unknown one is an error now, not a silent fallback
-to the macOS voice. `local-whisper voices` lists all 28.
+to the macOS voice. `ava voices` lists all 28.
 
 ### Intonation and stress
 
@@ -180,7 +180,7 @@ set, and a flag on dictation, `transcribe` and the MCP tool.
 | `-et`, `--entropy-thold` | 2.40 | Decoder giving up mid-segment |
 | `-mc`, `--max-context` | -1 | Constraining cross-segment context drift |
 | `-tr`, `--translate` | off | Translating to English instead of transcribing |
-| `-di`, `--diarize` | off | Stereo speaker separation — different from `voice-monitor --diarize` |
+| `-di`, `--diarize` | off | Stereo speaker separation — different from `ava-monitor --diarize` |
 | `-p`, `--processors` | 1 | Long files on many cores |
 
 Run `whisper-cli --help` for the full list.
@@ -199,8 +199,8 @@ Set in `internal/audio` and `internal/recording`, not configurable at runtime:
 - **16kHz mono**, which is what whisper.cpp wants
 - **`norm -3`** peak normalisation, applied in the same `sox` call as capture
 - **2 seconds below a 3% threshold** ends the recording
-- **`--highpass-hz`** on `voice-monitor` only. The flag defaults to `0`, which
+- **`--highpass-hz`** on `ava-monitor` only. The flag defaults to `0`, which
   means "use the built-in default" of 80Hz — `0` does not disable it. It matters
   more for loopback capture than for a microphone, since loopback audio runs
   much quieter so the noise floor weighs more. See
-  [`voice-monitor.md`](voice-monitor.md)
+  [`ava-monitor.md`](ava-monitor.md)

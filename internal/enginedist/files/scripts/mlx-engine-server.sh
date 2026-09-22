@@ -11,7 +11,7 @@ START_LOCK_STALE_SEC=30
 
 case "$1" in
     start)
-        # An explicit start (menu bar Start, or `local-whisper engine
+        # An explicit start (menu bar Start, or `ava engine
         # start`) re-arms speak.sh's on-demand auto-start for future hook
         # firings — see voice_engine_autostart_enabled in lib.sh. Set
         # unconditionally, before any of this case's early exits, since
@@ -111,7 +111,7 @@ case "$1" in
             echo "   Hook auto-start left armed (--keep-autostart)."
         else
             echo "   Hook auto-start is now OFF, so speech will use macOS \`say\`"
-            echo "   until you run: local-whisper engine start"
+            echo "   until you run: ava engine start"
         fi
         ;;
     status)

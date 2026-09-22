@@ -7,7 +7,7 @@
 // transcript. One-shot transcription is pkg/stt/whisper's job now.
 //
 // Not to be confused with pkg/stt/realtime, an independent client that shells
-// out to voxtral/realtime.py for cmd/voice-monitor. Voxtral still earns its
+// out to voxtral/realtime.py for cmd/ava-monitor. Voxtral still earns its
 // place there: that path is streaming, and pkg/stt/whisper transcribes a
 // complete file per subprocess. (whisper.cpp does ship a streaming example;
 // it is simply not what this project wraps.)
@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/iksnerd/local-whisper/internal/protocol"
+	"github.com/iksnerd/ava/internal/protocol"
 )
 
 // Client wraps the local mlx-engine HTTP server.

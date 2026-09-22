@@ -42,7 +42,7 @@ func TestRaycastGeneratorUsesOnlyRealFlags(t *testing.T) {
 			name := f[1]
 			if root.Flags().Lookup(name) == nil && root.PersistentFlags().Lookup(name) == nil {
 				t.Errorf("the Raycast launcher the Makefile generates passes --%s, "+
-					"which local-whisper's root command does not define — running it "+
+					"which ava's root command does not define — running it "+
 					"exits on `unknown flag` (generated line: exec ...%s)",
 					name, strings.TrimSpace(args))
 			}

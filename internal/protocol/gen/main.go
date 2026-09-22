@@ -4,7 +4,7 @@
 //
 // Generation rather than a file every runtime reads at startup, because the
 // runtimes cannot agree on a path that exists: Go's go:embed cannot reach
-// outside its own package, an installed local-whisper has no scripts/ beside
+// outside its own package, an installed ava has no scripts/ beside
 // it, and the menu bar app ships only what its bundle was told to carry. A
 // file read at runtime would work for two of the four and leave hand-written
 // copies for the rest — worse than no generator, because the copies would then

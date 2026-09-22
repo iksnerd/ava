@@ -14,16 +14,16 @@ make uninstall
 From a checkout, this stops the Kokoro server and deletes what only this
 project uses:
 
-- `~/.local/bin/local-whisper` and `~/.local/bin/voice-monitor`
+- `~/.local/bin/ava` and `~/.local/bin/ava-monitor`
 - `~/raycast-scripts/whisper-transcribe.sh`
 - `~/Library/Application Support/ava/engine/`, the engine bundle and its
-  ~1.2 GB Python environment that `local-whisper setup` installs
+  ~1.2 GB Python environment that `ava setup` installs
 
 It leaves the rest to you, because other tools may share it or you may want to
 keep it. It prints the same list as below when it is done.
 
 Without a checkout, delete those paths by hand; stop the server first with
-`local-whisper engine stop`.
+`ava engine stop`.
 
 ## The rest
 
@@ -42,7 +42,7 @@ read, so `make uninstall` never touches it:
 
 ```bash
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16                    # 339 MB
-rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran voice-monitor
+rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran ava-monitor
 ```
 
 ### The menu bar app
@@ -68,14 +68,14 @@ environment inside the checkout, so it wrote nothing there itself.
 If you registered the MCP server:
 
 ```bash
-claude mcp remove -s user local-whisper
+claude mcp remove -s user ava
 ```
 
 ### Permissions
 
 System Settings → Privacy & Security → **Microphone** and **Accessibility**.
 The grants belong to whatever ran the command (Terminal, Raycast, your editor,
-or Ava.app), not to `local-whisper`, so remove only the ones you gave for this.
+or Ava.app), not to `ava`, so remove only the ones you gave for this.
 
 ### Dependencies
 

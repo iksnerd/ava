@@ -41,5 +41,5 @@ STOPPED_SUFFIX=".stopped"
 SYNTH_PID_SUFFIX=".synth.pid"
 
 # Where both binaries put what they produce: per-dictation audio, cleaned up
-# on exit, and voice-monitor transcript logs, which are kept.
+# on exit, and ava-monitor transcript logs, which are kept.
 TEMP_DIR="/tmp/voice-input"

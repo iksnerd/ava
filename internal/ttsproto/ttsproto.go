@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/iksnerd/local-whisper/internal/protocol"
+	"github.com/iksnerd/ava/internal/protocol"
 )
 
 // These re-export internal/protocol's generated constants. The package keeps

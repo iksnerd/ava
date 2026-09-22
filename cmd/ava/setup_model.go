@@ -13,7 +13,7 @@ import (
 )
 
 // modelDirRel is where whisper.cpp models live, relative to $HOME. It matches
-// scripts/setup-model.sh and the path cmd/local-whisper resolves at run time.
+// scripts/setup-model.sh and the path cmd/ava resolves at run time.
 const modelDirRel = ".local/share/whisper-cpp"
 
 // whisperModelRevision pins the ggerganov/whisper.cpp Hugging Face commit the
@@ -58,8 +58,8 @@ func newSetupModelCmd() *cobra.Command {
 		Long: "Downloads a whisper.cpp model to ~/" + modelDirRel + "/, from a pinned\n" +
 			"revision, and verifies its sha256 before installing it.\n\n" +
 			"Skipped if the model is already there, so re-running is cheap.",
-		Example: "  local-whisper setup-model\n" +
-			"  local-whisper setup-model --model tiny",
+		Example: "  ava setup-model\n" +
+			"  ava setup-model --model tiny",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

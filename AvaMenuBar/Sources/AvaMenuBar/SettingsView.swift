@@ -41,7 +41,7 @@ struct SettingsView: View {
             .help(
                 VoicePaths.dictateBinary != nil
                     ? "Record, transcribe, and paste at your cursor"
-                    : "local-whisper binary not found — run `make build` (or `make install-bin`) in the repo"
+                    : "ava binary not found — run `make build` (or `make install-bin`) in the repo"
             )
 
             SectionCard(header: "Playback") {
@@ -352,12 +352,12 @@ struct SettingsView: View {
 
     private func dictate() {
         guard let bin = VoicePaths.dictateBinary else {
-            Speech.lastError = "Could not find the local-whisper binary. Reinstall the app."
+            Speech.lastError = "Could not find the ava binary. Reinstall the app."
             return
         }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: bin)
-        // No -engine flag: local-whisper's own default (whisper) works on
+        // No -engine flag: ava's own default (whisper) works on
         // any Mac with zero extra setup, unlike voxtral (Apple Silicon +
         // mlx-engine's 1.3GB venv + a 2.9GB model download).
         task.environment = VoicePaths.hardenedEnvironment

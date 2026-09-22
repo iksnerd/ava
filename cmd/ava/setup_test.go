@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iksnerd/local-whisper/internal/enginedist"
+	"github.com/iksnerd/ava/internal/enginedist"
 )
 
 func TestPathBudgetRejectsAnInstallDirThatWouldTruncate(t *testing.T) {
@@ -34,13 +34,14 @@ func TestPathBudgetAcceptsAShortInstallDir(t *testing.T) {
 // so that moving the install directory cannot quietly blow the budget.
 func TestDefaultInstallDirFitsTheEspeakBudget(t *testing.T) {
 	t.Setenv(enginedist.DirEnv, "")
+	t.Setenv(enginedist.LegacyDirEnv, "")
 	dir, err := enginedist.DefaultDir()
 	if err != nil {
 		t.Skipf("no home directory available: %v", err)
 	}
 	if err := checkPathBudget(dir); err != nil {
 		t.Errorf("the default install directory does not fit espeak's path budget "+
-			"on this machine, so `local-whisper setup` cannot work out of the box: %v", err)
+			"on this machine, so `ava setup` cannot work out of the box: %v", err)
 	}
 	// Leave some headroom: a longer username on another machine must also fit.
 	slack := espeakPathBudget - (len(dir) + len(espeakDataSuffix))

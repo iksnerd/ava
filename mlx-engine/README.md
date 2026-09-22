@@ -3,7 +3,7 @@
 Local text-to-speech server for Apple Silicon: Kokoro, running on-device via
 [MLX](https://github.com/ml-explore/mlx). No text or audio leaves the machine.
 
-Used by `local-whisper speak`, the Claude Code voice hooks, the MCP `speak` tool
+Used by `ava speak`, the Claude Code voice hooks, the MCP `speak` tool
 and the Ava menu bar app (`../scripts/speak.sh`, `../AvaMenuBar/`) — but it's a
 standalone HTTP server, usable from anything that can `curl` `localhost:8765`.
 
@@ -66,10 +66,10 @@ No model swap needed for any of these — they're request-level knobs Kokoro
 ## Models
 
 This server is TTS-only. It used to also serve Voxtral STT behind
-`local-whisper --engine voxtral`; that was removed after measuring both on the
+`ava --engine voxtral`; that was removed after measuring both on the
 same 20s sample — whisper.cpp 1.26s against Voxtral's 17s warm and 127s cold
 (including a 108s model load), for a near-identical transcript. One-shot
-transcription is `pkg/stt/whisper`'s job now, and `cmd/voice-monitor` runs
+transcription is `pkg/stt/whisper`'s job now, and `cmd/ava-monitor` runs
 Voxtral in its own process for streaming, which is a different shape from one
 subprocess per complete file.
 

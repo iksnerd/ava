@@ -11,10 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/enginedist"
+	"github.com/iksnerd/ava/internal/enginedist"
 )
 
-// newSetupCmd installs everything local-whisper needs that is not the binary.
+// newSetupCmd installs everything ava needs that is not the binary.
 //
 // It exists because the binary is otherwise only half usable on a machine
 // without a checkout: dictation needs sox, whisper-cli and a model, and Kokoro
@@ -28,7 +28,7 @@ func newSetupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Install the dependencies, model and TTS engine the binary needs",
-		Long: "Installs what local-whisper needs beyond the binary itself:\n" +
+		Long: "Installs what ava needs beyond the binary itself:\n" +
 			"  1. sox and whisper-cli, via Homebrew\n" +
 			"  2. the whisper.cpp base.en model (~141 MB)\n" +
 			"  3. the Kokoro TTS engine (~1.2 GB of Python, plus a 339 MB model\n" +
@@ -58,9 +58,9 @@ func newSetupCmd() *cobra.Command {
 			// Suggest something that exercises what was just installed:
 			// after --skip-engine, `speak` would only demo the fallback voice.
 			if skipEngine {
-				fmt.Fprintln(out, "\n✅ Setup complete. Try: local-whisper   (speak, then pause to finish)")
+				fmt.Fprintln(out, "\n✅ Setup complete. Try: ava   (speak, then pause to finish)")
 			} else {
-				fmt.Fprintln(out, "\n✅ Setup complete. Try: local-whisper speak \"hello\"")
+				fmt.Fprintln(out, "\n✅ Setup complete. Try: ava speak \"hello\"")
 			}
 			return nil
 		},
@@ -145,7 +145,7 @@ func setupEngine(out io.Writer) error {
 	if _, err := exec.LookPath("uv"); err != nil {
 		return fmt.Errorf("the engine needs `uv` to resolve its Python dependencies, "+
 			"and it is not on PATH.\n"+
-			"   Install it (https://docs.astral.sh/uv/) and re-run `local-whisper setup`.\n"+
+			"   Install it (https://docs.astral.sh/uv/) and re-run `ava setup`.\n"+
 			"   The bundle is already unpacked at %s, so the re-run only does this step", dir)
 	}
 
@@ -158,7 +158,7 @@ func setupEngine(out io.Writer) error {
 	}
 
 	fmt.Fprintln(out, "✅ Kokoro engine installed.")
-	fmt.Fprintln(out, "   The 339 MB voice model downloads on the first `local-whisper speak`.")
+	fmt.Fprintln(out, "   The 339 MB voice model downloads on the first `ava speak`.")
 	return nil
 }
 

@@ -2,7 +2,7 @@
 
 A menu bar app for the local voice stack (`../mlx-engine/`, `../scripts/`,
 `../` itself): a **Dictate** button for recording/transcribing/pasting at
-your cursor (via `local-whisper` — the same dictation tool this whole repo
+your cursor (via `ava` — the same dictation tool this whole repo
 started as, just triggerable from here instead of only Raycast), a
 system-wide **Read Aloud with Ava** right-click action for any
 selected text, a global **Mute** switch (also reachable outside the app as
@@ -23,7 +23,7 @@ working scheme directly.
 **Prerequisites**: Xcode Command Line Tools (or full Xcode) for
 `swift`/`swift build` — confirm with `xcode-select -p`. For `swift run`
 during development, this needs to stay inside the parent repo checkout (it
-shells out to `../scripts/` and, for Dictate, a built `local-whisper`
+shells out to `../scripts/` and, for Dictate, a built `ava`
 binary); a packaged `.app` doesn't have that requirement — see "Packaging
 for distribution" below.
 
@@ -46,7 +46,7 @@ in this repo since it's a per-machine login item, not project config.
 
 ### Packaging for distribution
 
-`build-app.sh` also bundles `scripts/` (36MB) and a built `local-whisper`
+`build-app.sh` also bundles `scripts/` (36MB) and a built `ava`
 binary (8.3MB) into `Contents/Resources/`, and produces `.build/Ava.dmg` — so the resulting `.app` runs from *any* checkout, not just
 this one. `Paths.swift` resolves `scriptsDir`/`dictateBinary` from that
 bundled `Resources/` at runtime when present, falling back to this dev
@@ -60,7 +60,7 @@ beside themselves and never find it, so the Server section's Start/Stop
 button fails and on-demand auto-start does nothing. `speak.sh` falls back to
 macOS's built-in `say` whenever the server is unreachable, so the app still
 works, with `say` in place of Kokoro. A server that is already running, from
-a checkout or from `local-whisper engine start` after `local-whisper setup`,
+a checkout or from `ava engine start` after `ava setup`,
 is used as normal.
 
 **No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
@@ -84,7 +84,7 @@ switch: while it's on, `speak.sh` exits immediately for every caller that
 goes through it — both Claude Code hooks, Read Aloud, and this panel's own
 Test/Preview buttons — rather than each one having to remember to check.
 The Go side reads the same flag through `internal/voiceconfig`, so
-`local-whisper speak`/`a11y` and the MCP `speak` tool are silent too, and
+`ava speak`/`a11y` and the MCP `speak` tool are silent too, and
 say so rather than reporting a success nobody heard. Muting also
 stops anything already playing, and the menu bar icon itself turns into a
 muted speaker so you can tell at a glance without opening the panel.
@@ -175,7 +175,7 @@ present in that file come from `../scripts/voice-defaults.json`.
 |---|---|
 | Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Ava Mute" Service. See "Mute" above. |
 | Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
-| Dictate (button) | Runs `local-whisper` (whisper.cpp — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
+| Dictate (button) | Runs `ava` (whisper.cpp — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |
@@ -206,7 +206,7 @@ Sources/AvaMenuBar/
   Paths.swift                           - resolves scripts/binary from the bundled Resources/ (packaged
                                           build) or this dev checkout (swift run); PATH hardening
 Resources/AppIcon.icns
-scripts/build-app.sh                    - builds local-whisper + bundles scripts/ into Resources/,
+scripts/build-app.sh                    - builds ava + bundles scripts/ into Resources/,
                                           packages + installs the release build, produces a .dmg
 ```
 
@@ -220,7 +220,7 @@ the thing meant to clear it would be checking the exact same condition.
 A GUI app launched via LaunchServices/launchd (as this one is, once packaged
 — see the LaunchAgent note above) inherits a minimal PATH: just
 `/usr/bin:/bin:/usr/sbin:/sbin`, not Homebrew's `/opt/homebrew/bin` where
-`sox` lives. `Dictate` shells out to the `local-whisper` binary directly (no
+`sox` lives. `Dictate` shells out to the `ava` binary directly (no
 wrapping script to fix this the way `speak.sh`/`mlx-engine-server.sh` do via
 `lib.sh`), so it failed silently — the binary launched, its own dependency
 check couldn't find `sox` on `PATH`, and it exited immediately, with nothing

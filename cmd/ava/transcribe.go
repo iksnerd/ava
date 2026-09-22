@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/ava/pkg/stt"
 )
 
 // newTranscribeCmd transcribes a WAV file that already exists, as opposed
@@ -27,12 +27,12 @@ func newTranscribeCmd() *cobra.Command {
 		Short: "Transcribe an existing WAV file on-device",
 		Args:  cobra.ExactArgs(1),
 		Long: "Transcribe a WAV file that already exists on disk, as opposed to the\n" +
-			"bare `local-whisper` command, which records one first.\n\n" +
+			"bare `ava` command, which records one first.\n\n" +
 			"Runs whisper.cpp locally and works on any Mac.",
-		Example: "  local-whisper transcribe meeting.wav\n" +
-			"  local-whisper transcribe --lang es clip.wav\n" +
-			"  local-whisper transcribe --output notes.txt meeting.wav\n" +
-			"  local-whisper transcribe --model tiny --beam-size 1 clip.wav",
+		Example: "  ava transcribe meeting.wav\n" +
+			"  ava transcribe --lang es clip.wav\n" +
+			"  ava transcribe --output notes.txt meeting.wav\n" +
+			"  ava transcribe --model tiny --beam-size 1 clip.wav",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

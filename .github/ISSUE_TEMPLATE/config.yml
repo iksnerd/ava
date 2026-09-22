@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Report a security problem
-    url: https://github.com/iksnerd/local-whisper/security/advisories/new
+    url: https://github.com/iksnerd/ava/security/advisories/new
     about: Privately, rather than in a public issue.

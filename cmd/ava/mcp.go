@@ -8,13 +8,13 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/a11y"
-	"github.com/iksnerd/local-whisper/internal/buildinfo"
-	"github.com/iksnerd/local-whisper/internal/speaker"
-	"github.com/iksnerd/local-whisper/internal/ttscontrol"
-	"github.com/iksnerd/local-whisper/internal/voiceconfig"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
-	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/ava/internal/a11y"
+	"github.com/iksnerd/ava/internal/buildinfo"
+	"github.com/iksnerd/ava/internal/speaker"
+	"github.com/iksnerd/ava/internal/ttscontrol"
+	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
+	"github.com/iksnerd/ava/pkg/stt"
 )
 
 // mcpDeps are the MCP tools' side effects, injected so the server can be
@@ -44,7 +44,7 @@ func newMcpCmd() *cobra.Command {
 		Short: "Serve speech, transcription and accessibility-tree narration over MCP (stdio)",
 		Long: "Serve the local voice stack to MCP clients over stdio.\n\n" +
 			"Register it with Claude Code:\n" +
-			"  claude mcp add -s user local-whisper -- local-whisper mcp",
+			"  claude mcp add -s user ava -- ava mcp",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -99,7 +99,7 @@ type noArgs struct{}
 // text rather than structured output: the caller is a model deciding what
 // to do next, and "what did the page just say" is prose.
 func newMcpServer(deps mcpDeps) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "local-whisper", Version: buildinfo.Get()}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "ava", Version: buildinfo.Get()}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "speak",

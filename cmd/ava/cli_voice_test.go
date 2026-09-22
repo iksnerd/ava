@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iksnerd/local-whisper/internal/buildinfo"
+	"github.com/iksnerd/ava/internal/buildinfo"
 )
 
 func TestVoiceCommandsResolve(t *testing.T) {
@@ -47,7 +47,7 @@ func TestReadSpeakTextJoinsArguments(t *testing.T) {
 	}
 }
 
-// `some-command | local-whisper speak` is the reason this command exists at
+// `some-command | ava speak` is the reason this command exists at
 // all — reading a build log or a diff aloud shouldn't need shell quoting.
 func TestReadSpeakTextFallsBackToStdin(t *testing.T) {
 	got, err := readSpeakText(nil, strings.NewReader("piped in\n"))
@@ -220,7 +220,7 @@ func TestValidateVoiceRejectsUnknownIDs(t *testing.T) {
 			continue
 		}
 		if !strings.Contains(err.Error(), "voices") && !strings.Contains(err.Error(), "blend") {
-			t.Errorf("validateVoice(%q) = %q; should point at `local-whisper voices` or name the blend problem", v, err)
+			t.Errorf("validateVoice(%q) = %q; should point at `ava voices` or name the blend problem", v, err)
 		}
 	}
 }

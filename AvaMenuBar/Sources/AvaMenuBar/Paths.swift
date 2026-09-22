@@ -21,7 +21,7 @@ enum VoicePaths {
         .path
 
     // Bundle.main.resourceURL when running from a real .app with a bundled
-    // Resources/scripts (build-app.sh copies scripts/ + local-whisper there)
+    // Resources/scripts (build-app.sh copies scripts/ + ava there)
     // — nil for `swift run`, whose Bundle.main has no such Resources/, so
     // callers below fall through to the dev-checkout paths instead.
     private static let bundleResourcesDir: URL? = {
@@ -60,12 +60,12 @@ enum VoicePaths {
     /// prompts a rebuild of it, so it's only ever the last resort.
     static var dictateBinary: String? {
         if let dir = bundleResourcesDir {
-            let bundled = dir.appendingPathComponent("local-whisper").path
+            let bundled = dir.appendingPathComponent("ava").path
             if FileManager.default.isExecutableFile(atPath: bundled) { return bundled }
         }
-        let local = "\(devRepoRoot)/bin/local-whisper"
+        let local = "\(devRepoRoot)/bin/ava"
         if FileManager.default.isExecutableFile(atPath: local) { return local }
-        let installed = NSString(string: "~/.local/bin/local-whisper").expandingTildeInPath
+        let installed = NSString(string: "~/.local/bin/ava").expandingTildeInPath
         if FileManager.default.isExecutableFile(atPath: installed) { return installed }
         return nil
     }

@@ -1,7 +1,7 @@
 # CLI reference
 
-Every command `local-whisper` accepts. For the MCP server see
-[`mcp.md`](mcp.md); for `voice-monitor` see [`voice-monitor.md`](voice-monitor.md).
+Every command `ava` accepts. For the MCP server see
+[`mcp.md`](mcp.md); for `ava-monitor` see [`ava-monitor.md`](ava-monitor.md).
 
 ← [Back to the README](../README.md)
 
@@ -10,7 +10,7 @@ Every command `local-whisper` accepts. For the MCP server see
 The bare command records, transcribes, copies, and pastes.
 
 ```bash
-local-whisper
+ava
 ```
 
 | Flag | Default | Does |
@@ -27,7 +27,7 @@ local-whisper
 | `--version`, `-v` | — | Print the version and exit |
 
 ```bash
-local-whisper --dir ~/projects/app --lang en --model base --output transcript.txt
+ava --dir ~/projects/app --lang en --model base --output transcript.txt
 ```
 
 ## Speak
@@ -37,15 +37,15 @@ Goes through the same mute switch, activity markers and playback lock as the
 voice hooks, so speech from different sources queues instead of overlapping.
 
 ```bash
-local-whisper speak "build finished"
-git log -1 --format=%s | local-whisper speak     # no arguments: reads stdin
-local-whisper speak --voice bf_emma --speed 0.9 "slower, british"
-local-whisper speak --async "don't wait for playback"
+ava speak "build finished"
+git log -1 --format=%s | ava speak     # no arguments: reads stdin
+ava speak --voice bf_emma --speed 0.9 "slower, british"
+ava speak --async "don't wait for playback"
 ```
 
 | Flag | Does |
 |---|---|
-| `--voice` | A voice id from `local-whisper voices`; several comma-separated ids blend as an average ([tuning](tuning.md#blending-is-an-average-and-it-is-not-limited-to-two)) |
+| `--voice` | A voice id from `ava voices`; several comma-separated ids blend as an average ([tuning](tuning.md#blending-is-an-average-and-it-is-not-limited-to-two)) |
 | `--speed` | Rate multiplier, overriding the configured one |
 | `--async` | Return as soon as playback starts |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
@@ -54,16 +54,16 @@ While the menu bar app's global Mute is on, `speak` prints a notice and plays
 nothing rather than reporting success.
 
 ```bash
-local-whisper stop       # cancel speech from any source, including the hooks
-local-whisper voices     # ids, accents, and which one is current
+ava stop       # cancel speech from any source, including the hooks
+ava voices     # ids, accents, and which one is current
 ```
 
 ## Transcribe a file
 
 ```bash
-local-whisper transcribe meeting.wav
-local-whisper transcribe --lang es clip.wav
-local-whisper transcribe --output notes.txt meeting.wav
+ava transcribe meeting.wav
+ava transcribe --lang es clip.wav
+ava transcribe --output notes.txt meeting.wav
 ```
 
 Takes a WAV file. Same `--model`, `--lang` and `--beam-size` as dictation.
@@ -76,9 +76,9 @@ make, and speaks them. Feed it
 `take_snapshot` output.
 
 ```bash
-local-whisper a11y snapshot.txt
-local-whisper a11y --mode headings --quiet snapshot.txt   # print, don't speak
-pbpaste | local-whisper a11y --mode links
+ava a11y snapshot.txt
+ava a11y --mode headings --quiet snapshot.txt   # print, don't speak
+pbpaste | ava a11y --mode links
 ```
 
 | Flag | Does |
@@ -96,13 +96,13 @@ of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 
 ```bash
 bash scripts/install.sh          # latest release; or pass a tag
-local-whisper setup
+ava setup
 ```
 
 `install.sh` fetches the release with `gh` when it is installed, which uses
 your GitHub credentials, and otherwise with a plain `curl`, which only reaches
 a public repo. It verifies the checksum before extracting, and installs both
-binaries to `~/.local/bin` — `LOCAL_WHISPER_BIN` overrides that.
+binaries to `~/.local/bin` — `AVA_BIN` overrides that.
 
 **Use it rather than downloading the archive in a browser.** The binaries are
 unsigned: signing for distribution needs a Developer ID certificate and
@@ -123,14 +123,14 @@ both measured on macOS 27:
   System Settings → Privacy & Security → "Open Anyway", or simply:
 
   ```bash
-  xattr -d com.apple.quarantine local-whisper voice-monitor
+  xattr -d com.apple.quarantine ava ava-monitor
   ```
 
 ## Setup
 
 ```bash
-local-whisper setup                 # deps + model + Kokoro engine
-local-whisper setup --skip-engine   # dictation only, without the 1.2 GB
+ava setup                 # deps + model + Kokoro engine
+ava setup --skip-engine   # dictation only, without the 1.2 GB
 ```
 
 Installs everything that is not the binary: `sox` and `whisper-cli` via
@@ -146,7 +146,7 @@ is resolved by `uv` at install time and the 339 MB Kokoro model is fetched by
 the server on first use, so neither is shipped.
 
 It lands in `~/Library/Application Support/ava/engine/`, beside the config the
-CLI and the menu bar app already share. `LOCAL_WHISPER_ENGINE_DIR` overrides
+CLI and the menu bar app already share. `AVA_ENGINE_DIR` overrides
 that, mainly so the install can be exercised against a throwaway directory.
 
 **The install path has a length budget.** espeak-ng, which Kokoro phonemizes
@@ -162,8 +162,8 @@ speech uses the macOS `say` voice.
 ### Just the model
 
 ```bash
-local-whisper setup-model               # base.en (~141 MB)
-local-whisper setup-model --model tiny  # tiny.en (~74 MB), for --model tiny
+ava setup-model               # base.en (~141 MB)
+ava setup-model --model tiny  # tiny.en (~74 MB), for --model tiny
 ```
 
 Downloads one whisper.cpp model to `~/.local/share/whisper-cpp/` and nothing
@@ -175,15 +175,15 @@ interrupted download) is fetched again.
 ## Engine server
 
 ```bash
-local-whisper engine start    # background the mlx-engine Kokoro TTS server
-local-whisper engine status
-local-whisper engine stop
-local-whisper engine stop --keep-autostart   # temporary stop; hooks stay armed
+ava engine start    # background the mlx-engine Kokoro TTS server
+ava engine status
+ava engine stop
+ava engine stop --keep-autostart   # temporary stop; hooks stay armed
 ```
 
 These drive `scripts/mlx-engine-server.sh`, which owns the Python venv. The
 script is found in `scripts/` under the working directory, else in the bundle
-`local-whisper setup` installed; `--script` names one explicitly. `make start-engine`,
+`ava setup` installed; `--script` names one explicitly. `make start-engine`,
 `make stop-engine` and `make status-engine` are thin wrappers around the same
 three commands.
 
@@ -199,15 +199,15 @@ tidying up, and the setting it changed outlives the command: every later hook
 speaks through macOS `say` until something re-arms it.
 
 `--script` only covers the explicit `engine` commands. The **implicit**
-auto-start, the one `local-whisper speak` or the MCP `speak` tool triggers when
+auto-start, the one `ava speak` or the MCP `speak` tool triggers when
 the server is down, looks in the same places, with an environment override
 first: `MLX_ENGINE_SCRIPT`, then
-`scripts/` under the working directory, then the bundle `local-whisper setup`
+`scripts/` under the working directory, then the bundle `ava setup`
 installed. A release install therefore needs nothing extra. Set
 `MLX_ENGINE_SCRIPT` only to point an installed binary at a checkout's engine:
 
 ```bash
-export MLX_ENGINE_SCRIPT="$HOME/src/local-whisper/scripts/mlx-engine-server.sh"
+export MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh"
 ```
 
 When none of them exists it falls back to macOS `say` rather than starting
@@ -216,7 +216,7 @@ Kokoro, and says so on stderr.
 ## MCP server
 
 ```bash
-local-whisper mcp             # stdio; see docs/mcp.md
+ava mcp             # stdio; see docs/mcp.md
 ```
 
 `--server-url` points it at an mlx-engine other than `127.0.0.1:8765`, as for
@@ -225,16 +225,16 @@ local-whisper mcp             # stdio; see docs/mcp.md
 ## Shell completion
 
 ```bash
-local-whisper completion zsh > "${fpath[1]}/_local-whisper"
+ava completion zsh > "${fpath[1]}/_ava"
 ```
 
 Cobra generates the script; `bash`, `fish` and `powershell` work too, and
-`local-whisper completion <shell> --help` has the loading instructions for
+`ava completion <shell> --help` has the loading instructions for
 each. `--voice` completes to the Kokoro voice ids.
 
 ## Why there is only one transcription engine
 
-`local-whisper` transcribes with whisper.cpp and nothing else. There used to be
+`ava` transcribes with whisper.cpp and nothing else. There used to be
 a `--engine voxtral` that went through mlx-engine's HTTP server; it was removed
 after measuring both on the same 20-second sample:
 
@@ -246,10 +246,10 @@ after measuring both on the same 20-second sample:
 | Peak memory | none held | ~4GB resident, 11GB while loading |
 | Transcript | near-identical | near-identical |
 
-Voxtral is still used, in `voice-monitor`: that path streams, where the wrapper
+Voxtral is still used, in `ava-monitor`: that path streams, where the wrapper
 here transcribes a complete file per subprocess. (whisper.cpp does ship a
 streaming example; it is not what `pkg/stt/whisper` wraps.) See
-[`voice-monitor.md`](voice-monitor.md).
+[`ava-monitor.md`](ava-monitor.md).
 
 ## Context files
 

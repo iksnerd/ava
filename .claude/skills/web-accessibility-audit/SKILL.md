@@ -4,7 +4,7 @@ description: >
   Audits a web page's accessibility by listening to it, not just reading a
   report: drives chrome-devtools MCP for Chrome's accessibility tree and a
   Lighthouse pass, then narrates that tree through this repo's local Kokoro
-  TTS (`local-whisper mcp`), so reading order, unlabeled controls and six
+  TTS (`ava mcp`), so reading order, unlabeled controls and six
   identical "Read more" links are heard the way a screen-reader user hits
   them. Use for "is this page accessible", WCAG / ARIA / axe / screen-reader
   questions, a failing Lighthouse accessibility score, focus-order or
@@ -33,15 +33,15 @@ Two MCP servers. Check both are connected *before* driving anything:
 - `mcp__chrome-devtools__*` (or `mcp__plugin_<plugin>_chrome-devtools__*`).
   Missing? See `engineering-practices:browser-testing-with-devtools` for the
   connection check and the one-time setup — don't add a second registration.
-- `mcp__local-whisper__*`. Missing? Register this repo's server once:
+- `mcp__ava__*`. Missing? Register this repo's server once:
 
   ```bash
-  claude mcp add -s user local-whisper -- local-whisper mcp
+  claude mcp add -s user ava -- ava mcp
   ```
 
   MCP servers load at session start, so restart the session after adding one.
 
-Speech needs the mlx-engine running (`local-whisper engine start`) and the
+Speech needs the mlx-engine running (`ava engine start`) and the
 menu bar app's global Mute off. Every speaking tool reports when output was
 muted rather than claiming success, so read the tool result rather than
 assuming the page was heard.
@@ -51,7 +51,7 @@ When something is unavailable, don't silently degrade:
 | Symptom | Cause | What to do |
 |---|---|---|
 | `speak` result says "voice output is muted" | menu bar Mute is on | Ask the user to unmute, or run the whole audit with `speak: false` and say the findings are from the text pass only |
-| `mlx-engine is not running` / `did not come up` | server down, or auto-start disabled after an explicit Stop | `local-whisper engine start`; first start pays a few seconds of TTS warmup |
+| `mlx-engine is not running` / `did not come up` | server down, or auto-start disabled after an explicit Stop | `ava engine start`; first start pays a few seconds of TTS warmup |
 | `navigate_page` lands on a login wall | the page needs auth | Ask the user to sign in in the DevTools browser, then re-`take_snapshot` — never audit the login wall as if it were the page |
 | The snapshot is thousands of lines | whole-app SPA | Audit one route or one interaction at a time; a reading pass nobody listens to the end of finds nothing |
 

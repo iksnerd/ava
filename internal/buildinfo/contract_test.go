@@ -50,7 +50,7 @@ func TestVersionStampingAgreesAcrossBuildSystems(t *testing.T) {
 
 	// Both must name a variable this package actually has. A rename here is the
 	// original hazard, and neither build system would complain about it.
-	const pkg = "github.com/iksnerd/local-whisper/internal/buildinfo"
+	const pkg = "github.com/iksnerd/ava/internal/buildinfo"
 	if make[1] != pkg {
 		t.Errorf("the -X flag targets %q, but this package is %q", make[1], pkg)
 	}

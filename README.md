@@ -1,7 +1,10 @@
-# local-whisper
+# Ava
 
 Dictation, speech, and live call transcripts for macOS, running entirely
 on-device.
+
+Formerly `local-whisper`. The commands are now `ava` and `ava-monitor`; the old
+name still works as an alias until 0.7.0.
 
 Cloud voice tools are a non-starter for anything you wouldn't paste into a
 stranger's web form. Client calls, mostly. This keeps the loop local instead:
@@ -9,7 +12,7 @@ whisper.cpp for speech-to-text, Kokoro for speech. No audio and no transcript
 leaves the machine.
 
 It started as a Go CLI for dictation and grew into the stack around it: a menu
-bar app called Ava, Claude Code hooks that speak session status out loud, and an
+bar app, Claude Code hooks that speak session status out loud, and an
 MCP server so other programs can use the same voice. If you want a dictation
 app, the ones below are better at that. This is the substrate underneath one.
 
@@ -23,25 +26,25 @@ app additionally needs macOS 13 or later.
 ```bash
 brew install sox whisper-cpp go
 
-git clone https://github.com/iksnerd/local-whisper.git
-cd local-whisper
+git clone https://github.com/iksnerd/ava.git
+cd ava
 make install-bin        # builds, downloads the 141MB model, installs to ~/.local/bin
 
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
 
-local-whisper           # speak; the text lands wherever your cursor is
+ava           # speak; the text lands wherever your cursor is
 ```
 
 No checkout? Install a release binary and let it fetch the rest:
 
 ```bash
 bash install.sh         # scripts/install.sh from this repo; it runs on its own
-local-whisper setup     # sox and whisper-cli via Homebrew, the model, the Kokoro server
+ava setup     # sox and whisper-cli via Homebrew, the model, the Kokoro server
 ```
 
 Release binaries are Apple Silicon only. On an Intel Mac, build it instead with
-`go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest`, then run
-`local-whisper setup`, which skips the Kokoro server there. Either way you lose
+`go install github.com/iksnerd/ava/cmd/ava@latest`, then run
+`ava setup`, which skips the Kokoro server there. Either way you lose
 the hooks and the menu bar app, which live in the repo. Why a script rather than
 a browser download:
 [Installing on another machine](docs/cli.md#installing-on-another-machine).
@@ -55,13 +58,13 @@ Raycast script command, or use the menu bar app's Dictate button.
 **Two macOS permission prompts on first run.** Microphone, for whatever you ran
 it from — miss this one and recording still "succeeds" while producing silence.
 And Accessibility, because auto-paste drives Cmd+V through AppleScript;
-`local-whisper --no-paste` skips it and leaves the transcript on your clipboard.
+`ava --no-paste` skips it and leaves the transcript on your clipboard.
 
 For speech, `make setup` does the rest: it installs `uv`, syncs the Python
 environment for the Kokoro server, and downloads the model. See
 [`mlx-engine/README.md`](mlx-engine/README.md) for running that server on its
 own. Call monitoring also needs `make setup-voxtral` and
-`make build-voice-monitor`; see [`docs/voice-monitor.md`](docs/voice-monitor.md).
+`make build-ava-monitor`; see [`docs/ava-monitor.md`](docs/ava-monitor.md).
 
 ## What it does
 
@@ -69,7 +72,7 @@ own. Call monitoring also needs `make setup-voxtral` and
 silence), transcribes, copies, pastes. A 20-second recording takes about 1.3s
 with the default `base.en` model on an M3 Pro.
 
-**Speak, from anywhere.** `local-whisper speak`, an MCP tool, a shell script, or
+**Speak, from anywhere.** `ava speak`, an MCP tool, a shell script, or
 the menu bar app — all through one Kokoro server, one global mute and one
 playback lock, so two of them never talk over each other. 28 voices, blendable
 by passing several ids.
@@ -81,7 +84,7 @@ what only surfaces when you listen: six links that all announce "read more",
 skipped heading levels, an alt text that passes the linter and reads as nonsense
 out loud.
 
-**Live call transcripts.** `voice-monitor` streams a transcript to
+**Live call transcripts.** `ava-monitor` streams a transcript to
 `localhost:8766` from your mic or a loopback device, with optional speaker
 labels. This is the one place Voxtral still runs: it is built for streaming,
 where this project's whisper path transcribes a complete file per subprocess.
@@ -126,7 +129,7 @@ couple of seconds.
 
 The hooks deliberately don't go through the Go binary; they're bash talking to
 `scripts/speak.sh`, so spoken notifications work on a machine where
-`local-whisper` was never installed. One JSON config file has three independent
+`ava` was never installed. One JSON config file has three independent
 readers — Go, bash and Swift — held to identical answers by a contract test.
 
 Diagram and the reasoning behind each of those choices:
@@ -135,7 +138,7 @@ Diagram and the reasoning behind each of those choices:
 ## Privacy
 
 No audio or transcript is ever transmitted. Both engines run locally,
-`mlx-engine` and `voice-monitor` bind `127.0.0.1`, and there is no account,
+`mlx-engine` and `ava-monitor` bind `127.0.0.1`, and there is no account,
 telemetry or server component. The only network access is installing
 dependencies and downloading model weights, at setup or the first time a model
 loads.
@@ -146,7 +149,7 @@ What lands on disk:
 | --- | --- | --- |
 | Recorded dictation audio | `/tmp/voice-input/` | On exit. A crash leaves the `.wav` behind |
 | Synthesis and playback temp files | `/tmp/ava-tts-*` | After playback |
-| **`voice-monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and written world-readable |
+| **`ava-monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and written world-readable |
 
 That last row is the one to know. A call transcript stays on disk indefinitely
 at mode `0644`. Pass `--log` to choose the path, and delete it when you are done.
@@ -155,7 +158,7 @@ at mode `0644`. Pass `--log` to choose the path, and delete it when you are done
 Grant it to a terminal or app you trust, or run with `--no-paste`.
 
 **Loopback capture records the other participants.** `make setup-blackhole` sets
-this up for `voice-monitor`. Recording-consent law varies by jurisdiction and
+this up for `ava-monitor`. Recording-consent law varies by jurisdiction and
 some require every party to agree; that is your call to make, not the tool's.
 
 If you enable `llmSummary`, notification text goes to a local Ollama on
@@ -165,18 +168,18 @@ it. Off by default.
 ## Common commands
 
 ```bash
-local-whisper                              # dictate
-local-whisper transcribe meeting.wav       # transcribe a file you already have
+ava                              # dictate
+ava transcribe meeting.wav       # transcribe a file you already have
 
-local-whisper speak "build finished"
-git log -1 --format=%s | local-whisper speak
-local-whisper speak --voice af_heart,bf_emma "a blend of two voices"
-local-whisper stop                         # cancel speech from any source
-local-whisper voices                       # the 28 ids --voice accepts
+ava speak "build finished"
+git log -1 --format=%s | ava speak
+ava speak --voice af_heart,bf_emma "a blend of two voices"
+ava stop                         # cancel speech from any source
+ava voices                       # the 28 ids --voice accepts
 
-local-whisper engine start|status|stop     # the Kokoro server
-local-whisper mcp                          # serve the stack over MCP
-local-whisper a11y snapshot.txt            # narrate an accessibility tree
+ava engine start|status|stop     # the Kokoro server
+ava mcp                          # serve the stack over MCP
+ava a11y snapshot.txt            # narrate an accessibility tree
 ```
 
 Every command and flag: [`docs/cli.md`](docs/cli.md).
@@ -194,7 +197,7 @@ Start here:
 
 By component:
 [`docs/mcp.md`](docs/mcp.md) (the five MCP tools) ·
-[`docs/voice-monitor.md`](docs/voice-monitor.md) (live transcripts, loopback setup) ·
+[`docs/ava-monitor.md`](docs/ava-monitor.md) (live transcripts, loopback setup) ·
 [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) (spoken notifications, every config key) ·
 [`mlx-engine/README.md`](mlx-engine/README.md) (the Kokoro server) ·
 [`AvaMenuBar/README.md`](AvaMenuBar/README.md) (the menu bar app)
@@ -210,18 +213,18 @@ Working on it:
 
 ```bash
 make install-hooks         # pre-commit checks; CI only runs on version tags
-make build                 # binary to bin/local-whisper
+make build                 # binary to bin/ava
 make test                  # Go, mlx-engine, voxtral, and the voice hooks
 make lint                  # vet, format check, ruff, and the repo's drift checks
 make check-swift-config    # the Swift config reader vs bash and Go (needs swiftc)
 ```
 
-`go run ./cmd/local-whisper [flags]` runs without building. Read
+`go run ./cmd/ava [flags]` runs without building. Read
 [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing the config readers or the
 speech protocol.
 
 ## License
 
 MIT. Third-party components and model licences are in [`NOTICE`](NOTICE). Note
-that `voice-monitor --diarize` downloads a model licensed for non-commercial use
+that `ava-monitor --diarize` downloads a model licensed for non-commercial use
 only.

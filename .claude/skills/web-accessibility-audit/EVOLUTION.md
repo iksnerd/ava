@@ -2,7 +2,7 @@
 
 ## 2026-09-21 — created
 
-Written alongside `local-whisper mcp`'s `speak_accessibility_tree` tool, which
+Written alongside `ava mcp`'s `speak_accessibility_tree` tool, which
 is what makes the skill possible: the accessibility tree is rendered to
 screen-reader announcements by tested Go (`internal/a11y`), not by prose the
 model re-improvises each session.

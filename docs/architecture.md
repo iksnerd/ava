@@ -8,13 +8,13 @@ Four ways in, two engines underneath, and one config file that all of them read.
 flowchart TB
     subgraph doors["WAYS IN"]
         direction LR
-        cli["local-whisper<br/>CLI"]
+        cli["ava<br/>CLI"]
         mcpc["MCP clients<br/>agents, Claude Code"]
         hooks["Claude Code hooks<br/>scripts/*.sh"]
         app["Ava<br/>menu bar app"]
     end
 
-    subgraph gobin["local-whisper binary · Go"]
+    subgraph gobin["ava binary · Go"]
         direction LR
         speaker["internal/speaker<br/>mute · markers · playback lock"]
         engsel["pkg/stt/whisper<br/>transcription"]
@@ -61,16 +61,16 @@ flowchart TB
     linkStyle default stroke:#64748b,stroke-width:1.5px;
 ```
 
-`voice-monitor`, the live call-transcript binary, is not in this picture: it
+`ava-monitor`, the live call-transcript binary, is not in this picture: it
 shares none of these paths. It streams through Voxtral in `voxtral/` rather
 than whisper.cpp, speaks nothing, and serves its transcript on
-`127.0.0.1:8766`. See [`voice-monitor.md`](voice-monitor.md) and
+`127.0.0.1:8766`. See [`ava-monitor.md`](ava-monitor.md) and
 [`voxtral-architecture.mmd`](voxtral-architecture.mmd).
 
 ## Why the hooks bypass the Go binary
 
 The Claude Code hooks are plain bash talking to `scripts/speak.sh`, not to
-`local-whisper`. That is deliberate: speech still works on a machine where the
+`ava`. That is deliberate: speech still works on a machine where the
 Go binary was never installed, which is the common case for someone who cloned
 the repo to get spoken notifications and nothing else.
 
@@ -106,7 +106,7 @@ lock, the sidecar suffixes, mlx-engine's URL and pid file, and the temp dir.
 
 It generates rather than having each runtime read one file at startup because
 the runtimes cannot agree on a path that exists: `go:embed` cannot reach
-outside its own package, an installed `local-whisper` has no `scripts/` beside
+outside its own package, an installed `ava` has no `scripts/` beside
 it, and the menu bar app ships only what its bundle carries. A file read at
 runtime would serve two of the four and leave hand-written copies for the rest,
 which is worse than no generator, because the copies would look authoritative.
@@ -126,7 +126,7 @@ honest outcome of generation, which covers most consumers rather than all.
 
 `internal/enginedist` embeds the mlx-engine bundle — the control script and the
 three shell files it sources, plus `server.py`, `protocol.py`, `pyproject.toml`,
-`uv.lock` and `.python-version` — so `local-whisper setup` can install Kokoro on
+`uv.lock` and `.python-version` — so `ava setup` can install Kokoro on
 a machine with no checkout. About 600 KB travels; the 1.2 GB venv is resolved by
 `uv` at install time and the 339 MB model is fetched on first use.
 
@@ -177,8 +177,8 @@ throwaway path instead of the real one; nothing in normal operation sets those.
 | `TTS_SPEED`, `TTS_VOLUME`, `TTS_SAY_RATE` | `scripts/speak.sh`, `internal/voiceconfig` | Override the configured speed, volume and `say` rate for one run. See [the hooks doc](claude-code-voice-hooks.md#settings) |
 | `TTS_NOTIFY_MAX_CHARS`, `TTS_STOP_MAX_CHARS` | `scripts/hook-notify.sh`, `scripts/hook-stop.sh` | Override the spoken-length caps |
 | `MLX_ENGINE_SCRIPT` | `internal/speaker` | Control script that `speak`'s implicit auto-start runs. See [the CLI reference](cli.md#engine-server) |
-| `LOCAL_WHISPER_ENGINE_DIR` | `internal/enginedist` | Where `local-whisper setup` installs the engine bundle, and where auto-start looks for it |
-| `LOCAL_WHISPER_BIN` | `scripts/install.sh` | Install directory, default `~/.local/bin` |
+| `AVA_ENGINE_DIR` | `internal/enginedist` | Where `ava setup` installs the engine bundle, and where auto-start looks for it |
+| `AVA_BIN` | `scripts/install.sh` | Install directory, default `~/.local/bin` |
 | `MLX_ENGINE_PID_FILE` | `mlx-engine/server.py` | The pid file the server removes on idle exit. `scripts/mlx-engine-server.sh` sets it so the two cannot disagree; also a test hook |
 | `VOICECONFIG_PATH` | `internal/voiceconfig` | Test hook: the config file the Go reader loads |
 | `VOICE_CONFIG_FILE`, `VOICE_DEFAULTS_FILE` | `scripts/lib.sh` | Test hook: the config and defaults files the bash reader loads, so the contract test can hand both readers the same fixture |

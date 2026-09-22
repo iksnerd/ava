@@ -134,3 +134,18 @@ func TestBundleCarriesThePythonPin(t *testing.T) {
 		t.Error("mlx-engine/.python-version materialized empty")
 	}
 }
+
+// The variable was LOCAL_WHISPER_ENGINE_DIR before the rename. An override
+// set under the old name must keep working for the release that renames it,
+// and the new name must win when both are set.
+func TestDefaultDirHonoursTheNameBeforeTheRename(t *testing.T) {
+	t.Setenv(DirEnv, "")
+	t.Setenv(LegacyDirEnv, "/legacy/engine")
+	if got, _ := DefaultDir(); got != "/legacy/engine" {
+		t.Errorf("DefaultDir() = %q with only %s set, want /legacy/engine", got, LegacyDirEnv)
+	}
+	t.Setenv(DirEnv, "/new/engine")
+	if got, _ := DefaultDir(); got != "/new/engine" {
+		t.Errorf("DefaultDir() = %q with both set, want %s to win", got, DirEnv)
+	}
+}

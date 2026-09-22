@@ -1,7 +1,7 @@
 // Package enginedist carries the mlx-engine bundle inside the binary so that
 // Kokoro TTS can be installed without a checkout.
 //
-// The problem it solves: local-whisper is usable from a single binary for
+// The problem it solves: ava is usable from a single binary for
 // everything except speech, and speech is the feature the project leads with.
 // `engine start` shells out to scripts/mlx-engine-server.sh, which drives the
 // Python project in mlx-engine/ — neither of which exists on a machine that
@@ -43,13 +43,20 @@ const ScriptRelPath = "scripts/mlx-engine-server.sh"
 // hatch VOICECONFIG_PATH and TTSCONTROL_ACTIVITY_DIR provide for the config
 // and the marker directory, and for the same reason: a test that can only run
 // against live state does not get run.
-const DirEnv = "LOCAL_WHISPER_ENGINE_DIR"
+const DirEnv = "AVA_ENGINE_DIR"
 
-// DefaultDir is where `local-whisper setup` materializes the bundle: beside
+// LegacyDirEnv is DirEnv's name before the 0.6.0 rename, still honoured so
+// an existing override keeps working. Remove in 0.7.0.
+const LegacyDirEnv = "LOCAL_WHISPER_ENGINE_DIR"
+
+// DefaultDir is where `ava setup` materializes the bundle: beside
 // the config the menu bar app and the CLI already share, rather than a second
 // application-data location.
 func DefaultDir() (string, error) {
 	if v := os.Getenv(DirEnv); v != "" {
+		return v, nil
+	}
+	if v := os.Getenv(LegacyDirEnv); v != "" {
 		return v, nil
 	}
 	home, err := os.UserHomeDir()

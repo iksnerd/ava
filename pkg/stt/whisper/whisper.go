@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/ava/pkg/stt"
 )
 
 // Client wraps the whisper-cli command-line tool
@@ -33,7 +33,7 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 		// This is the first error anyone who installed the binary without the
 		// repo sees, so it names the command that fixes it rather than a
 		// make target they have no checkout to run.
-		fix := "local-whisper setup-model"
+		fix := "ava setup-model"
 		if strings.Contains(filepath.Base(c.ModelPath), "tiny") {
 			fix += " --model tiny"
 		}

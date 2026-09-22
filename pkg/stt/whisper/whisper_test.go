@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iksnerd/local-whisper/internal/testutil"
-	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/ava/internal/testutil"
+	"github.com/iksnerd/ava/pkg/stt"
 )
 
 const fixtureModelPath = "testdata/model.bin"
@@ -36,7 +36,7 @@ func TestTranscribeModelNotFound(t *testing.T) {
 	if !strings.Contains(err.Error(), "whisper model not found") {
 		t.Errorf("expected 'whisper model not found' in error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "local-whisper setup-model") {
+	if !strings.Contains(err.Error(), "ava setup-model") {
 		t.Errorf("the error does not name the command that fixes it: %v", err)
 	}
 }

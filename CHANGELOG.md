@@ -3,6 +3,45 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [0.6.0] — 2026-09-22
+
+The project is called Ava now, after the menu bar app it already shipped. The
+repository is `iksnerd/ava`, the commands are `ava` and `ava-monitor`, and the Go
+module path is `github.com/iksnerd/ava`. Nothing else moves: the config, the
+engine install and the speech markers already lived under `ava`.
+
+### Changed
+- **`local-whisper` is now `ava`, and `voice-monitor` is now `ava-monitor`.**
+  `scripts/install.sh` and `make install-bin` also create a `local-whisper`
+  symlink, so an existing MCP registration, Raycast launcher or Ava.app keeps
+  working. The alias goes away in 0.7.0.
+- The MCP server introduces itself as `ava`, so its tools appear as
+  `mcp__ava__*` once registered under that name.
+- `AVA_ENGINE_DIR` and `AVA_BIN` replace `LOCAL_WHISPER_ENGINE_DIR` and
+  `LOCAL_WHISPER_BIN`; the old names are still read until 0.7.0.
+- `make install-bin` installs with `install` rather than `cp`. `cp` rewrites
+  the file in place, and macOS kills a running `ava mcp` whose binary changes
+  under it.
+- `make uninstall` also removes the pre-rename binaries and the alias.
+
+### Fixed
+- Release pages published with only the install footer for a body (v0.4.0 and
+  v0.5.0, both repaired by hand). `changelog.disable: true` in
+  `.goreleaser.yaml` skips the pipe that reads `--release-notes`, so the notes
+  file CI builds from this changelog was never used.
+
+### Upgrading from local-whisper
+```bash
+bash scripts/install.sh            # or: make install-bin
+claude mcp remove -s user local-whisper
+claude mcp add -s user ava -- ava mcp
+make install-raycast               # if you use the Raycast launcher
+```
+GitHub redirects the old repository URL, but update your remote with
+`git remote set-url origin https://github.com/iksnerd/ava.git`. The voice hooks
+in `~/.claude/settings.json` point at your checkout's folder, so they only need
+changing if you rename that folder.
+
 ## [0.5.0] — 2026-09-22
 
 The release that closes what a pre-launch audit found. `voice-monitor` no
@@ -269,6 +308,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.6.0]: https://github.com/iksnerd/ava/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.5.0
 [0.4.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.4.0
 [0.3.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.3.0

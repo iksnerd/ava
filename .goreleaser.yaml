@@ -9,7 +9,7 @@
 # osascript, say and sox, and the TTS engine is MLX, which has no Intel build.
 # A linux binary would compile and then fail at the first thing it did.
 #
-# What a downloaded binary can do on its own: `local-whisper setup` installs
+# What a downloaded binary can do on its own: `ava setup` installs
 # sox, whisper-cli, the model and the Kokoro engine, which travels inside the
 # binary (internal/enginedist). No checkout needed.
 #
@@ -27,7 +27,7 @@
 # "Open". Clearing it afterwards is `xattr -d com.apple.quarantine`.
 version: 2
 
-project_name: local-whisper
+project_name: ava
 
 before:
   hooks:
@@ -38,31 +38,31 @@ builds:
   # silently if it stops resolving — the build succeeds and --version quietly
   # reports "dev" — so TestVersionStampingAgreesAcrossBuildSystems pins the two
   # together rather than trusting this comment.
-  - id: local-whisper
-    main: ./cmd/local-whisper
-    binary: local-whisper
+  - id: ava
+    main: ./cmd/ava
+    binary: ava
     env: [CGO_ENABLED=0]
     goos: [darwin]
     goarch: [arm64]
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w
-      - -X github.com/iksnerd/local-whisper/internal/buildinfo.Version={{ .Summary }}
+      - -X github.com/iksnerd/ava/internal/buildinfo.Version={{ .Summary }}
 
-  - id: voice-monitor
-    main: ./cmd/voice-monitor
-    binary: voice-monitor
+  - id: ava-monitor
+    main: ./cmd/ava-monitor
+    binary: ava-monitor
     env: [CGO_ENABLED=0]
     goos: [darwin]
     goarch: [arm64]
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w
-      - -X github.com/iksnerd/local-whisper/internal/buildinfo.Version={{ .Summary }}
+      - -X github.com/iksnerd/ava/internal/buildinfo.Version={{ .Summary }}
 
 archives:
   - id: default
-    ids: [local-whisper, voice-monitor]
+    ids: [ava, ava-monitor]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -99,8 +99,8 @@ release:
     **Apple Silicon only.**
 
     ```bash
-    bash <(gh api repos/iksnerd/local-whisper/contents/scripts/install.sh -q .content | base64 -d)
-    local-whisper setup
+    bash <(gh api repos/iksnerd/ava/contents/scripts/install.sh -q .content | base64 -d)
+    ava setup
     ```
 
     `install.sh` verifies the checksum and installs both binaries to
@@ -113,4 +113,4 @@ release:
     downloads but not to anything `curl` or `gh` fetches. A quarantined
     unsigned binary is killed with exit 137 and no message, and the dialog
     macOS shows offers **Move to Trash**, not Open. If you have already hit
-    that: `xattr -d com.apple.quarantine local-whisper voice-monitor`.
+    that: `xattr -d com.apple.quarantine ava ava-monitor`.

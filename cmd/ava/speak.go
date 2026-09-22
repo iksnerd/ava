@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/speaker"
-	"github.com/iksnerd/local-whisper/internal/voiceconfig"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
+	"github.com/iksnerd/ava/internal/speaker"
+	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and
@@ -33,9 +33,9 @@ func newSpeakCmd() *cobra.Command {
 			"straight in without shell quoting. Blocks until playback finishes\n" +
 			"unless --async is passed. Silent while the menu bar app's global\n" +
 			"Mute is on, which it warns about rather than pretending to speak.",
-		Example: "  local-whisper speak \"build finished\"\n" +
-			"  git log -1 --format=%s | local-whisper speak\n" +
-			"  local-whisper speak --voice bf_emma --speed 0.9 \"slower, british\"",
+		Example: "  ava speak \"build finished\"\n" +
+			"  git log -1 --format=%s | ava speak\n" +
+			"  ava speak --voice bf_emma --speed 0.9 \"slower, british\"",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -120,7 +120,7 @@ func validateVoice(voice string) error {
 		}
 		if !known[id] {
 			return fmt.Errorf(
-				"unknown voice %q (run `local-whisper voices` to list the %d available)",
+				"unknown voice %q (run `ava voices` to list the %d available)",
 				id, len(known))
 		}
 	}

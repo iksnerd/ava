@@ -7,16 +7,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/audio"
-	"github.com/iksnerd/local-whisper/internal/buildinfo"
-	"github.com/iksnerd/local-whisper/internal/clipboard"
-	"github.com/iksnerd/local-whisper/internal/procutil"
-	"github.com/iksnerd/local-whisper/internal/recording"
-	"github.com/iksnerd/local-whisper/pkg/stt"
-	"github.com/iksnerd/local-whisper/pkg/stt/whisper"
+	"github.com/iksnerd/ava/internal/audio"
+	"github.com/iksnerd/ava/internal/buildinfo"
+	"github.com/iksnerd/ava/internal/clipboard"
+	"github.com/iksnerd/ava/internal/procutil"
+	"github.com/iksnerd/ava/internal/recording"
+	"github.com/iksnerd/ava/pkg/stt"
+	"github.com/iksnerd/ava/pkg/stt/whisper"
 )
 
-// tmpDir is internal/audio's, shared with voice-monitor so the two cannot
+// tmpDir is internal/audio's, shared with ava-monitor so the two cannot
 // drift onto different directories.
 const tmpDir = audio.TempDir
 
@@ -37,7 +37,7 @@ func newRootCmd() *cobra.Command {
 	var opts options
 
 	cmd := &cobra.Command{
-		Use:           "local-whisper",
+		Use:           "ava",
 		Short:         "Record audio, transcribe it, and copy/paste the result",
 		Version:       buildinfo.Get(),
 		Args:          cobra.NoArgs,
@@ -101,7 +101,7 @@ func Execute() {
 // behind --engine voxtral. It was removed after measuring it — on the same
 // 20s sample whisper.cpp took 1.26s and Voxtral 17s warm, 127s cold including
 // a 108s model load, for a near-identical transcript. mlx-engine is TTS-only
-// now; Voxtral still runs in voice-monitor, which needs streaming rather than
+// now; Voxtral still runs in ava-monitor, which needs streaming rather than
 // one subprocess per complete file.
 func newTranscriber(modelName string) (stt.Client, error) {
 	homeDir, err := os.UserHomeDir()

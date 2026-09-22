@@ -3,7 +3,7 @@
 # Setup script for installing system dependencies
 # Installs sox and whisper-cli via brew
 
-echo "🔧 local-whisper Dependency Setup"
+echo "🔧 ava Dependency Setup"
 echo ""
 
 # Check if brew is installed

@@ -19,7 +19,7 @@ class TestHealth:
     def test_reports_the_tts_model_and_its_load_state(self, client, server):
         """Kokoro is warmed at startup, so a healthy server is a ready one.
         This used to also report a lazily-loaded 4B STT model; that half moved
-        out — voice-monitor runs Voxtral in its own process for streaming, and
+        out — ava-monitor runs Voxtral in its own process for streaming, and
         one-shot transcription uses whisper.cpp, which was 13x faster.
         """
         res = client.get("/health")

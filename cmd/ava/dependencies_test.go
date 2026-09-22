@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iksnerd/local-whisper/internal/testutil"
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 func TestCheckDependencies(t *testing.T) {
@@ -38,7 +38,7 @@ func TestCheckDependencies(t *testing.T) {
 
 }
 
-// copyFixtureBin copies a fixture executable from cmd/local-whisper/testdata/bin
+// copyFixtureBin copies a fixture executable from cmd/ava/testdata/bin
 // into dir, so a test can compose a PATH with only a subset of dependencies present.
 func copyFixtureBin(t *testing.T, dir, name string) {
 	t.Helper()

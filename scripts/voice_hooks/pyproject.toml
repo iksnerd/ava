@@ -1,7 +1,7 @@
 [project]
 name = "voice-hooks"
 version = "0.1.0"
-description = "Text processing + local LLM summarization for local-whisper's Claude Code voice hooks"
+description = "Text processing + local LLM summarization for Ava's Claude Code voice hooks"
 requires-python = ">=3.11"
 dependencies = [
     "pysbd>=0.3.4",

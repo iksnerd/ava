@@ -8,8 +8,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/iksnerd/local-whisper/internal/speaker"
-	"github.com/iksnerd/local-whisper/pkg/stt"
+	"github.com/iksnerd/ava/internal/speaker"
+	"github.com/iksnerd/ava/pkg/stt"
 )
 
 // spy records what the MCP tools asked the voice stack to do, standing in

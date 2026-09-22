@@ -18,7 +18,7 @@ echo "🔨 Building release binary..."
 swift build -c release
 RELEASE_BIN="$(swift build -c release --show-bin-path)/$BIN_NAME"
 
-echo "🔨 Building local-whisper (bundled for Dictate — whisper.cpp, no extra setup)..."
+echo "🔨 Building ava (bundled for Dictate — whisper.cpp, no extra setup)..."
 make -C "$REPO_ROOT" build
 
 echo "📦 Packaging $APP_NAME.app..."
@@ -27,18 +27,18 @@ mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/$BIN_NAME"
 cp "$DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
-# scripts/ + the local-whisper binary get bundled so the app works from any
+# scripts/ + the ava binary get bundled so the app works from any
 # checkout (Paths.swift resolves both relative to this Resources/ dir at
 # runtime, falling back to the dev-checkout path only when unbundled).
 # .venv/__pycache__ are excluded: per-machine and uv-managed — voice_hooks/
 # syncs its own fresh on first use, same as `make setup-voice-hooks` today.
 # mlx-engine/ is deliberately NOT bundled (its venv alone is 1.3GB, plus a
-# 2.9GB Voxtral model download) — Dictate uses local-whisper's default
+# 2.9GB Voxtral model download) — Dictate uses ava's default
 # `whisper` engine instead, and speak.sh already falls back to macOS `say`
 # when mlx-engine isn't set up, so the app is fully functional without it.
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' \
     "$REPO_ROOT/scripts/" "$APP_DIR/Contents/Resources/scripts/"
-cp "$REPO_ROOT/bin/local-whisper" "$APP_DIR/Contents/Resources/local-whisper"
+cp "$REPO_ROOT/bin/ava" "$APP_DIR/Contents/Resources/ava"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

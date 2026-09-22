@@ -12,7 +12,7 @@ struct VoiceConfig: Codable, Equatable {
     var notifyMaxChars: Int = 500
     var llmSummary: Bool = false
     // False once the user has explicitly stopped the mlx-engine server
-    // (Stop below, or `local-whisper engine stop`) — until they explicitly
+    // (Stop below, or `ava engine stop`) — until they explicitly
     // start it again, this tells speak.sh's on-demand auto-start (hooks)
     // not to silently bring the server back up. Flipped by
     // scripts/mlx-engine-server.sh itself (see config_set_bool in lib.sh),

@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/audio"
-	"github.com/iksnerd/local-whisper/internal/buildinfo"
-	"github.com/iksnerd/local-whisper/internal/procutil"
-	"github.com/iksnerd/local-whisper/pkg/stt/realtime"
+	"github.com/iksnerd/ava/internal/audio"
+	"github.com/iksnerd/ava/internal/buildinfo"
+	"github.com/iksnerd/ava/internal/procutil"
+	"github.com/iksnerd/ava/pkg/stt/realtime"
 )
 
 // rootOptions holds the persistent --python/--voxtral-dir flags, shared by
@@ -44,7 +44,7 @@ func newRootCmd() *cobra.Command {
 	var opts watchOptions
 
 	cmd := &cobra.Command{
-		Use:           "voice-monitor",
+		Use:           "ava-monitor",
 		Short:         "Serve a live realtime transcript (mic or loopback device) over SSE, logged to a file",
 		Version:       buildinfo.Get(),
 		Args:          cobra.NoArgs,

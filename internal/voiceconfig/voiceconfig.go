@@ -3,7 +3,7 @@
 // the `say` fallback rate, and whether the mlx-engine may auto-start.
 //
 // This is a Go port of scripts/lib.sh's config_get/config_get_bool helpers,
-// not a wrapper around them: local-whisper is typically installed to
+// not a wrapper around them: ava is typically installed to
 // ~/.local/bin standalone (see `make install-bin`), so it can't assume the
 // repo's scripts/ directory is reachable — the same constraint
 // internal/ttscontrol documents. Keep the two in sync by hand if the

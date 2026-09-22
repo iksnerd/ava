@@ -1,5 +1,5 @@
 #!/bin/bash
-# Shared setup for local-whisper's voice scripts (server control, speak, hooks).
+# Shared setup for ava's voice scripts (server control, speak, hooks).
 # Source this — never execute it directly.
 
 # Claude Code hooks run with a minimal PATH (no shell rc sourced), so pin the
@@ -127,7 +127,7 @@ with open(path, 'w') as f:
 }
 
 # voice_engine_autostart_enabled -> false once the user has explicitly
-# stopped the mlx-engine server (menu bar Stop, or `local-whisper engine
+# stopped the mlx-engine server (menu bar Stop, or `ava engine
 # stop`), until they explicitly start it again. Lets speak.sh's on-demand
 # auto-start (see below) tell "never started" apart from "user turned it
 # off" instead of always reviving the server the instant a hook fires.

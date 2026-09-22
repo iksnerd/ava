@@ -87,7 +87,7 @@ func TestStreamRealtimeDeliversAllEvents(t *testing.T) {
 	})
 	// The fixture process is one-shot and typically exits on its own before
 	// this reaches it; stop()'s job here is just to reap it, the same way
-	// cmd/voice-monitor's real caller ignores stop()'s error on Ctrl+C.
+	// cmd/ava-monitor's real caller ignores stop()'s error on Ctrl+C.
 	_ = stop()
 
 	if len(events) != 4 {

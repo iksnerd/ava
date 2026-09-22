@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/a11y"
-	"github.com/iksnerd/local-whisper/internal/speaker"
-	"github.com/iksnerd/local-whisper/internal/voiceconfig"
-	"github.com/iksnerd/local-whisper/pkg/mlx"
+	"github.com/iksnerd/ava/internal/a11y"
+	"github.com/iksnerd/ava/internal/speaker"
+	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newA11yCmd renders a Chrome accessibility tree as screen-reader
@@ -37,9 +37,9 @@ func newA11yCmd() *cobra.Command {
 			"Findings cover what only shows up when a page is heard in order:\n" +
 			"unlabeled controls, links that announce identically, skipped heading\n" +
 			"levels. For the rule-based pass, run chrome-devtools' lighthouse_audit.",
-		Example: "  local-whisper a11y snapshot.txt\n" +
-			"  local-whisper a11y --mode headings --quiet snapshot.txt\n" +
-			"  pbpaste | local-whisper a11y --mode links",
+		Example: "  ava a11y snapshot.txt\n" +
+			"  ava a11y --mode headings --quiet snapshot.txt\n" +
+			"  pbpaste | ava a11y --mode links",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1,4 +1,4 @@
-module github.com/iksnerd/local-whisper
+module github.com/iksnerd/ava
 
 go 1.25.0
 

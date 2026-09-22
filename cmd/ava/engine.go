@@ -7,11 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/iksnerd/local-whisper/internal/enginedist"
+	"github.com/iksnerd/ava/internal/enginedist"
 )
 
 // repoEngineScript is the control script's path inside a checkout, tried
-// before the bundle `local-whisper setup` installs.
+// before the bundle `ava setup` installs.
 const repoEngineScript = enginedist.ScriptRelPath
 
 // newEngineCmd groups start/stop/status for the local mlx-engine Kokoro TTS
@@ -28,11 +28,11 @@ func newEngineCmd() *cobra.Command {
 		Short: "Manage the local mlx-engine Kokoro TTS server",
 	}
 	cmd.PersistentFlags().StringVar(&scriptPath, "script", "",
-		"Path to the server control script (default: the repo's, else the one installed by local-whisper setup)")
+		"Path to the server control script (default: the repo's, else the one installed by ava setup)")
 
 	// Resolution order, most explicit first. Without the installed fallback a
 	// downloaded binary can never start the engine, which is the whole reason
-	// `local-whisper setup` writes one.
+	// `ava setup` writes one.
 	resolveScript := func() (string, error) {
 		if scriptPath != "" {
 			return scriptPath, nil
@@ -44,7 +44,7 @@ func newEngineCmd() *cobra.Command {
 			return installed, nil
 		}
 		return "", fmt.Errorf("no mlx-engine control script found.\n"+
-			"   Run `local-whisper setup` to install one, run from the repo root, "+
+			"   Run `ava setup` to install one, run from the repo root, "+
 			"or pass --script (looked for %s and the installed bundle)", repoEngineScript)
 	}
 

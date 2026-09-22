@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Use GitHub's private vulnerability reporting:
-**[Report a vulnerability](https://github.com/iksnerd/local-whisper/security/advisories/new)**.
+**[Report a vulnerability](https://github.com/iksnerd/ava/security/advisories/new)**.
 
 That keeps the report private until there's a fix, and it doesn't require
 either of us to publish an email address. Expect a first response within a
@@ -25,13 +25,13 @@ The points worth your attention:
 process running as your user can post text to `/speak` and have it spoken. There
 is no token. This is deliberate for a single-user local service, but it means
 the port is as trusted as your user account. The same applies to
-`voice-monitor`'s SSE server on `127.0.0.1:8766`, which serves a live transcript
+`ava-monitor`'s SSE server on `127.0.0.1:8766`, which serves a live transcript
 to anything that connects.
 
 **Accessibility permission is powerful.** Auto-paste drives Cmd+V through
 AppleScript, which requires macOS Accessibility access. Granting it lets the
 controlling process synthesise arbitrary keystrokes, not just Cmd+V. Grant it to
-a terminal or app you trust, and use `local-whisper --no-paste` if you'd rather
+a terminal or app you trust, and use `ava --no-paste` if you'd rather
 not — the transcript still reaches your clipboard.
 
 **Recorded audio and transcripts are written to `/tmp`.** See
@@ -40,10 +40,10 @@ how long.
 
 **Model weights are downloaded from Hugging Face.** The whisper.cpp model is
 pinned to a Hugging Face commit and checked against a sha256 before it is
-installed, by both `local-whisper setup-model` and `scripts/setup-model.sh`, so
+installed, by both `ava setup-model` and `scripts/setup-model.sh`, so
 a changed file on Hugging Face fails the download rather than landing on disk.
 The Kokoro and Voxtral weights are not pinned: the Python libraries fetch them
-into the shared Hugging Face cache the first time the server or `voice-monitor`
+into the shared Hugging Face cache the first time the server or `ava-monitor`
 loads them, trusting Hugging Face and your TLS chain.
 
 **The `.app` is ad-hoc signed, not notarized.** There is no Apple Developer ID
