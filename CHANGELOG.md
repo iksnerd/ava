@@ -3,7 +3,14 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## Unreleased
+## [0.6.1] — 2026-09-23
+
+The release from an architecture and test review. The worst of it: a stop
+could kill `ava` itself, including a running `ava mcp`; dictating deleted a
+live call's transcript; the menu bar app never used Kokoro unless something
+else had started it; and `ava engine stop` killed any local FastAPI app
+started as `uvicorn server:app`. Each fix landed with a test that fails
+without it.
 
 ### Fixed
 - **A stop could kill `ava` itself, including a running `ava mcp`.** While
@@ -370,6 +377,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.6.1]: https://github.com/iksnerd/ava/releases/tag/v0.6.1
 [0.6.0]: https://github.com/iksnerd/ava/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.5.0
 [0.4.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.4.0
