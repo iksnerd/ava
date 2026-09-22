@@ -197,17 +197,18 @@ tidying up, and the setting it changed outlives the command: every later hook
 speaks through macOS `say` until something re-arms it.
 
 `--script` only covers the explicit `engine` commands. The **implicit**
-auto-start — the one a hook or `local-whisper speak` triggers when the server is
-down — resolves the same script relative to the working directory, which is
-wrong for a binary installed to `~/.local/bin`. Set `MLX_ENGINE_SCRIPT` to an
-absolute path for that case:
+auto-start, the one `local-whisper speak` or the MCP `speak` tool triggers when
+the server is down, looks in the same places: `MLX_ENGINE_SCRIPT`, then
+`scripts/` under the working directory, then the bundle `local-whisper setup`
+installed. A release install therefore needs nothing extra. Set
+`MLX_ENGINE_SCRIPT` only to point an installed binary at a checkout's engine:
 
 ```bash
 export MLX_ENGINE_SCRIPT="$HOME/src/local-whisper/scripts/mlx-engine-server.sh"
 ```
 
-Without it, an installed binary run from anywhere else falls back to macOS `say`
-rather than starting Kokoro — and now says so on stderr when it does.
+When none of them exists it falls back to macOS `say` rather than starting
+Kokoro, and says so on stderr.
 
 ## MCP server
 

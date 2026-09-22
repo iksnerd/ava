@@ -41,6 +41,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/iksnerd/local-whisper/internal/enginedist"
 	"github.com/iksnerd/local-whisper/internal/ttsproto"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 	"github.com/iksnerd/local-whisper/pkg/mlx"
@@ -308,9 +309,23 @@ func renderWithSay(text string, rate int, outPath string) error {
 // start` uses, rather than reimplementing its PID-file locking and uvicorn
 // management here.
 func startEngine() error {
-	script := os.Getenv(EngineScriptEnv)
-	if script == "" {
-		script = defaultEngineScript
+	return exec.Command("bash", engineScript(), "start").Run()
+}
+
+// engineScript resolves the control script in the same order `local-whisper
+// engine` does: the override, then a checkout's copy, then the bundle
+// `local-whisper setup` installed. Without the last step a release install
+// ran setup, got Kokoro, and then spoke every line in the macOS voice,
+// because auto-start only ever looked relative to the working directory.
+func engineScript() string {
+	if s := os.Getenv(EngineScriptEnv); s != "" {
+		return s
 	}
-	return exec.Command("bash", script, "start").Run()
+	if _, err := os.Stat(defaultEngineScript); err == nil {
+		return defaultEngineScript
+	}
+	if installed, ok := enginedist.InstalledScript(); ok {
+		return installed
+	}
+	return defaultEngineScript
 }

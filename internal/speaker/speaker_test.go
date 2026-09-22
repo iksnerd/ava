@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/iksnerd/local-whisper/internal/enginedist"
 	"github.com/iksnerd/local-whisper/internal/voiceconfig"
 	"github.com/iksnerd/local-whisper/pkg/mlx"
 )
@@ -295,5 +296,33 @@ func TestSpeakIsSilentWhenTheEngineWorks(t *testing.T) {
 	}
 	if notice.Len() != 0 {
 		t.Errorf("successful synthesis should print no warning, got %q", notice.String())
+	}
+}
+
+// A release install has no checkout, so auto-start has to find the bundle
+// `local-whisper setup` wrote, or every line falls back to the macOS voice.
+func TestEngineScriptFindsTheInstalledBundle(t *testing.T) {
+	t.Setenv(EngineScriptEnv, "")
+	t.Chdir(t.TempDir()) // no scripts/ here, as for a binary in ~/.local/bin
+
+	dir := t.TempDir()
+	t.Setenv(enginedist.DirEnv, dir)
+	installed := filepath.Join(dir, enginedist.ScriptRelPath)
+	if err := os.MkdirAll(filepath.Dir(installed), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(installed, []byte("#!/bin/bash\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := engineScript(); got != installed {
+		t.Errorf("engineScript() = %q, want the installed bundle %q", got, installed)
+	}
+}
+
+func TestEngineScriptPrefersTheOverride(t *testing.T) {
+	t.Setenv(EngineScriptEnv, "/custom/mlx-engine-server.sh")
+	if got := engineScript(); got != "/custom/mlx-engine-server.sh" {
+		t.Errorf("engineScript() = %q, want the %s override", got, EngineScriptEnv)
 	}
 }

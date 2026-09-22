@@ -44,6 +44,11 @@ entry is a summary rather than a record kept as it happened.
   `anyio`, `click`, `idna` and `msgpack`; `pip-audit` now reports nothing.
   The copy embedded in the binary is regenerated, so `local-whisper setup`
   installs the same set.
+- After `local-whisper setup`, `speak` still could not auto-start the engine it
+  had just installed: auto-start looked for the control script only relative to
+  the working directory, so a release install spoke every line in the macOS
+  voice unless `MLX_ENGINE_SCRIPT` was set. It now also finds the installed
+  bundle, in the same order `local-whisper engine` uses.
 - The release job published a body containing only the footer. GoReleaser's
   `release.mode` defaults to `keep-existing`, which declines to set the body;
   it is now `replace`, since CI supplies the body from `CHANGELOG.md`
