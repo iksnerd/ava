@@ -5,12 +5,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 )
-
-const fixtureAudioPath = "testdata/audio.wav"
 
 func TestNewClientDefaultURL(t *testing.T) {
 	c := NewClient("")
@@ -24,39 +21,6 @@ func TestNewClientCustomURL(t *testing.T) {
 	if c.ServerURL != "http://example.internal:9999" {
 		t.Errorf("ServerURL = %q, want the custom URL", c.ServerURL)
 	}
-}
-
-// recordingHandler captures the last request it served so tests can assert
-// on how Transcribe built it (method, path, multipart field, query params).
-type recordingHandler struct {
-	lastMethod      string
-	lastPath        string
-	lastQuery       url.Values
-	lastFileField   string
-	lastFileContent []byte
-	respond         func(w http.ResponseWriter)
-}
-
-func (h *recordingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.lastMethod = r.Method
-	h.lastPath = r.URL.Path
-	h.lastQuery = r.URL.Query()
-
-	if err := r.ParseMultipartForm(1 << 20); err == nil {
-		for field, headers := range r.MultipartForm.File {
-			if len(headers) == 0 {
-				continue
-			}
-			h.lastFileField = field
-			f, err := headers[0].Open()
-			if err == nil {
-				h.lastFileContent, _ = io.ReadAll(f)
-				f.Close()
-			}
-		}
-	}
-
-	h.respond(w)
 }
 
 type speakRecorder struct {

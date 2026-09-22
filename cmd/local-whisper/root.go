@@ -31,7 +31,6 @@ type options struct {
 	noPaste     bool
 	noSound     bool
 	showStatus  bool
-	engine      string
 }
 
 func newRootCmd() *cobra.Command {

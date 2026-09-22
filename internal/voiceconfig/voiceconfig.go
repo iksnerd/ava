@@ -55,7 +55,7 @@ type Settings struct {
 
 // Defaults mirrors scripts/voice-defaults.json, which
 // AvaMenuBar/VoiceSettings.swift and scripts/lib.sh also read.
-// go:embed can't reach a parent directory and a second copy of the file
+// The go:embed directive can't reach a parent directory and a second copy of the file
 // would defeat its single-source-of-truth job, so these are hand-maintained
 // and pinned by TestDefaultsMatchVoiceDefaultsJSON.
 func Defaults() Settings {

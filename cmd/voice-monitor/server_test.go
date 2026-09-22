@@ -282,7 +282,7 @@ func TestIndexPageDistinguishesReconnectingFromDisconnected(t *testing.T) {
 	// into two.
 	onerror := indexHTML[strings.Index(indexHTML, "es.onerror"):]
 	onerror = onerror[:strings.Index(onerror, "\n  };")]
-	if strings.Index(onerror, "setStatus('reconnecting") < 0 {
+	if !strings.Contains(onerror, "setStatus('reconnecting") {
 		t.Error("es.onerror never shows the reconnecting state")
 	}
 }

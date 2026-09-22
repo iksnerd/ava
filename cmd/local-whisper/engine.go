@@ -14,8 +14,8 @@ import (
 // before the bundle `local-whisper setup` installs.
 const repoEngineScript = enginedist.ScriptRelPath
 
-// newEngineCmd groups start/stop/status for the local mlx-engine STT/TTS
-// server (Kokoro TTS). It shells out to
+// newEngineCmd groups start/stop/status for the local mlx-engine Kokoro TTS
+// server. It shells out to
 // scripts/mlx-engine-server.sh rather than reimplementing its PID-file
 // locking and uvicorn process management in Go — that script already owns
 // the mlx-engine/ Python venv it drives, so there is no independent Go-side
@@ -28,7 +28,7 @@ func newEngineCmd() *cobra.Command {
 		Short: "Manage the local mlx-engine Kokoro TTS server",
 	}
 	cmd.PersistentFlags().StringVar(&scriptPath, "script", "",
-		"Path to the server control script (default: the repo's, else the one `local-whisper setup` installed)")
+		"Path to the server control script (default: the repo's, else the one installed by local-whisper setup)")
 
 	// Resolution order, most explicit first. Without the installed fallback a
 	// downloaded binary can never start the engine, which is the whole reason

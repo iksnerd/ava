@@ -114,7 +114,7 @@ func TestMaterializeOverwritesAnOlderBundle(t *testing.T) {
 	}
 }
 
-// go:embed drops dot-prefixed entries unless the pattern says all:, and the
+// The go:embed directive drops dot-prefixed entries unless the pattern says all:, and the
 // one that matters here pins the Python version. Without it uv picks a
 // version of its own, and a fresh install dies inside espeak's data files
 // after resolving a gigabyte — far from anything that names Python.
