@@ -95,16 +95,17 @@ of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 ## Installing on another machine
 
 ```bash
-gh api repos/iksnerd/ava/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
+curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
 ava setup
 ```
 
 From a checkout, `bash scripts/install.sh [tag]` does the same. The full new-Mac checklist is
 [getting-started.md](getting-started.md).
 
-`install.sh` fetches the release with `gh` when it is installed, which uses
-your GitHub credentials, and otherwise with a plain `curl`, which only reaches
-a public repo. It verifies the checksum before extracting, and installs both
+`install.sh` fetches the release with `gh` when it is installed and signed in,
+and otherwise with a plain `curl`, which needs no account. (A `gh` that was never
+signed in refuses even public downloads, so it is only used when signed in.)
+Pass a tag to pin a version: `… | bash -s v0.6.2`. It verifies the checksum before extracting, and installs both
 binaries to `~/.local/bin` — `AVA_BIN` overrides that.
 
 **Use it rather than downloading the archive in a browser.** The binaries are

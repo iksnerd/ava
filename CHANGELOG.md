@@ -3,6 +3,28 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [0.6.2] — 2026-09-23
+
+Installing from a release, for someone who has never seen the project: a README Install section
+led by a one-line install, a new-Mac guide, and `--help` that says where to start.
+
+### Added
+- **`docs/getting-started.md`**, a new-Mac checklist with a check after every step: the release
+  install first, the full source install (menu bar app, voice hooks, call transcripts) after.
+- `ava --help` opens with the first-run sequence (`ava setup`, `ava speak "hello"`, `ava`) and
+  the two permission prompts; `ava-monitor --help` says it needs the Voxtral environment from a
+  checkout.
+
+### Changed
+- The README's Quick start is now **Install**: from a release with
+  `curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash`,
+  a manual download from the Releases page (checksum and quarantine), then from source.
+
+### Fixed
+- `install.sh` used `gh` whenever it was installed, and a `gh` that was never signed in refuses
+  even public downloads, so the install failed with an auth error. It now uses `gh` only when
+  signed in and `curl` otherwise.
+
 ## [0.6.1] — 2026-09-23
 
 The release from an architecture and test review. The worst of it: a stop
@@ -377,6 +399,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.6.2]: https://github.com/iksnerd/ava/releases/tag/v0.6.2
 [0.6.1]: https://github.com/iksnerd/ava/releases/tag/v0.6.1
 [0.6.0]: https://github.com/iksnerd/ava/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.5.0

@@ -34,9 +34,11 @@ fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# gh first: it carries the caller's credentials, so this works while the repo
-# is private. curl covers a machine without gh once it is public.
-if command -v gh >/dev/null 2>&1; then
+# gh first, when it is signed in: it carries the caller's credentials, which a
+# private repo needs. gh that is installed but never signed in refuses to
+# download even from a public repo, so it falls through to curl, which needs
+# nothing.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     echo "⬇️  Fetching the release with gh..."
     # A release tagged before the GoReleaser job existed carries notes and no
     # binaries, and gh's own "no assets to download" does not say which release

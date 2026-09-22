@@ -5,86 +5,65 @@ follow it. Every step ends with a check; don't move on until it passes.
 
 ← [Back to the README](../README.md)
 
-**Which path?** This guide does the full install from a checkout: dictation, Kokoro speech, the
-menu bar app, the Claude Code hooks and call transcripts. If you only need the command-line tool,
-skip to [CLI only](#cli-only).
+**Which path?** Steps 0 to 5 install `ava` from a release: dictation, natural-voice speech,
+transcribing files, and the MCP server for Claude Code. The menu bar app, the Claude Code voice
+hooks and live call transcripts need the source: [Full install from source](#full-install-from-source).
 
 ## 0. Check the machine
 
 ```bash
 uname -m                 # arm64 = Apple Silicon: everything works
-sw_vers -productVersion  # 13 or later for the menu bar app
+sw_vers -productVersion  # 13 or later if you want the menu bar app
 ```
 
-On an Intel Mac (`x86_64`) only dictation works; speech falls back to the macOS voice, and there
-is no menu bar app or call monitoring.
+Release binaries are Apple Silicon only. On an Intel Mac (`x86_64`), see the Intel note under
+[Full install from source](#full-install-from-source); only dictation works there.
 
-## 1. Developer tools and Homebrew
+## 1. Homebrew
+
+`ava setup` installs its tools through [Homebrew](https://brew.sh). If `brew --version` does not
+run, install it from brew.sh: paste its one-line command, then run the `echo … >> ~/.zprofile`
+lines it prints at the end, and open a new terminal window.
+
+Check: `brew --version` prints a version.
+
+## 2. Install ava
 
 ```bash
-xcode-select --install          # git and Swift; skip if it says they are already installed
+curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
 ```
 
-Install Homebrew from [brew.sh](https://brew.sh) (paste its one-line command, then run the two
-`echo … >> ~/.zprofile` lines it prints at the end). Then:
+It downloads the latest release, checks it against the published checksum, and installs `ava`
+and `ava-monitor` to `~/.local/bin`. If it prints a line starting `echo 'export PATH=`, run that
+line, then open a new terminal window.
+
+Check: `ava --version` prints a version.
+
+## 3. Install what ava needs
 
 ```bash
-brew install go gh sox whisper-cpp
+ava setup
 ```
 
-Check: `go version`, `gh --version`, `sox --version` and `whisper-cli --help` all run.
+This installs `sox` and `whisper-cli` through Homebrew, the 141 MB speech model, and the Kokoro
+voice engine (about 1.2 GB, a few minutes the first time). Every step is skipped when it is
+already done, so if anything fails, fix it and run `ava setup` again.
 
-## 2. Access to the repository
+Check: it ends with `✅ Setup complete.`
 
-The repository is private. Your GitHub account needs access: ask the owner to add you as a
-collaborator on `iksnerd/ava`, or sign in with an account that already has it.
+## 4. Speech
 
 ```bash
-gh auth login          # GitHub.com, HTTPS, log in with a browser
-gh repo view iksnerd/ava --json name   # check: prints {"name":"ava"}, not "Could not resolve"
+ava speak "hello"
 ```
 
-## 3. Get the code
+The first time, the engine starts and downloads its 339 MB voice model, so give it a minute.
+You should hear a natural voice. If `ava speak` prints a warning about the macOS `say` voice
+instead, run `ava engine start`, wait for "ready", and try again. On a slow connection that first
+start can report "failed to start in time" while the model is still downloading; wait a minute
+and check with `ava engine status`.
 
-Pick the folder now and keep it: the menu bar app and the Claude Code hooks record this path, so
-moving the folder later means rebuilding the app and editing the hooks.
-
-```bash
-mkdir -p ~/src && cd ~/src
-gh repo clone iksnerd/ava
-cd ava
-```
-
-## 4. Install
-
-```bash
-make setup          # uv, the Kokoro Python environment (~1.2 GB) and the 141 MB speech model
-make install-bin    # builds ava and installs it to ~/.local/bin
-```
-
-Add these two lines to `~/.zshrc`, then open a new terminal window:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-export MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh"   # your checkout's path
-```
-
-The second line lets `ava speak` start the Kokoro server from any folder, not only from inside
-the checkout.
-
-Check:
-
-```bash
-ava --version        # prints a version
-ava engine start     # first start downloads the 339 MB Kokoro model; wait for "ready"
-ava speak "hello"    # you hear a natural voice, not the robotic macOS one
-```
-
-On a slow connection the first `ava engine start` can report "failed to start in time" while the
-model is still downloading; the server keeps going. Wait a minute, then `ava engine status`.
-
-If `ava speak` prints a warning about the macOS `say` voice, the engine is not reachable: run
-`ava engine status`, and see [troubleshooting](troubleshooting.md).
+Check: a natural-sounding voice says "hello".
 
 ## 5. Dictation and the two permissions
 
@@ -102,45 +81,62 @@ ava --no-paste       # say a sentence, then stay quiet for 2 seconds
 
 Check: the transcript lands at the cursor. On this first run the cursor is in the terminal itself,
 so the words appear at your own shell prompt. That is correct: normally you switch to the app you
-want to type into first, or use a hotkey (step 7).
+want to type into first, then run `ava`.
 
-## 6. The menu bar app
+That is the release install done. Optional:
+
+- **Claude Code can use Ava's voice and transcription:**
+  `claude mcp add -s user ava -- "$HOME/.local/bin/ava" mcp`, then restart Claude Code. See
+  [mcp.md](mcp.md).
+- **Every command and flag:** `ava --help`, or [cli.md](cli.md).
+
+## Full install from source
+
+Needed for the menu bar app, the Claude Code voice hooks and live call transcripts. Do step 0 and
+step 1 above first.
 
 ```bash
-bash AvaMenuBar/scripts/build-app.sh    # builds and installs /Applications/Ava.app
-open -a Ava
+xcode-select --install          # git and Swift; skip if already installed
+brew install go sox whisper-cpp
 ```
 
-Check: an Ava icon appears in the menu bar. Its **Dictate** button records and pastes, and the
-mute switch silences all speech. To start it at login: System Settings → General → Login Items →
-add Ava.
+Pick the folder now and keep it: the menu bar app and the voice hooks record this path, so moving
+it later means rebuilding the app and editing the hooks.
 
-## 7. Optional extras
+```bash
+mkdir -p ~/src && cd ~/src
+git clone https://github.com/iksnerd/ava.git
+cd ava
+make setup          # uv, the Kokoro Python environment (~1.2 GB) and the speech model
+make install-bin    # builds ava and installs it to ~/.local/bin
+```
+
+Add these two lines to `~/.zshrc`, then open a new terminal window:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh"   # your checkout's path
+```
+
+The second line lets `ava speak` start the Kokoro server from any folder. Then do steps 4 and 5
+above to check speech and dictation.
 
 | Want | Run | Notes |
 |---|---|---|
-| Claude Code uses Ava's voice and transcription | `claude mcp add -s user ava -e MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh" -- "$HOME/.local/bin/ava" mcp` | Restart Claude Code after. See [mcp.md](mcp.md) |
+| The menu bar app | `bash AvaMenuBar/scripts/build-app.sh && open -a Ava` | Installs `/Applications/Ava.app`. To start at login: System Settings → General → Login Items |
 | Claude Code speaks when it finishes or needs you | `make setup-voice-hooks`, then add the hooks to `~/.claude/settings.json` | Exact JSON in [claude-code-voice-hooks.md](claude-code-voice-hooks.md) |
+| Claude Code uses Ava as a tool | `claude mcp add -s user ava -e MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh" -- "$HOME/.local/bin/ava" mcp` | See [mcp.md](mcp.md) |
 | Live call transcripts | `make setup-voxtral && make build-ava-monitor` | Downloads a 2.9 GB model on first use. See [ava-monitor.md](ava-monitor.md) |
-| A hotkey for dictation (Raycast) | `make install-raycast` | Then add `~/raycast-scripts` in Raycast's settings |
+| A dictation hotkey (Raycast) | `make install-raycast` | Then add `~/raycast-scripts` in Raycast's settings |
 
-## CLI only
-
-No checkout, no menu bar app or hooks: just `ava` and `ava-monitor` from the latest release.
-Still needs step 2 (access to the private repo) and `gh`:
-
-```bash
-gh api repos/iksnerd/ava/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
-ava setup            # sox and whisper-cli via Homebrew, the model, and the Kokoro engine
-```
-
-Here no `MLX_ENGINE_SCRIPT` is needed: `ava setup` installs its own copy of the engine and
-`ava speak` finds it. `ava-monitor` from a release still needs a checkout for call transcripts.
+**Intel Mac:** `go install github.com/iksnerd/ava/cmd/ava@latest`, then `ava setup`. It skips the
+Kokoro engine there, so speech uses the macOS voice; dictation works in full.
 
 ## Updating later
 
-From the checkout: `git pull && make install-bin`, then rerun `bash AvaMenuBar/scripts/build-app.sh`
-if the menu bar app changed. For a CLI-only install, rerun the install line and `ava setup`.
+- **Release install:** run the step 2 line again, then `ava setup`.
+- **From source:** `git pull && make install-bin`, and rerun the app build if you use the menu
+  bar app.
 
 ## Removing it
 

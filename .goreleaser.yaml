@@ -99,7 +99,7 @@ release:
     **Apple Silicon only.**
 
     ```bash
-    bash <(gh api repos/iksnerd/ava/contents/scripts/install.sh -q .content | base64 -d)
+    curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
     ava setup
     ```
 

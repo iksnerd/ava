@@ -16,42 +16,73 @@ bar app, Claude Code hooks that speak session status out loud, and an
 MCP server so other programs can use the same voice. If you want a dictation
 app, the ones below are better at that. This is the substrate underneath one.
 
-## Quick start
+## Install
 
-**Setting up a new Mac, or someone else's?** Follow
-[`docs/getting-started.md`](docs/getting-started.md): a step-by-step checklist with a check after
-every step, including access to this private repository.
+**Needs** a Mac with Apple Silicon (M1 or later) and [Homebrew](https://brew.sh). The menu bar
+app also needs macOS 13 or later. On an Intel Mac only dictation works: see
+[From source](#from-source).
 
-**Dictation works on any Mac. Everything else needs Apple Silicon.** Speech,
-call monitoring and the menu bar app all run through
-[MLX](https://github.com/ml-explore/mlx), which has no Intel build. The menu bar
-app additionally needs macOS 13 or later.
+### From a release
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
+ava setup
+```
+
+- The first line downloads the latest [release](https://github.com/iksnerd/ava/releases),
+  checks it against its published checksum, and installs `ava` and `ava-monitor` to
+  `~/.local/bin`. If that folder is not on your PATH it prints the line to add to `~/.zshrc`.
+- `ava setup` installs what the binary needs: `sox` and `whisper-cli` through Homebrew, the
+  141 MB speech model, and the Kokoro voice engine (about 1.2 GB; `ava setup --skip-engine` for
+  dictation only). Re-running it is cheap: finished steps are skipped.
+
+Then check it works:
+
+```bash
+ava speak "hello"   # a natural voice; the first run downloads the 339 MB voice model
+ava                 # dictate: speak, pause for 2 seconds, the text is pasted at your cursor
+```
+
+A specific version: `curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash -s v0.6.2`.
+
+**Downloading from the Releases page instead:** the binaries are unsigned (there is no paid Apple
+Developer account behind them), so macOS quarantines anything a browser downloads, and a
+quarantined unsigned binary is killed without a message. After extracting the `.tar.gz`, check
+it and clear the flag:
+
+```bash
+shasum -a 256 -c checksums.txt --ignore-missing
+xattr -d com.apple.quarantine ava ava-monitor
+mv ava ava-monitor ~/.local/bin/
+```
+
+A release install gives you `ava`: dictation, `speak`, `transcribe`, the MCP server and the
+accessibility narrator. The menu bar app, the Claude Code voice hooks and `ava-monitor`'s call
+transcripts need the source.
+
+Step by step with a check after each, for a new Mac or someone else's:
+[`docs/getting-started.md`](docs/getting-started.md).
+
+### From source
 
 ```bash
 brew install sox whisper-cpp go
 
 git clone https://github.com/iksnerd/ava.git
 cd ava
-make install-bin        # builds, downloads the 141MB model, installs to ~/.local/bin
+make setup              # uv, the Kokoro engine's Python environment, the speech model
+make install-bin        # builds ava and installs it to ~/.local/bin
 
-export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
+export PATH="$HOME/.local/bin:$PATH"                             # add both to ~/.zshrc
+export MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh"     # lets `ava speak` start the engine from any folder
 
 ava                     # speak; the text lands wherever your cursor is
 ```
 
-No checkout? Install a release binary and let it fetch the rest:
+On an Intel Mac, `go install github.com/iksnerd/ava/cmd/ava@latest` then `ava setup`, which
+skips the Kokoro engine there; speech uses the macOS voice.
 
-```bash
-gh api repos/iksnerd/ava/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
-ava setup               # sox and whisper-cli via Homebrew, the model, the Kokoro server
-```
-
-Release binaries are Apple Silicon only. On an Intel Mac, build it instead with
-`go install github.com/iksnerd/ava/cmd/ava@latest`, then run
-`ava setup`, which skips the Kokoro server there. Either way you lose
-the hooks and the menu bar app, which live in the repo. Why a script rather than
-a browser download:
-[Installing on another machine](docs/cli.md#installing-on-another-machine).
+### First run
 
 Switch to the app you want to dictate into before running it. On a first run
 your cursor is still in the terminal you just typed the command into, so your
@@ -64,11 +95,11 @@ it from — miss this one and recording still "succeeds" while producing silence
 And Accessibility, because auto-paste drives Cmd+V through AppleScript;
 `ava --no-paste` skips it and leaves the transcript on your clipboard.
 
-For speech, `make setup` does the rest: it installs `uv`, syncs the Python
-environment for the Kokoro server, and downloads the model. See
-[`mlx-engine/README.md`](mlx-engine/README.md) for running that server on its
-own. Call monitoring also needs `make setup-voxtral` and
-`make build-ava-monitor`; see [`docs/ava-monitor.md`](docs/ava-monitor.md).
+### From source: the menu bar app and call transcripts
+
+Call monitoring needs `make setup-voxtral` and `make build-ava-monitor`; see
+[`docs/ava-monitor.md`](docs/ava-monitor.md). The Kokoro server can also run on its own: see
+[`mlx-engine/README.md`](mlx-engine/README.md).
 
 The menu bar app is built from the checkout and installed to
 `/Applications/Ava.app`:
