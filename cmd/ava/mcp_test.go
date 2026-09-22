@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -160,8 +162,12 @@ func TestListVoicesToolDescribesVoices(t *testing.T) {
 }
 
 func TestTranscribeToolReturnsTheText(t *testing.T) {
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	if err := os.WriteFile(clip, []byte("RIFF"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	s := &spy{transcribe: func(model string, opts stt.Options) (string, error) {
-		if opts.AudioPath != "/tmp/clip.wav" || opts.Language != "es" || opts.BeamSize != 2 {
+		if opts.AudioPath != clip || opts.Language != "es" || opts.BeamSize != 2 {
 			t.Errorf("opts = %+v, want the requested path, language and beam size", opts)
 		}
 		return "hola mundo", nil
@@ -169,7 +175,7 @@ func TestTranscribeToolReturnsTheText(t *testing.T) {
 	session := connect(t, s.deps())
 
 	res := callTool(t, session, "transcribe", map[string]any{
-		"audio_path": "/tmp/clip.wav",
+		"audio_path": clip,
 		"language":   "es",
 		"beam_size":  2,
 	})

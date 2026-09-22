@@ -46,6 +46,9 @@ func newA11yCmd() *cobra.Command {
 			if !a11y.IsMode(a11y.Mode(mode)) {
 				return fmt.Errorf("unknown mode %q (use one of: %s)", mode, strings.Join(a11y.Modes(), ", "))
 			}
+			if err := validateVoice(voice); err != nil {
+				return err
+			}
 
 			snapshot, err := readSnapshot(args, cmd.InOrStdin())
 			if err != nil {

@@ -110,6 +110,12 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if strings.TrimSpace(args.Text) == "" {
 			return nil, nil, fmt.Errorf("text is empty — nothing to speak")
 		}
+		// Same check as `ava speak`: the engine answers an unknown id by
+		// falling back to `say` and reporting success, and a model calling
+		// this tool is the likeliest caller to invent one.
+		if err := validateVoice(args.Voice); err != nil {
+			return nil, nil, err
+		}
 		if err := deps.Speak(args.Text, speaker.Options{Voice: args.Voice, Speed: args.Speed, Async: args.Async}); err != nil {
 			return nil, nil, err
 		}
@@ -148,6 +154,11 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateModel(model); err != nil {
 			return nil, nil, err
 		}
+		// As the CLI does: whisper-cli's answer to a missing file is its
+		// whole help screen, which buries the actual problem.
+		if err := checkAudioFile(args.AudioPath); err != nil {
+			return nil, nil, err
+		}
 		if err := validateBeamSize(args.BeamSize); err != nil {
 			return nil, nil, err
 		}
@@ -178,6 +189,9 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 			return nil, nil, fmt.Errorf("no accessibility nodes in that input — pass chrome-devtools MCP's take_snapshot output verbatim (lines like `uid=1_0 RootWebArea \"Title\"`)")
 		}
 
+		if err := validateVoice(args.Voice); err != nil {
+			return nil, nil, err
+		}
 		mode := a11y.Mode(args.Mode)
 		if args.Mode == "" {
 			mode = a11y.ModeReading
