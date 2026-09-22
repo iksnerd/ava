@@ -10,10 +10,6 @@ import (
 	"github.com/iksnerd/ava/internal/enginedist"
 )
 
-// repoEngineScript is the control script's path inside a checkout, tried
-// before the bundle `ava setup` installs.
-const repoEngineScript = enginedist.ScriptRelPath
-
 // newEngineCmd groups start/stop/status for the local mlx-engine Kokoro TTS
 // server. It shells out to
 // scripts/mlx-engine-server.sh rather than reimplementing its PID-file
@@ -30,26 +26,10 @@ func newEngineCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&scriptPath, "script", "",
 		"Path to the server control script (default: the repo's, else the one installed by ava setup)")
 
-	// Resolution order, most explicit first. Without the installed fallback a
-	// downloaded binary can never start the engine, which is the whole reason
-	// `ava setup` writes one.
-	resolveScript := func() (string, error) {
-		if scriptPath != "" {
-			return scriptPath, nil
-		}
-		if _, err := os.Stat(repoEngineScript); err == nil {
-			return repoEngineScript, nil
-		}
-		if installed, ok := enginedist.InstalledScript(); ok {
-			return installed, nil
-		}
-		return "", fmt.Errorf("no mlx-engine control script found.\n"+
-			"   Run `ava setup` to install one, run from the repo root, "+
-			"or pass --script (looked for %s and the installed bundle)", repoEngineScript)
-	}
-
+	// The same resolution speech auto-start uses, so the two never drive
+	// different scripts.
 	runScript := func(action string, extra ...string) error {
-		script, err := resolveScript()
+		script, err := enginedist.ResolveScript(scriptPath)
 		if err != nil {
 			return err
 		}

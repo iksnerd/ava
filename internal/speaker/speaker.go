@@ -57,9 +57,7 @@ const playbackTimeout = 600 * time.Second
 // EngineScriptEnv overrides where the mlx-engine control script lives, for
 // an installed binary that isn't running from the repo root. Same escape
 // hatch `ava engine --script` offers.
-const EngineScriptEnv = "MLX_ENGINE_SCRIPT"
-
-const defaultEngineScript = "scripts/mlx-engine-server.sh"
+const EngineScriptEnv = enginedist.ScriptEnv
 
 // Engine is the TTS half of the mlx-engine client, narrowed to what
 // speaking needs (satisfied by *mlx.Client).
@@ -332,20 +330,12 @@ func startEngine() error {
 	return exec.Command("bash", engineScript(), "start").Run()
 }
 
-// engineScript resolves the control script in the same order `ava
-// engine` does: the override, then a checkout's copy, then the bundle
-// `ava setup` installed. Without the last step a release install
-// ran setup, got Kokoro, and then spoke every line in the macOS voice,
-// because auto-start only ever looked relative to the working directory.
+// engineScript is the control script auto-start runs: the same one
+// `ava engine` would, from enginedist.ResolveScript. With none found it
+// returns the checkout-relative path, so the failure names what was missing.
 func engineScript() string {
-	if s := os.Getenv(EngineScriptEnv); s != "" {
-		return s
+	if script, err := enginedist.ResolveScript(""); err == nil {
+		return script
 	}
-	if _, err := os.Stat(defaultEngineScript); err == nil {
-		return defaultEngineScript
-	}
-	if installed, ok := enginedist.InstalledScript(); ok {
-		return installed
-	}
-	return defaultEngineScript
+	return enginedist.ScriptRelPath
 }

@@ -116,7 +116,15 @@ codesign --force --deep -s - "$INSTALLED_APP"
 
 echo "💿 Creating $APP_NAME.dmg..."
 rm -f "$DMG_PATH"
-hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" -ov -format UDZO "$DMG_PATH" >/dev/null
+# The .dmg is for another Mac, where this machine's checkout path means
+# nothing and would only leak a home directory, so pack a copy without
+# engine-root. Removing a file breaks the seal, hence the re-sign.
+DMG_STAGE="$(mktemp -d)"
+trap 'rm -rf "$DMG_STAGE"' EXIT
+cp -R "$APP_DIR" "$DMG_STAGE/"
+rm -f "$DMG_STAGE/$APP_NAME.app/Contents/Resources/engine-root"
+codesign --force --deep -s - "$DMG_STAGE/$APP_NAME.app"
+hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGE/$APP_NAME.app" -ov -format UDZO "$DMG_PATH" >/dev/null
 
 echo "✅ Installed. Launch with: open -a \"$APP_NAME\""
 echo "   Note: after (re)installing, 'Read Aloud with Ava' can take a"

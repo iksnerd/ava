@@ -81,6 +81,39 @@ func InstalledScript() (string, bool) {
 	return "", false
 }
 
+// ScriptEnv names a control script to use instead of resolving one, for an
+// installed binary that should drive a checkout's engine (`ava mcp`
+// registered with the engine from `make setup`, say).
+const ScriptEnv = "MLX_ENGINE_SCRIPT"
+
+// ResolveScript says which control script runs the engine, most explicit
+// first: flag (`ava engine --script`), then ScriptEnv, then a checkout's
+// scripts/ under the working directory, then the bundle `ava setup` installed.
+//
+// It is the one answer for `ava engine` and for speech auto-start. They used
+// to resolve it separately and disagreed (`ava engine` ignored ScriptEnv), so
+// with it set, auto-start started one script and `ava engine stop` stopped
+// another. The script then finds its own mlx-engine/ (see engine_root in
+// mlx-engine-server.sh); that is a different question, answered where the
+// script runs.
+func ResolveScript(flag string) (string, error) {
+	if flag != "" {
+		return flag, nil
+	}
+	if env := os.Getenv(ScriptEnv); env != "" {
+		return env, nil
+	}
+	if _, err := os.Stat(ScriptRelPath); err == nil {
+		return ScriptRelPath, nil
+	}
+	if installed, ok := InstalledScript(); ok {
+		return installed, nil
+	}
+	return "", fmt.Errorf("no mlx-engine control script found.\n"+
+		"   Run `ava setup` to install one, run from a checkout's root, set %s, "+
+		"or pass --script (looked for %s here and in the installed bundle)", ScriptEnv, ScriptRelPath)
+}
+
 // Materialize writes the bundle into dir, overwriting what is there. It
 // overwrites rather than skipping existing files so that an upgraded binary
 // replaces an older bundle: a stale server.py against a newer client is the

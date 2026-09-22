@@ -71,7 +71,9 @@ auto-start run that checkout's `mlx-engine/`. Failing that it uses the engine
 falls back to macOS's built-in `say`, so the app still works with the system
 voice.
 
-The recorded path is why a checkout that moves needs the app rebuilt: until
+`engine-root` is left out of the `.dmg`, which is for another Mac, where
+this machine's path means nothing. The recorded path is also why a checkout
+that moves needs the app rebuilt: until
 then Start finds no engine there. (Before 0.6.1 the bundled scripts only looked
 beside themselves, so Start always failed and speech was always `say` unless a
 server was already running.)

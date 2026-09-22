@@ -182,8 +182,10 @@ ava engine stop --keep-autostart   # temporary stop; hooks stay armed
 ```
 
 These drive `scripts/mlx-engine-server.sh`, which owns the Python venv. The
-script is found in `scripts/` under the working directory, else in the bundle
-`ava setup` installed; `--script` names one explicitly. `make start-engine`,
+script is found in this order: `--script`, then `MLX_ENGINE_SCRIPT`, then
+`scripts/` under the working directory, then the bundle `ava setup` installed.
+Speech auto-start uses the same lookup, so the two always drive the same
+script. `make start-engine`,
 `make stop-engine` and `make status-engine` are thin wrappers around the same
 three commands.
 
