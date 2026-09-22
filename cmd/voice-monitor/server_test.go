@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -129,8 +130,16 @@ func TestNewMuxEventsNamesTheSnapshotEventSoAReconnectCanReplace(t *testing.T) {
 
 // A delta must stay an unnamed message, or the client's onmessage handler stops
 // firing and the page goes silent while the badge still says "connected".
+//
+// Seeding history and reading the snapshot frame first is what makes this
+// deterministic. http.Client.Do returns as soon as the handler flushes headers,
+// which happens BEFORE it subscribes — so broadcasting straight after Do() can
+// land in history and come back as a snapshot rather than a delta. Consuming
+// the snapshot proves the handler is past subscribeWithSnapshot. (CI caught
+// this; the race was in the test, not the server.)
 func TestNewMuxEventsSendsDeltasAsUnnamedMessages(t *testing.T) {
-	h := newHub() // no history, so no snapshot frame precedes the delta
+	h := newHub()
+	h.broadcast("history")
 
 	srv := httptest.NewServer(newMux(h))
 	defer srv.Close()
@@ -145,19 +154,31 @@ func TestNewMuxEventsSendsDeltasAsUnnamedMessages(t *testing.T) {
 	defer res.Body.Close()
 
 	reader := bufio.NewReader(res.Body)
-	h.broadcast("a delta")
+	readFrame := func() []string {
+		t.Helper()
+		var frame []string
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				t.Fatalf("stream ended mid-frame: %v", err)
+			}
+			line = strings.TrimRight(line, "\n")
+			if line == "" {
+				return frame
+			}
+			frame = append(frame, line)
+		}
+	}
 
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("stream ended before the delta arrived: %v", err)
-		}
-		line = strings.TrimRight(line, "\n")
+	if snapshot := readFrame(); !slices.Contains(snapshot, "event: snapshot") {
+		t.Fatalf("first frame = %q, want the snapshot replay", snapshot)
+	}
+
+	// The handler is subscribed now, so this can only arrive as a delta.
+	h.broadcast("a delta")
+	for _, line := range readFrame() {
 		if strings.HasPrefix(line, "event:") {
-			t.Fatalf("delta frame carried %q; deltas must be unnamed so onmessage receives them", line)
-		}
-		if strings.HasPrefix(line, "data: ") {
-			return // reached the delta's data line with no event: before it
+			t.Errorf("delta frame carried %q; deltas must be unnamed so onmessage receives them", line)
 		}
 	}
 }
