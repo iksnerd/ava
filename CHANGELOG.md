@@ -34,7 +34,9 @@ engine install and the speech markers already lived under `ava`.
 ```bash
 bash scripts/install.sh            # or: make install-bin
 claude mcp remove -s user local-whisper
-claude mcp add -s user ava -- ava mcp
+claude mcp add -s user ava \
+  -e MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh" \
+  -- "$HOME/.local/bin/ava" mcp    # drop the -e line if you ran `ava setup`
 make install-raycast               # if you use the Raycast launcher
 ```
 GitHub redirects the old repository URL, but update your remote with

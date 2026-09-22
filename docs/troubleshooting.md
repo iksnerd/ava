@@ -85,8 +85,9 @@ Full detail in [`../mlx-engine/README.md`](../mlx-engine/README.md).
 
 ## Speech is silent, but nothing errors
 
-Check the menu bar app's global Mute. Every speech path honours it, and
-`ava speak` prints:
+Check the menu bar app's global Mute. Every speech path honours it. The Claude
+Code hooks go quiet without a word, since there is nowhere to print; `ava
+speak` prints:
 
 ```
 ⚠️  voice output is muted — nothing was played; unmute in the Ava menu bar app

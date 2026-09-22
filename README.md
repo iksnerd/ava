@@ -32,14 +32,14 @@ make install-bin        # builds, downloads the 141MB model, installs to ~/.loca
 
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
 
-ava           # speak; the text lands wherever your cursor is
+ava                     # speak; the text lands wherever your cursor is
 ```
 
 No checkout? Install a release binary and let it fetch the rest:
 
 ```bash
 bash install.sh         # scripts/install.sh from this repo; it runs on its own
-ava setup     # sox and whisper-cli via Homebrew, the model, the Kokoro server
+ava setup               # sox and whisper-cli via Homebrew, the model, the Kokoro server
 ```
 
 Release binaries are Apple Silicon only. On an Intel Mac, build it instead with
@@ -65,6 +65,18 @@ environment for the Kokoro server, and downloads the model. See
 [`mlx-engine/README.md`](mlx-engine/README.md) for running that server on its
 own. Call monitoring also needs `make setup-voxtral` and
 `make build-ava-monitor`; see [`docs/ava-monitor.md`](docs/ava-monitor.md).
+
+The menu bar app is built from the checkout and installed to
+`/Applications/Ava.app`:
+
+```bash
+bash AvaMenuBar/scripts/build-app.sh
+open -a Ava
+```
+
+It does not start itself at login; add it under System Settings → General →
+Login Items if you want it there. Details in
+[`AvaMenuBar/README.md`](AvaMenuBar/README.md).
 
 ## What it does
 

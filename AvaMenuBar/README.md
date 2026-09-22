@@ -38,7 +38,15 @@ scripts/build-app.sh                  # release build → installs to /Applicati
 open -a "Ava"
 ```
 
-To have it launch automatically at login, add a
+The app has no launch-at-login setting of its own. To start it at login, add
+`/Applications/Ava.app` under System Settings → General → Login Items, or from a
+terminal:
+
+```bash
+osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/Ava.app", hidden:false}'
+```
+
+For more control (restart on crash, say), use a
 [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
 pointing `ProgramArguments` at `open -a "Ava"` with `RunAtLoad`
 set, then `launchctl bootstrap gui/$(id -u) <path-to-plist>`. Not included

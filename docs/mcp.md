@@ -16,10 +16,13 @@ MCP servers load when a session starts, so restart the session afterwards.
 
 Both details in that command matter for an installed binary. An absolute path
 to it, because the MCP client's working directory is not this repo. And
-`MLX_ENGINE_SCRIPT`, because `speak` starts the Kokoro server on demand by
-resolving `scripts/mlx-engine-server.sh` relative to the working directory —
-which will not be here. Without it, `speak` still works but falls back to the
-macOS `say` voice, and says so on stderr.
+`MLX_ENGINE_SCRIPT`, because `speak` starts the Kokoro server on demand, and
+the MCP server's working directory is not this repo. Auto-start tries
+`MLX_ENGINE_SCRIPT`, then `scripts/` under the working directory, then the
+engine `ava setup` installed. So after `ava setup` you can drop the `-e` line;
+with the engine from a checkout, which is what `make setup` gives you, you need
+it. Without a script to run, `speak` still works but falls back to the macOS
+`say` voice, and says so on stderr.
 
 Pass `--server-url` if `mlx-engine` isn't on the default
 `http://127.0.0.1:8765`.
