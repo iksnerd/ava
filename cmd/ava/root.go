@@ -16,9 +16,21 @@ import (
 	"github.com/iksnerd/ava/pkg/stt/whisper"
 )
 
-// tmpDir is internal/audio's, shared with ava-monitor so the two cannot
-// drift onto different directories.
-const tmpDir = audio.TempDir
+// newDictationDir makes this run's own directory under root and returns a
+// cleanup that removes only that. root is internal/audio's TempDir, shared
+// with ava-monitor, which keeps its call transcripts there: removing the
+// whole root, as dictation used to, unlinked a live call's transcript. A
+// directory per run also keeps two dictations from sharing one prompt.wav.
+func newDictationDir(root string) (dir string, cleanup func(), err error) {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return "", nil, fmt.Errorf("failed to create %s: %w", root, err)
+	}
+	dir, err = os.MkdirTemp(root, "dictate-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	return dir, func() { os.RemoveAll(dir) }, nil
+}
 
 // options holds the parsed --flag values for the root command's RunE.
 type options struct {
@@ -128,11 +140,11 @@ func run(opts options) error {
 		}
 	}
 
-	// Create temp directory
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+	tmpDir, cleanup, err := newDictationDir(audio.TempDir)
+	if err != nil {
+		return err
 	}
-	defer os.RemoveAll(tmpDir)
+	defer cleanup()
 
 	// Setup signal handling for graceful shutdown: clean up the temp
 	// directory (which may hold recorded audio) before exiting, same as a
@@ -141,7 +153,7 @@ func run(opts options) error {
 		if opts.showStatus {
 			fmt.Println("\n⏹️ Recording cancelled.")
 		}
-		os.RemoveAll(tmpDir)
+		cleanup()
 		os.Exit(0)
 	})
 
