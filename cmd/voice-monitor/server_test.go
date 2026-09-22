@@ -161,3 +161,65 @@ func TestNewMuxEventsSendsDeltasAsUnnamedMessages(t *testing.T) {
 		}
 	}
 }
+
+// Session metadata must arrive on its own named frame and must NOT be part of
+// the transcript: it is not something a reader should get when they copy the
+// text off the page, and a late joiner still needs it.
+func TestNewMuxEventsSendsSessionInfoSeparatelyFromTheTranscript(t *testing.T) {
+	h := newHub()
+	h.setSession("Listening on BlackHole · engine whisper · logging to /tmp/x.txt")
+	h.broadcast("some speech")
+
+	srv := httptest.NewServer(newMux(h))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/events", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /events: %v", err)
+	}
+	defer res.Body.Close()
+
+	// Read the first two frames. Checking the frame count before scanning
+	// again matters: && evaluates left to right, so a trailing Scan() would
+	// block on the idle stream until the context deadline.
+	scanner := bufio.NewScanner(res.Body)
+	var lines []string
+	for blanks := 0; blanks < 2; {
+		if !scanner.Scan() {
+			break
+		}
+		line := scanner.Text()
+		if line == "" {
+			blanks++
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "event: session") {
+		t.Errorf("frames %q: want an `event: session` frame so the page can show what it is listening to", joined)
+	}
+	if !strings.Contains(joined, "BlackHole") {
+		t.Errorf("frames %q: session frame should carry the device", joined)
+	}
+	if strings.Contains(h.snapshot(), "BlackHole") {
+		t.Error("session metadata leaked into the transcript history; it would end up in a copied transcript")
+	}
+}
+
+func TestSetSessionDoesNotTouchTheTranscript(t *testing.T) {
+	h := newHub()
+	h.broadcast("real speech")
+	h.setSession("Listening on Mic")
+
+	if got := h.snapshot(); got != "real speech" {
+		t.Errorf("snapshot = %q, want only the transcript", got)
+	}
+	if h.sessionInfo() != "Listening on Mic" {
+		t.Errorf("sessionInfo = %q", h.sessionInfo())
+	}
+}

@@ -17,6 +17,10 @@ type hub struct {
 	mu      sync.Mutex
 	clients map[chan []byte]bool
 	history []byte
+	// session describes what this run is listening to. Kept out of history on
+	// purpose: it is not transcript, and it should not end up in the text a
+	// reader copies off the page.
+	session string
 }
 
 func newHub() *hub {
@@ -73,6 +77,21 @@ func (h *hub) broadcast(text string) {
 		}
 	}
 	h.mu.Unlock()
+}
+
+// setSession records what the page should say it is listening to. The values
+// already went to stdout and the log file on the "ready" event; the page showed
+// only a generic line that did not even name the log file it mentioned.
+func (h *hub) setSession(info string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.session = info
+}
+
+func (h *hub) sessionInfo() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.session
 }
 
 func (h *hub) snapshot() string {

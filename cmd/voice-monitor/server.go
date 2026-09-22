@@ -30,12 +30,15 @@ const indexHTML = `<!doctype html>
   &mdash; <span id="status" class="status disconnected" aria-live="polite">connecting…</span>
 </header>
 <main>
+  <div id="session" class="hint" aria-live="polite">Waiting for the session to start&hellip;</div>
   <div id="transcript" role="log" aria-live="polite" aria-atomic="false"></div>
-  <div class="hint">Live transcript. Also appended to the log file this was started with &mdash; it is not deleted automatically.</div>
+  <div id="waiting" class="hint">Listening. Nothing transcribed yet &mdash; if this stays empty while people are talking, the capture device is probably reading silence (see docs/voice-monitor.md).</div>
 </main>
 <script>
   const el = document.getElementById('transcript');
   const status = document.getElementById('status');
+  const session = document.getElementById('session');
+  const waiting = document.getElementById('waiting');
 
   // Append a text node rather than reassigning textContent. Reassigning
   // rebuilt the whole node on every delta, which collapsed any selection the
@@ -55,19 +58,26 @@ const indexHTML = `<!doctype html>
   es.onopen = () => { status.textContent = 'connected'; status.className = 'status'; };
   es.onerror = () => { status.textContent = 'disconnected'; status.className = 'status disconnected'; };
 
+  es.addEventListener('session', (e) => {
+    session.textContent = JSON.parse(e.data).text;
+  });
+
   // The server replays the whole transcript on every connect, and EventSource
   // reconnects by itself after any blip. Appending that replay duplicated the
   // entire transcript — twice after one dropped connection, more on a flaky
   // network — while the badge still read "connected". A snapshot replaces.
   es.addEventListener('snapshot', (e) => {
     el.textContent = '';
-    append(JSON.parse(e.data).text);
+    const text = JSON.parse(e.data).text;
+    append(text);
+    if (text) waiting.hidden = true;
     followTail();
   });
 
   es.onmessage = (e) => {
     const stick = atBottom();
     append(JSON.parse(e.data).text);
+    waiting.hidden = true;
     if (stick) followTail();
   };
 </script>
@@ -101,6 +111,14 @@ func newMux(h *hub) *http.ServeMux {
 		// between.
 		snap, ch := h.subscribeWithSnapshot()
 		defer h.unsubscribe(ch)
+
+		// Session metadata first, so a page that has not heard a word yet can
+		// still say what it is listening to and where the log is going.
+		if info := h.sessionInfo(); info != "" {
+			payload, _ := json.Marshal(map[string]string{"text": info})
+			fmt.Fprintf(w, "event: session\ndata: %s\n\n", payload)
+			flusher.Flush()
+		}
 
 		if snap != "" {
 			payload, _ := json.Marshal(map[string]string{"text": snap})

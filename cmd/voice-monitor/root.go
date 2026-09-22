@@ -121,6 +121,11 @@ func watch(opts watchOptions) error {
 		switch delta.Event {
 		case "ready":
 			fmt.Printf("✅ Listening on: %s (engine: %s%s)\n", delta.Device, orDefault(delta.Engine, "voxtral"), languageSuffix(delta.Language))
+			// The page used to show a generic line that did not even name the
+			// log file it told you about, so a silent capture device looked
+			// identical to a working one.
+			h.setSession(fmt.Sprintf("Listening on %s · engine %s%s · logging to %s",
+				delta.Device, orDefault(delta.Engine, "voxtral"), languageSuffix(delta.Language), resolvedLog))
 			fmt.Fprintf(logFile, "--- session started, device: %s, engine: %s%s, %s ---\n",
 				delta.Device, orDefault(delta.Engine, "voxtral"), languageSuffix(delta.Language), time.Now().Format(time.RFC3339))
 		case "delta":

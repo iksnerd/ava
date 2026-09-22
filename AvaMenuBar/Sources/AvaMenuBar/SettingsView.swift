@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: VoiceSettings
     @EnvironmentObject private var activity: SpeechActivityMonitor
     @StateObject private var server = ServerController()
+    @StateObject private var ollama = OllamaStatus()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -29,19 +30,6 @@ struct SettingsView: View {
             )
 
             Button {
-                openServicesSettings()
-            } label: {
-                Label("Open Keyboard Settings", systemImage: "arrow.up.forward.square")
-                    .font(.system(size: 10))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .help(
-                "From there, open Keyboard Shortcuts → Services to enable \"Toggle Ava Mute\" and \"Read Aloud with Ava\" and optionally bind each to a global keyboard shortcut — macOS doesn't currently support deep-linking straight to that screen"
-            )
-
-            Button {
                 dictate()
             } label: {
                 Label("Dictate", systemImage: "mic.fill")
@@ -61,13 +49,27 @@ struct SettingsView: View {
                     icon: "hare.fill", tint: .orange, title: "Speed",
                     subtitle: String(format: "%.2fx", settings.config.speed)
                 ) {
-                    Slider(value: $settings.config.speed, in: 0.5...2.5).frame(width: 116)
+                    Slider(value: $settings.config.speed, in: 0.5...2.5) { Text("Speed") }
+                        .labelsHidden()
+                        .frame(width: 116)
+                        .accessibilityLabel("Speed")
+                        .accessibilityValue(String(format: "%.2f times", settings.config.speed))
                 }
                 SettingsRow(
                     icon: "speaker.wave.2.fill", tint: .teal, title: "Volume",
                     subtitle: String(format: "%.0f%%", settings.config.volume * 100)
                 ) {
-                    Slider(value: $settings.config.volume, in: 0...1).frame(width: 116)
+                    Slider(value: $settings.config.volume, in: 0...1) { Text("Volume") }
+                        .labelsHidden()
+                        .frame(width: 116)
+                        .accessibilityLabel("Volume")
+                        .accessibilityValue(String(format: "%.0f percent", settings.config.volume * 100))
+                }
+                if settings.config.volume == 0 && !settings.config.muted {
+                    Text("Volume is at zero, so nothing will be audible even though Mute is off.")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 SettingsRow(icon: "person.wave.2.fill", tint: .purple, title: "Voice", subtitle: settings.config.voice) {
                     HStack(spacing: 6) {
@@ -109,7 +111,7 @@ struct SettingsView: View {
                     keyPath: \.notifyMaxChars, range: 100...1200, defaultValue: 500
                 )
                 .help("How long a spoken notification (permission prompts, waiting for input) can be, before it's cut off mid-sentence — always a hard cutoff, LLM summary doesn't apply here")
-                SettingsRow(icon: "sparkles", tint: .pink, title: "LLM summary", subtitle: "qwen2.5:3b") {
+                SettingsRow(icon: "sparkles", tint: .pink, title: "LLM summary", subtitle: settings.config.summaryModel) {
                     Toggle("", isOn: $settings.config.llmSummary).labelsHidden()
                 }
                 .help("Summarize long \"On finish\" messages with the local Ollama model instead of a mid-sentence cutoff. Only applies to \"On finish\" — notifications are always truncated.")
@@ -119,6 +121,15 @@ struct SettingsView: View {
                         .font(.system(size: 9.5))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    // Turning this on used to be unverifiable: with Ollama down
+                    // or the model unpulled, hooks quietly truncate instead and
+                    // nothing says why.
+                    if let problem = ollama.state.problem {
+                        Text(problem)
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
 
@@ -170,6 +181,21 @@ struct SettingsView: View {
                 .disabled(settings.config.muted)
                 .help(settings.config.muted ? "Unmute to hear a test phrase" : "")
 
+                // A once-ever setup link; it used to sit between Mute and
+                // Dictate, splitting the two primary actions.
+                Button {
+                    openServicesSettings()
+                } label: {
+                    Label("Open Keyboard Settings", systemImage: "arrow.up.forward.square")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .help(
+                    "From there, open Keyboard Shortcuts → Services to enable \"Toggle Ava Mute\" and \"Read Aloud with Ava\" and optionally bind each to a global keyboard shortcut — macOS doesn't currently support deep-linking straight to that screen"
+                )
+
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
                     .font(.system(size: 11))
@@ -179,6 +205,13 @@ struct SettingsView: View {
         }
         .padding(14)
         .frame(width: 312)
+        .onAppear { ollama.track(enabled: settings.config.llmSummary, model: settings.config.summaryModel) }
+        .onChange(of: settings.config.llmSummary) { on in
+            ollama.track(enabled: on, model: settings.config.summaryModel)
+        }
+        .onChange(of: settings.config.summaryModel) { model in
+            ollama.track(enabled: settings.config.llmSummary, model: model)
+        }
     }
 
     /// The panel had no error surface at all: nothing anywhere said "the last
@@ -263,9 +296,21 @@ struct SettingsView: View {
             subtitle: isUnlimited ? "No limit" : "\(current) characters"
         ) {
             HStack(spacing: 6) {
-                Slider(value: valueBinding, in: range).frame(width: 78).disabled(isUnlimited)
+                Slider(value: valueBinding, in: range) { Text(title) }
+                    .labelsHidden()
+                    .frame(width: 78)
+                    .disabled(isUnlimited)
+                    // A disabled slider still rendered at its stored position,
+                    // so the panel displayed a number that was not in effect.
+                    .opacity(isUnlimited ? 0.35 : 1)
+                    .accessibilityLabel("\(title) length limit")
+                    .accessibilityValue(isUnlimited ? "no limit" : "\(current) characters")
                 Toggle("∞", isOn: unlimitedBinding)
                     .toggleStyle(.button)
+                    .help(isUnlimited
+                        ? "Currently unlimited: \(title.lowercased()) messages are spoken in full. Click to cap the length again."
+                        : "Click for no length limit — \(title.lowercased()) messages get spoken in full instead of capped.")
+                    .accessibilityLabel("No length limit for \(title.lowercased())")
                     .controlSize(.mini)
             }
         }

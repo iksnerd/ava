@@ -20,6 +20,10 @@ struct VoiceConfig: Codable, Equatable {
     // that script, and VoiceSettings picks the resulting change up like any
     // other external edit (reloadIfChangedOnDisk).
     var engineAutoStart: Bool = true
+    // Read so the UI can name the model it will actually use and check that
+    // Ollama has it (OllamaStatus). Only scripts/hook-stop.sh consumes the
+    // value itself, via lib.sh's generic config_get.
+    var summaryModel: String = "qwen2.5:3b"
 }
 
 // Decoded key by key, each bad value costing only its own key.
@@ -49,6 +53,7 @@ extension VoiceConfig {
         notifyMaxChars = Self.lenient(c, .notifyMaxChars) ?? notifyMaxChars
         llmSummary = Self.lenient(c, .llmSummary) ?? llmSummary
         engineAutoStart = Self.lenient(c, .engineAutoStart) ?? engineAutoStart
+        summaryModel = Self.lenient(c, .summaryModel) ?? summaryModel
     }
 
     /// nil for a key that is absent, of the wrong type, or otherwise
