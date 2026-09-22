@@ -307,3 +307,29 @@ func TestIndexPageOffersCopyAndSave(t *testing.T) {
 		}
 	}
 }
+
+// Binding to 127.0.0.1 keeps other machines out, but not a web page: with DNS
+// rebinding, attacker.example resolves to 127.0.0.1 and the browser reads the
+// live call transcript as same-origin. The Host header still says
+// attacker.example, so only loopback names may be served.
+func TestServerRejectsForeignHostHeaders(t *testing.T) {
+	mux := newMux(newHub())
+	for _, tc := range []struct {
+		host string
+		want int
+	}{
+		{"127.0.0.1:8766", http.StatusOK},
+		{"localhost:8766", http.StatusOK},
+		{"[::1]:8766", http.StatusOK},
+		{"attacker.example:8766", http.StatusForbidden},
+		{"attacker.example", http.StatusForbidden},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = tc.host
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("GET / with Host %q = %d, want %d", tc.host, rec.Code, tc.want)
+		}
+	}
+}

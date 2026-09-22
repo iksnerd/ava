@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 )
 
 const indexHTML = `<!doctype html>
@@ -162,7 +164,7 @@ const indexHTML = `<!doctype html>
 
 // newMux builds the HTTP handler serving the live-transcript page ("/") and
 // its SSE feed ("/events") off of h.
-func newMux(h *hub) *http.ServeMux {
+func newMux(h *hub) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -221,5 +223,25 @@ func newMux(h *hub) *http.ServeMux {
 		}
 	})
 
-	return mux
+	return loopbackOnly(mux)
+}
+
+// loopbackOnly refuses any request whose Host is not a loopback name.
+// Listening on 127.0.0.1 keeps other machines out but not a web page: with
+// DNS rebinding, attacker.example resolves to 127.0.0.1 and the browser reads
+// the live call transcript as same-origin. The Host header still names
+// attacker.example, which is what this checks.
+func loopbackOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.Host)
+		if err != nil {
+			host = r.Host
+		}
+		switch strings.Trim(host, "[]") {
+		case "127.0.0.1", "localhost", "::1":
+			next.ServeHTTP(w, r)
+		default:
+			http.Error(w, "forbidden: this server only answers to localhost", http.StatusForbidden)
+		}
+	})
 }
