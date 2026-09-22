@@ -49,8 +49,17 @@ func newRootCmd() *cobra.Command {
 	var opts options
 
 	cmd := &cobra.Command{
-		Use:           "ava",
-		Short:         "Record audio, transcribe it, and copy/paste the result",
+		Use:   "ava",
+		Short: "Record audio, transcribe it, and copy/paste the result",
+		Long: "Ava: on-device dictation and speech for macOS.\n\n" +
+			"With no command, ava dictates: it records until you stop talking, transcribes\n" +
+			"with whisper.cpp, and pastes the text at your cursor.\n\n" +
+			"First time on this Mac:\n" +
+			"  ava setup            install sox, whisper-cli, the speech model and the Kokoro voice\n" +
+			"  ava speak \"hello\"    check that speech works\n" +
+			"  ava                  dictate; macOS asks once for Microphone (for the app you\n" +
+			"                       run it from) and Accessibility (to paste)\n\n" +
+			"Guide: https://github.com/iksnerd/ava/blob/main/docs/getting-started.md",
 		Version:       buildinfo.Get(),
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

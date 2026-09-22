@@ -18,6 +18,10 @@ app, the ones below are better at that. This is the substrate underneath one.
 
 ## Quick start
 
+**Setting up a new Mac, or someone else's?** Follow
+[`docs/getting-started.md`](docs/getting-started.md): a step-by-step checklist with a check after
+every step, including access to this private repository.
+
 **Dictation works on any Mac. Everything else needs Apple Silicon.** Speech,
 call monitoring and the menu bar app all run through
 [MLX](https://github.com/ml-explore/mlx), which has no Intel build. The menu bar
@@ -38,7 +42,7 @@ ava                     # speak; the text lands wherever your cursor is
 No checkout? Install a release binary and let it fetch the rest:
 
 ```bash
-bash install.sh         # scripts/install.sh from this repo; it runs on its own
+gh api repos/iksnerd/ava/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
 ava setup               # sox and whisper-cli via Homebrew, the model, the Kokoro server
 ```
 
@@ -202,6 +206,7 @@ Start here:
 
 | | |
 | --- | --- |
+| [`docs/getting-started.md`](docs/getting-started.md) | Setting up a new Mac from nothing, step by step |
 | [`docs/cli.md`](docs/cli.md) | Every command and flag, context files |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | When nothing pastes, or nothing plays |
 | [`docs/tuning.md`](docs/tuning.md) | What the engines really expose: Kokoro's five parameters, inline stress and IPA markup, whisper.cpp flags |

@@ -44,8 +44,14 @@ func newRootCmd() *cobra.Command {
 	var opts watchOptions
 
 	cmd := &cobra.Command{
-		Use:           "ava-monitor",
-		Short:         "Serve a live realtime transcript (mic or loopback device) over SSE, logged to a file",
+		Use:   "ava-monitor",
+		Short: "Serve a live realtime transcript (mic or loopback device) over SSE, logged to a file",
+		Long: "Serve a live realtime transcript (mic or loopback device) over SSE at\n" +
+			"http://127.0.0.1:8766, logged to a file.\n\n" +
+			"Needs the Voxtral Python environment from a checkout of the repo: run\n" +
+			"`make setup-voxtral` there once, then start ava-monitor from the checkout's\n" +
+			"root, or pass --voxtral-dir <checkout>/voxtral from anywhere else.\n\n" +
+			"Guide: https://github.com/iksnerd/ava/blob/main/docs/ava-monitor.md",
 		Version:       buildinfo.Get(),
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
