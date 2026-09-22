@@ -89,12 +89,12 @@ jobs:
   # test jobs, because a release built from a tree that failed its own suite is
   # worse than no release.
   #
-  # The release itself is created by hand from CHANGELOG.md; `mode: keep-existing`
-  # in .goreleaser.yaml means this attaches artifacts without overwriting those
-  # notes, whichever order the two happen in.
+  # The release body is the newest CHANGELOG.md section, passed as
+  # --release-notes; `mode: replace` in .goreleaser.yaml is what lets it land.
   #
-  # The binaries are unsigned. macOS quarantines anything downloaded, so a
-  # recipient clears it with `xattr -c` — the release footer says so. Signing
+  # The binaries are unsigned. macOS quarantines anything a browser downloads,
+  # so a recipient clears it with `xattr -d com.apple.quarantine` — the release
+  # footer says so. Signing
   # needs a Developer ID certificate this project does not have.
   release:
     needs: [go, macos]
@@ -126,7 +126,7 @@ jobs:
           echo "release notes: $(wc -l < /tmp/release-notes.md) lines"
 
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
           args: release --clean --release-notes /tmp/release-notes.md

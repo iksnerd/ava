@@ -26,6 +26,13 @@ entry is a summary rather than a record kept as it happened.
   come from a pinned Hugging Face revision and are checked against its sha256.
   They used to fetch `resolve/main`, a mutable ref, and check nothing.
 
+- Builds use Go 1.26.8 through a `toolchain` line in `go.mod`, which CI's
+  `setup-go` honours. v0.4.0 was built with Go 1.25.0, a release now out of
+  support, and `govulncheck` found standard-library advisories reachable
+  through the model download and the engine client. It now reports none. The
+  minimum Go for `go install` stays 1.25.
+- The release job uses `goreleaser-action@v7`; v6 ran on the retired Node 20.
+
 ### Fixed
 - **`voice-monitor` served the live transcript on every network interface.**
   It listened on `:8766`, so anyone on the same network could read a call

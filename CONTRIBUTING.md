@@ -65,7 +65,7 @@ Two things about the artifacts. They are **Apple Silicon only** — the code
 shells out to `afplay`, `pbcopy`, `osascript` and `sox`, and the TTS engine is
 MLX, so a Linux build would compile and then fail at the first thing it did.
 And they are **unsigned**: macOS quarantines anything downloaded, so a
-recipient runs `xattr -c` before the binary will start. Signing needs an Apple
+recipient runs `xattr -d com.apple.quarantine` before the binary will start. Signing needs an Apple
 Developer ID this project does not have, which is also why the menu bar app is
 not distributed this way.
 
