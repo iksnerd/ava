@@ -327,7 +327,29 @@ func renderWithSay(text string, rate int, outPath string) error {
 // start` uses, rather than reimplementing its PID-file locking and uvicorn
 // management here.
 func startEngine() error {
-	return exec.Command("bash", engineScript(), "start").Run()
+	out, err := exec.Command("bash", engineScript(), "start").CombinedOutput()
+	if err != nil {
+		// The script's last lines say why (no engine found, a crash during
+		// startup); without them the user saw only "exit status 1".
+		if reason := lastLines(string(out), 3); reason != "" {
+			return fmt.Errorf("%w: %s", err, reason)
+		}
+	}
+	return err
+}
+
+// lastLines returns the final n non-empty lines of s, joined with "; ".
+func lastLines(s string, n int) string {
+	var lines []string
+	for _, l := range strings.Split(s, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "; ")
 }
 
 // engineScript is the control script auto-start runs: the same one

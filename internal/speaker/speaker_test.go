@@ -384,3 +384,20 @@ func TestSpeakDoesNotAutoStartWhenTheUserStoppedTheEngine(t *testing.T) {
 		t.Fatalf("Speak: %v", err)
 	}
 }
+
+// Auto-start used to discard the control script's output, so a failed start
+// reached the user as "exit status 1" with no reason. The script says what
+// went wrong (no engine, a crash on startup); that has to come through.
+func TestAutoStartFailureCarriesTheScriptsReason(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "mlx-engine-server.sh")
+	body := "#!/bin/bash\necho '🚀 Starting...'\necho '❌ No mlx-engine to start: run ava setup'\nexit 1\n"
+	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EngineScriptEnv, script)
+
+	err := startEngine()
+	if err == nil || !strings.Contains(err.Error(), "No mlx-engine to start") {
+		t.Errorf("startEngine() = %v, want the script's own reason", err)
+	}
+}
