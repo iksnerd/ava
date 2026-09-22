@@ -221,3 +221,22 @@ class TestStartupWarmUp:
         assert len(calls) == 1, "startup should warm the TTS model exactly once"
         assert calls[0]["voice"] == "af_heart"
         assert server.tts_model.loaded
+
+
+class TestRequestSurface:
+    """mlx_audio's generate_audio() advertises ~25 parameters. Almost none of
+    them are Kokoro's: its own generate() takes text, voice, speed, lang_code
+    and split_pattern. The rest belong to other TTS model types and are silently
+    dropped, which made a request carrying `temperature` look accepted."""
+
+    def test_unknown_fields_are_rejected_not_ignored(self, client):
+        res = client.post("/speak", json={"text": "hi", "temperature": 1.5})
+        assert res.status_code == 422
+        assert "temperature" in str(res.json()["detail"])
+
+    def test_the_three_real_knobs_are_accepted(self, client, server, tmp_path):
+        gen = _stub_successful_tts(server, tmp_path)
+        res = client.post("/speak", json={"text": "hi", "voice": "bf_emma", "speed": 1.4})
+        assert res.status_code == 200
+        assert gen.last["voice"] == "bf_emma"
+        assert gen.last["speed"] == 1.4

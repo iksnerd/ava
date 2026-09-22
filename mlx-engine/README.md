@@ -59,11 +59,12 @@ No model swap needed for any of these — they're request-level knobs Kokoro
   British voice actually gets phonemized with British rules instead of
   defaulting to American English.
 - **Voice blending**: pass a comma-separated `voice`, e.g.
-  `"af_heart,af_sky"` — Kokoro averages the two voices' embeddings into a
-  blended one.
+    `"af_heart,af_sky"` — Kokoro averages the style vectors, and it is
+    not limited to two: any number of comma-separated ids works.
 - **Per-word pronunciation/stress overrides**: inline markdown-link-style
-  markup in `text` — `` [Kokoro](/kˈOkəɹO/) `` for an explicit IPA
-  pronunciation, `` [word](+0.5) `` / `` [word](-0.5) `` to shift stress —
+  markup in `text` — `` [Kokoro](/kˈOkəɹO/) `` for explicit IPA, or an integer
+  like `` [word](-1) `` to shift stress (see
+  [`../docs/tuning.md`](../docs/tuning.md#intonation-and-stress)) —
   useful for names, acronyms, or jargon Kokoro would otherwise mispronounce.
 
 ## Models

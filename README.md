@@ -221,6 +221,9 @@ Every flag and every command: [`docs/cli.md`](docs/cli.md).
   pairing it with chrome-devtools MCP for accessibility work.
 - [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) — spoken
   Claude Code notifications: setup, settings, message length and summarization.
+- [`docs/tuning.md`](docs/tuning.md) — what each engine actually exposes:
+  Kokoro's real five parameters, the inline pronunciation markup, and the
+  whisper.cpp flags the wrapper does and doesn't pass.
 - [`docs/troubleshooting.md`](docs/troubleshooting.md) — for when nothing
   pastes, or nothing plays.
 - [`mlx-engine/README.md`](mlx-engine/README.md) — the local STT/TTS server:

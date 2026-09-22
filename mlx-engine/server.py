@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.tts.utils import load_model as load_tts_model
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 app = FastAPI(title="Local Kokoro TTS Server")
 
@@ -25,6 +25,15 @@ PID_FILE = os.environ.get("MLX_ENGINE_PID_FILE", "/tmp/mlx-engine-server.pid")
 
 
 class SpeakRequest(BaseModel):
+    # extra="forbid" so a caller who sends a knob this server does not have gets
+    # a 422 instead of a silent no-op. mlx_audio's generate_audio() accepts a
+    # long list of parameters — temperature, cfg_scale, ddpm_steps, ref_audio
+    # and more — but almost all of them belong to other TTS model types.
+    # Kokoro's own generate() takes text, voice, speed, lang_code and
+    # split_pattern, and nothing else. Passing `temperature` used to return 200
+    # and change nothing.
+    model_config = ConfigDict(extra="forbid")
+
     text: str
     voice: str = "af_heart"
     speed: float = 1.0

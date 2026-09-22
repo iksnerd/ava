@@ -62,7 +62,7 @@ which covers 99+ languages at roughly 1s latency.
 | `--engine` | `voxtral` | `voxtral` (fast) or `whisper` (more languages) |
 | `--language` | auto | Language code, e.g. `de`. `--engine whisper` only |
 | `--diarize` | off | Tag deltas with `[Speaker N]`. `--engine whisper` only. **See the licence note below** |
-| `--highpass-hz` | `80` | High-pass cutoff before STT. Loopback audio is much quieter than mic input, so the noise floor matters more |
+| `--highpass-hz` | `0` → 80Hz | High-pass cutoff before STT. `0` means "use the 80Hz built-in default", it does not disable the filter. Loopback audio is much quieter than mic input, so the noise floor matters more |
 | `--stt-model` | per engine | Override the STT model id |
 | `--port` | `8766` | HTTP/SSE port |
 | `--log` | `/tmp/voice-input/transcript-<ts>.txt` | Transcript log path |
