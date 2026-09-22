@@ -3,10 +3,10 @@ flowchart TB
 
     subgraph dictation["Dictation - cmd/local-whisper"]
         mic1[("🎤 Mic")]
-        rec["internal/recording\nsox, 16kHz mono, norm -3,\nstops on silence"]
-        wcli["pkg/stt/whisper\nexec whisper-cli"]
-        model_w[("ggml-base.en.bin\n(whisper.cpp, local)")]
-        clip["internal/clipboard\npbcopy + AppleScript paste"]
+        rec["internal/recording<br/>sox, 16kHz mono, norm -3,<br/>stops on silence"]
+        wcli["pkg/stt/whisper<br/>exec whisper-cli"]
+        model_w[("ggml-base.en.bin<br/>(whisper.cpp, local)")]
+        clip["internal/clipboard<br/>pbcopy + AppleScript paste"]
 
         mic1 --> rec --> wcli
         model_w -.-> wcli
@@ -17,19 +17,19 @@ flowchart TB
         direction TB
 
         subgraph go_new["pkg/stt/realtime (Go, stdlib only)"]
-            grt["StreamRealtime()\nlong-lived exec realtime.py,\nstdout JSON lines"]
+            grt["StreamRealtime()<br/>long-lived exec realtime.py,<br/>stdout JSON lines"]
         end
 
         subgraph py_new["voxtral/ (Python uv project, MLX)"]
-            hpf["HighPassFilter\n(--highpass-hz, default 80Hz)\nstateful scipy sosfilt"]
-            rt_py["realtime.py\n--engine voxtral|whisper\nstreaming transcribe"]
-            diar_py["Sortformer diarization\n(--diarize, whisper engine only)"]
+            hpf["HighPassFilter<br/>(--highpass-hz, default 80Hz)<br/>stateful scipy sosfilt"]
+            rt_py["realtime.py<br/>--engine voxtral|whisper<br/>streaming transcribe"]
+            diar_py["Sortformer diarization<br/>(--diarize, whisper engine only)"]
         end
 
-        mic3[("🎤 Mic (default)\nor BlackHole loopback\n(--device, captures call audio\n- remote participants only)")]
+        mic3[("🎤 Mic (default)<br/>or BlackHole loopback<br/>(--device, captures call audio<br/>- remote participants only)")]
 
-        mw4brt[("mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit\nOR whisper-large-v3-turbo\n(--engine, 99+ languages incl. Bulgarian)")]
-        mdiar[("mlx-community/\ndiar_sortformer_4spk-v1-fp32")]
+        mw4brt[("mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit<br/>OR whisper-large-v3-turbo<br/>(--engine, 99+ languages incl. Bulgarian)")]
+        mdiar[("mlx-community/<br/>diar_sortformer_4spk-v1-fp32")]
 
         grt --> rt_py
 
@@ -44,16 +44,16 @@ flowchart TB
     end
 
     subgraph monitor["Realtime call transcript - cmd/voice-monitor"]
-        meet["Google Meet\n(Settings -> Audio -> Speakers\nmust be set to the Multi-Output Device\nexplicitly - doesn't follow macOS\nsystem-default changes automatically)"]
-        moutput["Multi-Output Device\n(Audio MIDI Setup - use built-in\nSpeakers, NOT Bluetooth/AirPods,\nwhich silently drop the 2nd member)"]
-        blackhole[("BlackHole 2ch\n(virtual loopback driver)")]
-        speakers[("🔊 Real speakers\n(so you still hear the call)")]
+        meet["Google Meet<br/>(Settings -> Audio -> Speakers<br/>must be set to the Multi-Output Device<br/>explicitly - doesn't follow macOS<br/>system-default changes automatically)"]
+        moutput["Multi-Output Device<br/>(Audio MIDI Setup - use built-in<br/>Speakers, NOT Bluetooth/AirPods,<br/>which silently drop the 2nd member)"]
+        blackhole[("BlackHole 2ch<br/>(virtual loopback driver)")]
+        speakers[("🔊 Real speakers<br/>(so you still hear the call)")]
 
-        vm["cmd/voice-monitor\nnet/http + cobra\n--diarize, --highpass-hz flags"]
+        vm["cmd/voice-monitor<br/>net/http + cobra<br/>--diarize, --highpass-hz flags"]
         sse["/events (SSE)"]
-        page["/ - live transcript page\n(EventSource, auto-updates)"]
-        logf[("/tmp/voice-input/\ntranscript-&lt;ts&gt;.txt\n[Speaker N] prefixed on change")]
-        browser[("🌐 Browser\nlocalhost:8766")]
+        page["/ - live transcript page<br/>(EventSource, auto-updates)"]
+        logf[("/tmp/voice-input/<br/>transcript-&lt;ts&gt;.txt<br/>[Speaker N] prefixed on change")]
+        browser[("🌐 Browser<br/>127.0.0.1:8766")]
 
         meet --> moutput
         moutput --> blackhole
@@ -67,13 +67,6 @@ flowchart TB
         vm -->|append text| logf
     end
 
-    subgraph planned["Planned - not built yet"]
-        actions["internal/actions (new)\nintent -> AppleScript / shell\n(open app, volume, Shortcuts, ...)"]
-
-        grt -->|transcript text| actions
-    end
-
     style dictation fill:#eef2ff,stroke:#4f46e5
     style realtime fill:#ecfdf5,stroke:#059669
     style monitor fill:#ecfdf5,stroke:#059669
-    style planned fill:#fef3c7,stroke:#d97706,stroke-dasharray: 5 5

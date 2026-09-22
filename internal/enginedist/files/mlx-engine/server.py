@@ -47,9 +47,9 @@ class SpeakRequest(BaseModel):
 
 
 class LazyModel:
-    """Loads a model into unified memory on first use and caches it —
-    shared by the STT and TTS endpoints so the load/time/error-handle
-    dance (and the print statements) only lives in one place."""
+    """Loads a model into unified memory on first use and caches it, so the
+    load/time/error-handle dance (and the print statements) lives in one
+    place rather than inline in the startup warmup and /speak."""
 
     def __init__(self, label: str, model_path: str, loader):
         self.label = label

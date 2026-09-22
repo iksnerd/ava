@@ -31,7 +31,7 @@ type Options struct {
 }
 
 // Client is satisfied by any one-shot transcription engine client
-// (currently pkg/stt/whisper.Client and pkg/mlx.Client).
+// (currently only pkg/stt/whisper.Client).
 type Client interface {
 	Transcribe(Options) (string, error)
 }

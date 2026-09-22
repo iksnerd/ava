@@ -1,4 +1,4 @@
-.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole clean help
+.PHONY: build build-voice-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole start-engine stop-engine status-engine clean help
 
 BINARY_NAME=local-whisper
 MONITOR_BINARY_NAME=voice-monitor
@@ -17,7 +17,7 @@ help:
 	@echo "local-whisper Makefile"
 	@echo ""
 	@echo "Commands:"
-	@echo "  make setup              - Install all dependencies (sox, whisper-cli) and download model"
+	@echo "  make setup              - setup-deps + setup-model: everything dictation and Kokoro need"
 	@echo "  make check-swift-config - Check VoiceSettings.swift resolves the config like bash and Go (needs swift)"
 	@echo "  make check-paths        - Fail if any tracked file hardcodes a home directory"
 	@echo "  make generate-protocol  - Regenerate the shared constants from internal/protocol/protocol.json"
@@ -40,10 +40,10 @@ help:
 	@echo "  make vet                - go vet the Go code"
 	@echo "  make fmt                - Format Go (gofmt) and Python (ruff format), in place"
 	@echo "  make fmt-check          - Check formatting without modifying files (CI-safe)"
-	@echo "  make lint               - vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)"
-	@echo "  make start-engine       - Start the Voxtral MLX background server"
-	@echo "  make stop-engine        - Stop the Voxtral MLX background server"
-	@echo "  make status-engine      - Check if the Voxtral MLX server is running"
+	@echo "  make lint               - vet, fmt-check, the check-* guards (not check-swift-config) and ruff check"
+	@echo "  make start-engine       - Start the mlx-engine Kokoro TTS server in the background"
+	@echo "  make stop-engine        - Stop the mlx-engine Kokoro TTS server"
+	@echo "  make status-engine      - Check if the mlx-engine Kokoro TTS server is running"
 	@echo "  make install-raycast    - Install as Raycast command script (includes model setup)"
 	@echo "  make install-bin        - Install binary to ~/.local/bin (includes model setup)"
 	@echo "  make uninstall          - Remove the installed binaries, Raycast script and engine bundle"

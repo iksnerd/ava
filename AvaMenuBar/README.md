@@ -53,14 +53,15 @@ bundled `Resources/` at runtime when present, falling back to this dev
 checkout's paths only when running unbundled (`swift run`).
 
 `mlx-engine/` is deliberately **not** bundled — its venv alone is 1.2GB, not
-something to freeze into a distributable app. This has two consequences on a machine that hasn't
-separately run `make setup-voxtral`:
-- Dictate uses `local-whisper`'s own default `whisper` engine instead of
-  Voxtral, so it works with zero extra setup.
-- The Server section's Start/Stop button won't find `mlx-engine/`, and
-  `speak.sh` already falls back to macOS's built-in `say` when the server's
-  unreachable — so the app is fully functional, just with `say`/whisper
-  instead of Kokoro/Voxtral's higher quality, until `mlx-engine/` is set up.
+something to freeze into a distributable app. Dictate is unaffected: it
+transcribes with whisper.cpp, which needs only `sox`, `whisper-cli` and a
+model. Speech is what changes. The bundled scripts look for `mlx-engine/`
+beside themselves and never find it, so the Server section's Start/Stop
+button fails and on-demand auto-start does nothing. `speak.sh` falls back to
+macOS's built-in `say` whenever the server is unreachable, so the app still
+works, with `say` in place of Kokoro. A server that is already running, from
+a checkout or from `local-whisper engine start` after `local-whisper setup`,
+is used as normal.
 
 **No Apple Developer ID** — the `.dmg`/`.app` are ad-hoc signed
 (`codesign -s -`), not notarized. Verified directly (mounted the `.dmg`,
@@ -74,8 +75,7 @@ down → "Open Anyway" next to the blocked-app notice (confirm once more in
 the follow-up prompt), or run `xattr -cr "/Applications/Ava.app"`
 to clear the quarantine attribute directly — also verified: the app
 launches clean afterward, no further prompt. Real signing/notarization
-needs a paid Apple Developer Program membership — tracked as still-open in
-`../TODO.md`.
+needs a paid Apple Developer Program membership.
 
 ## Mute
 
@@ -175,7 +175,7 @@ present in that file come from `../scripts/voice-defaults.json`.
 |---|---|
 | Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Ava Mute" Service. See "Mute" above. |
 | Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
-| Dictate (button) | Runs `local-whisper` (its own default `whisper` engine — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
+| Dictate (button) | Runs `local-whisper` (whisper.cpp — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |

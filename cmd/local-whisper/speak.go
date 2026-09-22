@@ -58,7 +58,7 @@ func newSpeakCmd() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&voice, "voice", "", "Kokoro voice id, or two comma-separated to blend (default: the configured voice)")
+	flags.StringVar(&voice, "voice", "", "Kokoro voice id, or several comma-separated to blend as an average (default: the configured voice)")
 	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
 	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))

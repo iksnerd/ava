@@ -24,6 +24,7 @@ local-whisper
 | `--no-paste` | off | Copy to the clipboard but don't paste |
 | `--no-sound` | off | No audio cues |
 | `--verbose` | `true` | Status messages; `--quiet` is the inverse |
+| `--version`, `-v` | — | Print the version and exit |
 
 ```bash
 local-whisper --dir ~/projects/app --lang en --model base --output transcript.txt
@@ -44,7 +45,7 @@ local-whisper speak --async "don't wait for playback"
 
 | Flag | Does |
 |---|---|
-| `--voice` | A voice id from `local-whisper voices`; two comma-separated ids blend them |
+| `--voice` | A voice id from `local-whisper voices`; several comma-separated ids blend as an average ([tuning](tuning.md#blending-is-an-average-and-it-is-not-limited-to-two)) |
 | `--speed` | Rate multiplier, overriding the configured one |
 | `--async` | Return as soon as playback starts |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
@@ -84,7 +85,7 @@ pbpaste | local-whisper a11y --mode links
 |---|---|
 | `--mode` | `reading` (default), `headings`, `links`, `landmarks`, `forms` |
 | `--quiet` | Print the announcements without speaking them |
-| `--voice`, `--speed` | As for `speak` |
+| `--voice`, `--speed`, `--server-url` | As for `speak` |
 
 It also reports what only shows up when a page is heard in order: unlabeled
 controls, several links that announce identically, skipped heading levels.
@@ -98,10 +99,10 @@ bash scripts/install.sh          # latest release; or pass a tag
 local-whisper setup
 ```
 
-`install.sh` fetches the release with `gh` (which carries your credentials, so
-it works while the repo is private) or `curl`, verifies the checksum before
-extracting, and installs both binaries to `~/.local/bin` —
-`LOCAL_WHISPER_BIN` overrides that.
+`install.sh` fetches the release with `gh` when it is installed, which uses
+your GitHub credentials, and otherwise with a plain `curl`, which only reaches
+a public repo. It verifies the checksum before extracting, and installs both
+binaries to `~/.local/bin` — `LOCAL_WHISPER_BIN` overrides that.
 
 **Use it rather than downloading the archive in a browser.** The binaries are
 unsigned: signing for distribution needs a Developer ID certificate and
@@ -180,8 +181,9 @@ local-whisper engine stop
 local-whisper engine stop --keep-autostart   # temporary stop; hooks stay armed
 ```
 
-Run from the repo root, or pass `--script` — it drives
-`scripts/mlx-engine-server.sh`, which owns the Python venv. `make start-engine`,
+These drive `scripts/mlx-engine-server.sh`, which owns the Python venv. The
+script is found in `scripts/` under the working directory, else in the bundle
+`local-whisper setup` installed; `--script` names one explicitly. `make start-engine`,
 `make stop-engine` and `make status-engine` are thin wrappers around the same
 three commands.
 
@@ -198,7 +200,8 @@ speaks through macOS `say` until something re-arms it.
 
 `--script` only covers the explicit `engine` commands. The **implicit**
 auto-start, the one `local-whisper speak` or the MCP `speak` tool triggers when
-the server is down, looks in the same places: `MLX_ENGINE_SCRIPT`, then
+the server is down, looks in the same places, with an environment override
+first: `MLX_ENGINE_SCRIPT`, then
 `scripts/` under the working directory, then the bundle `local-whisper setup`
 installed. A release install therefore needs nothing extra. Set
 `MLX_ENGINE_SCRIPT` only to point an installed binary at a checkout's engine:
@@ -216,6 +219,19 @@ Kokoro, and says so on stderr.
 local-whisper mcp             # stdio; see docs/mcp.md
 ```
 
+`--server-url` points it at an mlx-engine other than `127.0.0.1:8765`, as for
+`speak`.
+
+## Shell completion
+
+```bash
+local-whisper completion zsh > "${fpath[1]}/_local-whisper"
+```
+
+Cobra generates the script; `bash`, `fish` and `powershell` work too, and
+`local-whisper completion <shell> --help` has the loading instructions for
+each. `--voice` completes to the Kokoro voice ids.
+
 ## Why there is only one transcription engine
 
 `local-whisper` transcribes with whisper.cpp and nothing else. There used to be
@@ -229,11 +245,6 @@ after measuring both on the same 20-second sample:
 | Model on disk | 141MB | 2.9GB |
 | Peak memory | none held | ~4GB resident, 11GB while loading |
 | Transcript | near-identical | near-identical |
-
-The word-error-rate figures in
-[`../mlx-engine/README.md`](../mlx-engine/README.md) compare Voxtral against
-Whisper **Large-v3**, a far bigger model than the `base.en` here — they were
-never a measurement of this path.
 
 Voxtral is still used, in `voice-monitor`: that path streams, where the wrapper
 here transcribes a complete file per subprocess. (whisper.cpp does ship a

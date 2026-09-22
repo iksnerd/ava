@@ -11,12 +11,10 @@
 // to keep tests off the real shared directory only ever redirected half the
 // system. Both now resolve through ActivityDir().
 //
-// The bash and Swift halves of this protocol still spell these values
-// themselves — Go cannot share a constant with either — so the copies that
-// remain are pinned by a test rather than removed. See
-// contract_test.go in this package: it reads the literals back out of
-// scripts/speak.sh, scripts/stop-speaking.sh and VoiceSettings' sibling
-// sources and fails when they disagree with the constants here.
+// The values themselves live in internal/protocol/protocol.json, which is
+// rendered into Go, bash (scripts/protocol.sh) and Swift, so the runtimes can
+// no longer spell them differently. internal/protocol/contract_test.go guards
+// the remaining risk: a hand-written literal appearing beside a generated one.
 package ttsproto
 
 import (

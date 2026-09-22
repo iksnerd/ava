@@ -33,6 +33,7 @@ flowchart TB
     cli ==> speaker
     cli ==> engsel
     mcpc ==> speaker
+    mcpc ==> engsel
     mcpc ==> a11y
     a11y ==> speaker
     hooks ==> speaksh
@@ -59,6 +60,12 @@ flowchart TB
     class speaksh shell;
     linkStyle default stroke:#64748b,stroke-width:1.5px;
 ```
+
+`voice-monitor`, the live call-transcript binary, is not in this picture: it
+shares none of these paths. It streams through Voxtral in `voxtral/` rather
+than whisper.cpp, speaks nothing, and serves its transcript on
+`127.0.0.1:8766`. See [`voice-monitor.md`](voice-monitor.md) and
+[`voxtral-architecture.mmd`](voxtral-architecture.mmd).
 
 ## Why the hooks bypass the Go binary
 
@@ -135,7 +142,9 @@ entries, which is exactly what `.python-version` is.
 
 ## The checks that hold this together
 
-Four scripts run in `make lint`, each written after the bug it now prevents:
+`make lint` runs `go vet`, the format check, `ruff check`, the two generator
+checks above (`check-protocol`, `check-enginedist`) and three scripts, each
+written after the bug it now prevents:
 
 - `scripts/check-portable-paths.sh` (`make check-paths`) fails on a hardcoded
   `/Users/<name>` in any tracked file. It was written after a PATH entry in `scripts/lib.sh` and a
@@ -151,7 +160,29 @@ Four scripts run in `make lint`, each written after the bug it now prevents:
   target or a `scripts/*.sh` is mentioned in no markdown file.
   `make setup-blackhole` and `make setup` both existed for months, documented
   nowhere. It caught itself on the first run, which is the correct behaviour.
-- `AvaMenuBar/scripts/check-config-contract.py` extracts `VoiceConfig` from the
-  Swift source, compiles it, and runs it against the same cases the Go and bash
-  readers face. It is `make check-swift-config`, kept out of `make test` because
-  it needs `swiftc`.
+
+A fourth, `AvaMenuBar/scripts/check-config-contract.py`, runs outside `make
+lint`. It extracts `VoiceConfig` from the Swift source, compiles it, and runs
+it against the same cases the Go and bash readers face. It is `make
+check-swift-config`, kept out of both `make lint` and `make test` because it
+needs `swiftc`.
+
+## Environment variables
+
+Every variable the code reads. Most exist so a test can point a reader at a
+throwaway path instead of the real one; nothing in normal operation sets those.
+
+| Variable | Read by | Does |
+|---|---|---|
+| `TTS_SPEED`, `TTS_VOLUME`, `TTS_SAY_RATE` | `scripts/speak.sh`, `internal/voiceconfig` | Override the configured speed, volume and `say` rate for one run. See [the hooks doc](claude-code-voice-hooks.md#settings) |
+| `TTS_NOTIFY_MAX_CHARS`, `TTS_STOP_MAX_CHARS` | `scripts/hook-notify.sh`, `scripts/hook-stop.sh` | Override the spoken-length caps |
+| `MLX_ENGINE_SCRIPT` | `internal/speaker` | Control script that `speak`'s implicit auto-start runs. See [the CLI reference](cli.md#engine-server) |
+| `LOCAL_WHISPER_ENGINE_DIR` | `internal/enginedist` | Where `local-whisper setup` installs the engine bundle, and where auto-start looks for it |
+| `LOCAL_WHISPER_BIN` | `scripts/install.sh` | Install directory, default `~/.local/bin` |
+| `MLX_ENGINE_PID_FILE` | `mlx-engine/server.py` | The pid file the server removes on idle exit. `scripts/mlx-engine-server.sh` sets it so the two cannot disagree; also a test hook |
+| `VOICECONFIG_PATH` | `internal/voiceconfig` | Test hook: the config file the Go reader loads |
+| `VOICE_CONFIG_FILE`, `VOICE_DEFAULTS_FILE` | `scripts/lib.sh` | Test hook: the config and defaults files the bash reader loads, so the contract test can hand both readers the same fixture |
+| `TTSCONTROL_ACTIVITY_DIR` | `internal/ttsproto` | Test hook: the speech activity-marker directory. Only the Go side honours it; `speak.sh`, the menu bar app and mlx-engine always use `/tmp/ava-tts-active` |
+
+The test suites also set a few variables (`AFPLAY_LOG`, `SOX_LOG`,
+`WHISPER_LOG` and similar) that only their stub binaries read.

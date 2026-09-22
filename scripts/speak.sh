@@ -1,5 +1,5 @@
 #!/bin/bash
-# Speak text using the local Voxtral/Kokoro MLX server (scripts/mlx-engine-server.sh),
+# Speak text using the local Kokoro TTS server (scripts/mlx-engine-server.sh),
 # falling back to macOS's built-in `say` if the server can't be reached.
 #
 # Usage: speak.sh "text to speak" [voice]

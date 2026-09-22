@@ -72,8 +72,11 @@ client that keeps the pipe open — the repo's own tests do this over the
 SDK's in-memory transport:
 
 ```bash
-go test ./cmd/local-whisper/ -run Mcp -v
+go test ./cmd/local-whisper/ -run 'Mcp|Tool|SpeakAccessibilityTree' -v
 ```
+
+That pattern selects the tests in `mcp_test.go`; they are named after the
+tool they exercise rather than after MCP.
 
 ## Implementation notes
 

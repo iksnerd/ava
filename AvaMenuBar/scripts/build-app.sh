@@ -18,7 +18,7 @@ echo "🔨 Building release binary..."
 swift build -c release
 RELEASE_BIN="$(swift build -c release --show-bin-path)/$BIN_NAME"
 
-echo "🔨 Building local-whisper (bundled for Dictate — whisper engine, no extra setup)..."
+echo "🔨 Building local-whisper (bundled for Dictate — whisper.cpp, no extra setup)..."
 make -C "$REPO_ROOT" build
 
 echo "📦 Packaging $APP_NAME.app..."

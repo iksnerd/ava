@@ -13,8 +13,8 @@ type Voice struct {
 // any of them. Kept in sync with VoiceSettings.swift by
 // TestVoicesMatchMenuBarAppList.
 //
-// A comma-separated pair ("af_heart,af_sky") is also valid anywhere a voice
-// id is: Kokoro averages the two embeddings into a blended voice.
+// A comma-separated list ("af_heart,af_sky") is also valid anywhere a voice
+// id is: Kokoro averages the embeddings into a blended voice.
 var voiceIDs = []string{
 	"af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica", "af_kore",
 	"af_nicole", "af_nova", "af_river", "af_sarah", "af_sky",

@@ -9,9 +9,9 @@ whisper.cpp for speech-to-text, Kokoro for speech. No audio and no transcript
 leaves the machine.
 
 It started as a Go CLI for dictation and grew into the stack around it: a menu
-bar app, Claude Code hooks that speak session status out loud, and an MCP server
-so other programs can use the same voice. If you want a dictation app, the ones
-below are better at that. This is the substrate underneath one.
+bar app called Ava, Claude Code hooks that speak session status out loud, and an
+MCP server so other programs can use the same voice. If you want a dictation
+app, the ones below are better at that. This is the substrate underneath one.
 
 ## Quick start
 
@@ -32,16 +32,19 @@ export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc to make it stick
 local-whisper           # speak; the text lands wherever your cursor is
 ```
 
-Just want the CLI and no checkout?
+No checkout? Install a release binary and let it fetch the rest:
 
 ```bash
-brew install sox whisper-cpp
-go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest
+bash install.sh         # scripts/install.sh from this repo; it runs on its own
+local-whisper setup     # sox and whisper-cli via Homebrew, the model, the Kokoro server
 ```
 
-That gets you the binary but not the 141MB model. Run `local-whisper` once and
-the error tells you the exact `curl` to fetch it. You lose the hooks, the menu
-bar app and the Kokoro server, all of which live in the repo.
+Release binaries are Apple Silicon only. On an Intel Mac, build it instead with
+`go install github.com/iksnerd/local-whisper/cmd/local-whisper@latest`, then run
+`local-whisper setup`, which skips the Kokoro server there. Either way you lose
+the hooks and the menu bar app, which live in the repo. Why a script rather than
+a browser download:
+[Installing on another machine](docs/cli.md#installing-on-another-machine).
 
 Switch to the app you want to dictate into before running it. On a first run
 your cursor is still in the terminal you just typed the command into, so your
@@ -54,10 +57,11 @@ it from — miss this one and recording still "succeeds" while producing silence
 And Accessibility, because auto-paste drives Cmd+V through AppleScript;
 `local-whisper --no-paste` skips it and leaves the transcript on your clipboard.
 
-For speech and call monitoring, `make setup` does the rest: it installs `uv`,
-syncs the Python environment for the Kokoro server, and downloads the model. See
+For speech, `make setup` does the rest: it installs `uv`, syncs the Python
+environment for the Kokoro server, and downloads the model. See
 [`mlx-engine/README.md`](mlx-engine/README.md) for running that server on its
-own.
+own. Call monitoring also needs `make setup-voxtral` and
+`make build-voice-monitor`; see [`docs/voice-monitor.md`](docs/voice-monitor.md).
 
 ## What it does
 
@@ -107,10 +111,11 @@ Claude Code hooks deliberately don't call the Go binary, so spoken notifications
 work on a machine where it was never installed.
 
 That buys composability and costs convenience. There is no signed `.dmg`, the
-install is `make`, and most of it needs Apple Silicon. Worth it if you want to
-script speech, drive it from an agent, or have a hook talk — and it is how the
-one capability here with no equivalent elsewhere exists at all: narrating a web
-page's accessibility tree the way a screen reader announces it.
+install is a shell script or `make`, and most of it needs Apple Silicon. Worth
+it if you want to script speech, drive it from an agent, or have a hook talk —
+and it is how the one capability here with no equivalent elsewhere exists at
+all: narrating a web page's accessibility tree the way a screen reader announces
+it.
 
 ## How it works
 
@@ -130,8 +135,10 @@ Diagram and the reasoning behind each of those choices:
 ## Privacy
 
 No audio or transcript is ever transmitted. Both engines run locally,
-`mlx-engine` binds `127.0.0.1`, and there is no account, telemetry or server
-component. The only network access is downloading model weights at setup.
+`mlx-engine` and `voice-monitor` bind `127.0.0.1`, and there is no account,
+telemetry or server component. The only network access is installing
+dependencies and downloading model weights, at setup or the first time a model
+loads.
 
 What lands on disk:
 
@@ -205,7 +212,7 @@ Working on it:
 make install-hooks         # pre-commit checks; CI only runs on version tags
 make build                 # binary to bin/local-whisper
 make test                  # Go, mlx-engine, voxtral, and the voice hooks
-make lint                  # vet, format check, ruff, hardcoded-path check
+make lint                  # vet, format check, ruff, and the repo's drift checks
 make check-swift-config    # the Swift config reader vs bash and Go (needs swiftc)
 ```
 

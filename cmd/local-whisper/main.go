@@ -1,6 +1,5 @@
-// Command local-whisper records audio, transcribes it via whisper.cpp or
-// Voxtral (mlx-engine), and copies/pastes the result. See root.go for the
-// command definition.
+// Command local-whisper records audio, transcribes it with whisper.cpp, and
+// copies/pastes the result. See root.go for the command definition.
 package main
 
 func main() {

@@ -69,7 +69,7 @@ type Engine interface {
 // Options are per-call overrides. A zero value takes everything from the
 // live voice settings, which is what a caller with no opinion wants.
 type Options struct {
-	// Voice is a Kokoro voice id, or a comma-separated pair to blend.
+	// Voice is a Kokoro voice id, or several comma-separated to blend.
 	Voice string
 	// Speed is Kokoro's multiplier; 0 means "use the configured speed".
 	Speed float64

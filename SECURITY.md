@@ -22,11 +22,11 @@ synthesise keystrokes, and can read other applications' accessibility trees.
 The points worth your attention:
 
 **`mlx-engine` accepts unauthenticated requests on `127.0.0.1:8765`.** Any
-process running as your user can post text to `/speak` or audio to
-`/transcribe`. There is no token. This is deliberate for a single-user local
-service, but it means the port is as trusted as your user account. The same
-applies to `voice-monitor`'s SSE server on `127.0.0.1:8766`, which serves a live
-transcript to anything that connects.
+process running as your user can post text to `/speak` and have it spoken. There
+is no token. This is deliberate for a single-user local service, but it means
+the port is as trusted as your user account. The same applies to
+`voice-monitor`'s SSE server on `127.0.0.1:8766`, which serves a live transcript
+to anything that connects.
 
 **Accessibility permission is powerful.** Auto-paste drives Cmd+V through
 AppleScript, which requires macOS Accessibility access. Granting it lets the
@@ -35,13 +35,16 @@ a terminal or app you trust, and use `local-whisper --no-paste` if you'd rather
 not — the transcript still reaches your clipboard.
 
 **Recorded audio and transcripts are written to `/tmp`.** See
-[Privacy and permissions](README.md#privacy-and-permissions) in the README for
-exactly what lands where, and for how long.
+[Privacy](README.md#privacy) in the README for exactly what lands where, and for
+how long.
 
-**Model weights are downloaded from Hugging Face at setup time.**
-`scripts/setup-model.sh` fetches a whisper.cpp model over HTTPS and does not yet
-verify a checksum, so it trusts Hugging Face and your TLS chain. Pinning a
-revision and verifying a hash is tracked as a known gap.
+**Model weights are downloaded from Hugging Face.** The whisper.cpp model is
+pinned to a Hugging Face commit and checked against a sha256 before it is
+installed, by both `local-whisper setup-model` and `scripts/setup-model.sh`, so
+a changed file on Hugging Face fails the download rather than landing on disk.
+The Kokoro and Voxtral weights are not pinned: the Python libraries fetch them
+into the shared Hugging Face cache the first time the server or `voice-monitor`
+loads them, trusting Hugging Face and your TLS chain.
 
 **The `.app` is ad-hoc signed, not notarized.** There is no Apple Developer ID
 behind it, so Gatekeeper will warn on any machine other than the one that built

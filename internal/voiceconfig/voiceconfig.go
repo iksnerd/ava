@@ -44,7 +44,7 @@ type Settings struct {
 	Speed float64
 	// Volume is afplay's -v, 0.0-1.0+.
 	Volume float64
-	// Voice is a Kokoro voice id, or a comma-separated pair to blend.
+	// Voice is a Kokoro voice id, or several comma-separated to blend.
 	Voice string
 	// SayRate is words/min for the macOS `say` fallback.
 	SayRate int

@@ -23,13 +23,9 @@ tracking and idle shutdown:
 
 Kokoro is loaded and warmed at startup, so a healthy server is a ready one:
 its first `generate_audio` call costs an extra ~2.6s of MLX compilation, paid
-once at start rather than on whoever speaks first.
-TTS loads and warms up (a throwaway synthesis to pay MLX's one-time JIT
-compile cost) eagerly at startup instead — measured on an M3 Pro, that
-warmup takes a few seconds once, in exchange for every real `/speak`
-request afterward staying at Kokoro's steady-state ~230-290ms instead of
-one of them randomly paying an extra ~2.6s. `/health` won't respond until
-that warmup finishes. The server shuts itself down after 15 minutes of no
+once at start rather than on whoever speaks first. Measured on an M3 Pro,
+every real `/speak` after that stays at Kokoro's steady-state ~230-290ms.
+`/health` won't respond until the warmup finishes. The server shuts itself down after 15 minutes of no
 `/speak` activity to free the RAM (`/health` polls don't
 count as activity, so a monitoring UI polling every few seconds won't keep
 it pinned open) — the next `/speak` after that pays the warmup again.
@@ -38,7 +34,7 @@ it pinned open) — the next `/speak` after that pays the warmup again.
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/health` | GET | `{"status", "stt_loaded", "tts_loaded", ...}` — doesn't trigger loading or reset the idle timer |
+| `/health` | GET | `{"status", "tts_model", "tts_loaded"}` — doesn't trigger loading or reset the idle timer |
 | `/speak` | POST | JSON `{"text", "voice", "speed"}` → raw `audio/wav` bytes |
 
 ```bash
@@ -94,5 +90,5 @@ uv run ruff check .    # lint
 uv run ruff format .   # format, in place
 ```
 
-Or from the repo root: `make lint` / `make fmt` (covers this and `voxtral/`
-together with the Go side).
+Or from the repo root: `make lint` / `make fmt` (covers this, `voxtral/` and
+`scripts/voice_hooks/` together with the Go side).

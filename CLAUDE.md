@@ -2,7 +2,7 @@
 
 Several components in this repo: the `local-whisper` Go CLI (dictation, see
 below), `cmd/voice-monitor` (realtime call-transcript monitor, see
-`docs/voice-monitor.md`), `mlx-engine/` (Python STT+TTS server used by `local-whisper`),
+`docs/voice-monitor.md`), `mlx-engine/` (Python Kokoro TTS server used by `local-whisper`),
 `voxtral/` (Python/MLX primitives used by `voice-monitor`), `scripts/`
 (Claude Code voice hooks), and `AvaMenuBar/` (Swift menu bar app).
 See each one's own README/SETUP for build/run instructions specific to it —
@@ -29,11 +29,11 @@ start`/`stop`/`status`, or the equivalent `make start-engine`/`stop-engine`/
 ```bash
 make build              # Build local-whisper binary to bin/local-whisper
 make build-voice-monitor # Build the realtime call-transcript monitor (see docs/voice-monitor.md)
-make test                # Run all tests (go test -v ./... + scripts/voice_hooks pytest)
+make test                # Run all tests (go test -v ./... + scripts/voice_hooks pytest + test-mlx-engine + test-voxtral)
 make vet                  # go vet ./...
 make fmt                  # gofmt + ruff format (mlx-engine/, voxtral/, scripts/voice_hooks/), in place
 make fmt-check            # Same, but check-only — no writes (CI-safe)
-make lint                  # vet + fmt-check + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
+make lint                  # vet + fmt-check + check-paths/names/protocol/enginedist/docs + ruff check (mlx-engine/, voxtral/, scripts/voice_hooks/)
 make clean                # Remove bin/
 make start-engine          # Start mlx-engine (Kokoro TTS server)
 make setup-voice-hooks     # Create the venv for scripts/voice_hooks/ (needed before hook-stop.sh/hook-notify.sh can summarize/truncate)
@@ -43,19 +43,25 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 ## Project Structure
 
-- `cmd/local-whisper/` - CLI entry point. The bare command dictates (record → transcribe → paste); `speak.go`, `stop.go`, `voices.go`, `transcribe.go` and `a11y.go` expose the rest of the voice stack as verbs, and `mcp.go` serves the same five capabilities to MCP clients over stdio (see `docs/mcp.md`). Keep the two surfaces in step: a capability reachable from one and not the other is the gap this layout exists to prevent. Nothing in the `mcp` command may write to stdout — it's the JSON-RPC channel
+- `cmd/local-whisper/` - CLI entry point. The bare command dictates (record → transcribe → paste); `speak.go`, `stop.go`, `voices.go`, `transcribe.go` and `a11y.go` expose the rest of the voice stack as verbs, and `mcp.go` serves the same five capabilities to MCP clients over stdio (see `docs/mcp.md`). Keep the two surfaces in step: a capability reachable from one and not the other is the gap this layout exists to prevent. Nothing in the `mcp` command may write to stdout — it's the JSON-RPC channel. `setup.go` and `setup_model.go` install what the binary needs without a checkout (sox, whisper-cli, the pinned and sha256-verified model, the Kokoro engine bundle), and `engine.go` starts, stops and checks the Kokoro server.
 - `cmd/voice-monitor/` - realtime transcript monitor: serves a live transcript over SSE at localhost and logs it to a file; input can be the mic or a loopback device (e.g. BlackHole) for capturing call audio
 - `internal/recording/` - Audio recording via sox, including peak normalization (`norm -3`) as part of the same sox invocation — capture already happens at `internal/audio`'s target rate/channels, so there's no separate resample/normalize pass
 - `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
 - `internal/clipboard/` - macOS clipboard + paste via AppleScript
 - `internal/voiceconfig/` - the live Ava settings (mute, speed, volume, voice, `say` rate, engine auto-start). A hand-written Go port of `scripts/lib.sh`'s `config_get`/`config_get_bool`, because an installed binary can't reach the repo's `scripts/`. Default *values* are pinned to `scripts/voice-defaults.json` by a test, and the voice list to `VoiceSettings.swift` by another — `go:embed` can't reach a parent directory and a second copy of either file would defeat its single-source-of-truth job. **Three readers resolve this one config file** (bash, Go, Swift) and what diverges is the resolution *logic*, not the values: `contract_test.go` runs bash and Go against the shared cases in `testdata/voice-config-cases.json` and fails if they disagree; `make check-swift-config` is the Swift arm, kept out of `make test` because it needs swiftc. Add a case there before changing any reader
 - `internal/speaker/` - synthesis + playback in Go: the same protocol `scripts/speak.sh` uses, not a replacement for it. Checks the global mute first, keeps an activity marker in `/tmp/ava-tts-active` (what the menu bar's indicator polls and `internal/ttscontrol` cancels), holds the same `flock(2)` on `/tmp/ava-tts-playback.lock` that speak.sh takes via Python's `fcntl.flock`, and falls back to `say` when the server is down. Writes no `.synth.pid`: synthesis here is an in-process HTTP call, so naming our own PID would have a stop kill the whole process
+- `internal/ttsproto/` and `internal/protocol/` - the marker-file protocol every speak and stop path shares (activity dir, playback lock, port). `protocol` is generated from `protocol.json` into Go, bash (`scripts/protocol.sh`) and Swift; `ttsproto` re-exports it under the names the Go packages use. `make check-protocol` fails on a stale copy
+- `internal/ttscontrol/` - cancels speech in flight before the mic opens; a Go port of `scripts/stop-speaking.sh`'s marker-file protocol, since an installed binary can't reach the script
+- `internal/enginedist/` - the mlx-engine bundle embedded in the binary, so `local-whisper setup` can install Kokoro TTS without a checkout. `make check-enginedist` fails when the embedded copy is stale
+- `internal/buildinfo/` - which build is running, for `--version` and the MCP handshake
+- `internal/procutil/` - small subprocess helpers shared by the CLIs and engine clients
+- `internal/testutil/` - helpers shared by the test suites (a regular package so any `_test.go` can import it)
 - `internal/a11y/` - parses chrome-devtools MCP's `take_snapshot` accessibility tree and renders it as screen-reader announcements, plus the findings that only surface when a page is heard in order. Pure functions, no I/O — the rendering has to be identical run to run for a spoken audit to mean anything
-- `pkg/stt/` - the `Options`/`Client` shapes shared by the one-shot transcription engines below, so `cmd/local-whisper` can pick one at runtime without branching on engine-specific types. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` — synthesis is `pkg/mlx.Client.Speak` wrapped by `internal/speaker` (see `pkg/stt`'s own doc comment)
+- `pkg/stt/` - the `Options`/`Client` shapes of the one-shot transcription engine. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` — synthesis is `pkg/mlx.Client.Speak` wrapped by `internal/speaker` (see `pkg/stt`'s own doc comment)
 - `pkg/stt/whisper/` - whisper-cli subprocess wrapper; the only transcription engine `local-whisper` has
 - `pkg/mlx/` - HTTP client for `mlx-engine/`'s Kokoro TTS. Lives at the top level rather than under `pkg/stt/` because it is not an STT client: mlx-engine's STT half was removed after whisper.cpp measured 13x faster on the same audio
-- `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Same underlying model family as `mlx-engine`, different local architecture.
-- `mlx-engine/` - local STT/TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
+- `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `cmd/voice-monitor`. Streaming Voxtral, where `mlx-engine` serves only Kokoro TTS.
+- `mlx-engine/` - local Kokoro TTS server for `local-whisper` (Python, `uv`-managed — see `mlx-engine/README.md`)
 - `voxtral/` - Python/MLX primitives for `voice-monitor` (uv project): Voxtral STT (Mini 4B Realtime), a Whisper fallback engine (multilingual, for languages Voxtral doesn't cover), and Sortformer speaker diarization; see `make setup-voxtral` and `docs/voice-monitor.md`
 - `scripts/` - dependency/model setup, plus the Claude Code voice hooks (see `docs/claude-code-voice-hooks.md`); `scripts/voice_hooks/` is its own `uv` project (flat scripts, no nested package, matching `voxtral/`'s pattern) holding the hooks' text processing (markdown stripping, sentence-aware truncation, Ollama summarization) — `hook-stop.sh`/`hook-notify.sh` stay thin bash entry points that shell out to it once per firing
 - `AvaMenuBar/` - menu bar app for tuning voice settings (Swift, see its own README)

@@ -73,7 +73,7 @@ func newMcpCmd() *cobra.Command {
 
 type speakArgs struct {
 	Text  string  `json:"text" jsonschema:"the text to speak"`
-	Voice string  `json:"voice,omitempty" jsonschema:"Kokoro voice id (see list_voices); a comma-separated pair blends two voices. Defaults to the user's configured voice."`
+	Voice string  `json:"voice,omitempty" jsonschema:"Kokoro voice id (see list_voices); several comma-separated ids blend as an average. Defaults to the user's configured voice."`
 	Speed float64 `json:"speed,omitempty" jsonschema:"speech rate multiplier; defaults to the user's configured speed"`
 	Async bool    `json:"async,omitempty" jsonschema:"return immediately instead of waiting for playback to finish"`
 }

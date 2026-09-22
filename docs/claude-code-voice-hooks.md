@@ -81,7 +81,9 @@ that) and passes it to `voice_hooks/stop.py`, which owns the actual decision:
    **verbatim**.
 2. Otherwise, if `llmSummary` is on, the message is sent to the local Ollama
    daemon (`http://127.0.0.1:11434`, via `httpx`) for a one-sentence summary
-   sized to roughly `stopMaxChars` words.
+   of under `stopMaxChars / 6` words (at least 8), about six characters a
+   word, so the summary lands near the same spoken length as the cap. With
+   the cap unlimited, a 600-character budget stands in for it.
 3. If summarization is off, fails, or times out, it falls back to
    front-truncating at `stopMaxChars` while always keeping the message's true
    last sentence intact — real sentence segmentation (`pysbd`, not a naive

@@ -36,7 +36,7 @@ func formatVoices(current string) string {
 		fmt.Fprintf(&sb, "%-14s %s%s\n", v.ID, v.Description, marker)
 	}
 	sb.WriteString("\nAll of these ship in the same Kokoro model, so switching voices costs\n")
-	sb.WriteString("no extra download. Pass two ids comma-separated to blend them, e.g.\n")
-	sb.WriteString("af_heart,af_sky.")
+	sb.WriteString("no extra download. Pass several ids comma-separated to blend them as an\n")
+	sb.WriteString("average, e.g. af_heart,af_sky.")
 	return sb.String()
 }
