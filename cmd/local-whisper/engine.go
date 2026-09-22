@@ -6,7 +6,13 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
+
+	"github.com/iksnerd/local-whisper/internal/enginedist"
 )
+
+// repoEngineScript is the control script's path inside a checkout, tried
+// before the bundle `local-whisper setup` installs.
+const repoEngineScript = enginedist.ScriptRelPath
 
 // newEngineCmd groups start/stop/status for the local mlx-engine STT/TTS
 // server (Kokoro TTS). It shells out to
@@ -21,15 +27,37 @@ func newEngineCmd() *cobra.Command {
 		Use:   "engine",
 		Short: "Manage the local mlx-engine Kokoro TTS server",
 	}
-	cmd.PersistentFlags().StringVar(&scriptPath, "script", "scripts/mlx-engine-server.sh",
-		"Path to the server control script (run local-whisper from the repo root, or override this)")
+	cmd.PersistentFlags().StringVar(&scriptPath, "script", "",
+		"Path to the server control script (default: the repo's, else the one `local-whisper setup` installed)")
+
+	// Resolution order, most explicit first. Without the installed fallback a
+	// downloaded binary can never start the engine, which is the whole reason
+	// `local-whisper setup` writes one.
+	resolveScript := func() (string, error) {
+		if scriptPath != "" {
+			return scriptPath, nil
+		}
+		if _, err := os.Stat(repoEngineScript); err == nil {
+			return repoEngineScript, nil
+		}
+		if installed, ok := enginedist.InstalledScript(); ok {
+			return installed, nil
+		}
+		return "", fmt.Errorf("no mlx-engine control script found.\n"+
+			"   Run `local-whisper setup` to install one, run from the repo root, "+
+			"or pass --script (looked for %s and the installed bundle)", repoEngineScript)
+	}
 
 	runScript := func(action string, extra ...string) error {
-		c := exec.Command("bash", append([]string{scriptPath, action}, extra...)...)
+		script, err := resolveScript()
+		if err != nil {
+			return err
+		}
+		c := exec.Command("bash", append([]string{script, action}, extra...)...)
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 		if err := c.Run(); err != nil {
-			return fmt.Errorf("mlx-engine %s: %w (run from the repo root, or pass --script)", action, err)
+			return fmt.Errorf("mlx-engine %s: %w (script: %s)", action, err, script)
 		}
 		return nil
 	}

@@ -3,6 +3,30 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## Unreleased
+
+### Added
+- **`local-whisper setup`** installs everything that is not the binary: `sox`
+  and `whisper-cli` via Homebrew, the whisper.cpp `base.en` model, and the
+  Kokoro TTS engine. `--skip-engine` leaves out the 1.2 GB for a
+  dictation-only install. Until now the binary was only half usable without a
+  checkout — `speak` fell back to the macOS `say` voice because the Python
+  engine lives in the repo — and `make setup` only works from a repo, which is
+  the one thing a downloaded binary does not have.
+- The mlx-engine bundle now travels **inside** the binary (`internal/enginedist`,
+  ~600 KB of scripts, `server.py` and a `uv.lock`). The 1.2 GB venv is resolved
+  by `uv` at install time and the 339 MB voice model is fetched on first use, so
+  neither ships. `engine start` finds the installed bundle when there is no
+  repo, so the engine commands work from a bare binary.
+- `setup` refuses an install path too long for espeak-ng's 160-byte data-path
+  buffer. Past it the server starts, loads Kokoro, and dies on a missing
+  `phontab` against a path that names neither the length nor the directory.
+
+### Fixed
+- `scripts/setup-deps.sh` still announced "Installing Voxtral inference server
+  dependencies" and "MLX Voxtral dependencies installed". mlx-engine has been
+  Kokoro-only since the engine was removed from the dictation path.
+
 ## [0.3.0] — 2026-09-22
 
 The release that gave the shared constants one owner. A protocol spelled out

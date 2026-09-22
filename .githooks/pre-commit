@@ -65,6 +65,7 @@ fi
 step "no hardcoded home dirs" bash -c "cd '$SNAP' && bash scripts/check-portable-paths.sh >/dev/null"
 step "portable filenames" bash -c "cd '$SNAP' && bash scripts/check-filenames.sh >/dev/null"
 step "protocol constants current" bash -c "cd '$SNAP' && go run ./internal/protocol/gen -check >/dev/null"
+step "engine bundle current" bash -c "cd '$SNAP' && go run ./internal/enginedist/gen -check >/dev/null"
 step "docs mention every target" bash -c "cd '$SNAP' && bash scripts/check-doc-coverage.sh >/dev/null"
 
 # Swift is deliberately not built here: it needs Xcode, takes seconds, and would

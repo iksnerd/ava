@@ -71,6 +71,7 @@ func newRootCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		newEngineCmd(),
+		newSetupCmd(),
 		newMcpCmd(),
 		newSpeakCmd(),
 		newStopCmd(),

@@ -59,18 +59,19 @@ fi
 # step, after everything that actually mattered had already succeeded.
 if [ "$(uname -m)" != "arm64" ]; then
     echo "⏭️  Skipping mlx-engine (Apple Silicon only — MLX has no Intel build)."
-    echo "    The default whisper engine is fully set up and needs nothing else."
-    echo "    Voxtral, the Kokoro TTS server and call monitoring are unavailable"
-    echo "    on this Mac."
+    echo "    Dictation is fully set up and needs nothing else: sox and"
+    echo "    whisper-cli above are the whole of it."
+    echo "    Kokoro TTS and call monitoring are unavailable on this Mac;"
+    echo "    speech falls back to the macOS \`say\` voice."
     exit 0
 fi
 
-echo "⬇️  Installing Voxtral inference server dependencies..."
+echo "⬇️  Installing mlx-engine (Kokoro TTS) dependencies..."
 if ! (cd mlx-engine && uv sync); then
     echo "❌ Failed to setup mlx-engine dependencies"
     exit 1
 fi
-echo "✅ MLX Voxtral dependencies installed"
+echo "✅ mlx-engine dependencies installed"
 
 echo ""
 echo "✅ All dependencies installed!"

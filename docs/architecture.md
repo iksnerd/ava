@@ -115,6 +115,24 @@ without more machinery than the line is worth. It stays pinned by
 `TestPortAgreesAcrossEveryRuntimeThatSpellsIt` in `pkg/mlx` instead — the
 honest outcome of generation, which covers most consumers rather than all.
 
+## The engine travels inside the binary
+
+`internal/enginedist` embeds the mlx-engine bundle — the control script and the
+three shell files it sources, plus `server.py`, `protocol.py`, `pyproject.toml`,
+`uv.lock` and `.python-version` — so `local-whisper setup` can install Kokoro on
+a machine with no checkout. About 600 KB travels; the 1.2 GB venv is resolved by
+`uv` at install time and the 339 MB model is fetched on first use.
+
+`make generate-enginedist` copies the canonical files into
+`internal/enginedist/files` (go:embed cannot reach outside its own package) and
+`make check-enginedist` fails when a copy is stale. The generator **enumerates**
+`mlx-engine/` rather than listing it, because the hand-written list drifted
+twice in the hour it existed: `server.py`'s `import protocol` killed the first
+real install after `uv` had already resolved a gigabyte, and a missing
+`.python-version` then let `uv` pick its own Python. The embed pattern is
+`all:files` for the same reason — a plain `files` silently skips dot-prefixed
+entries, which is exactly what `.python-version` is.
+
 ## The checks that hold this together
 
 Four scripts run in `make lint`, each written after the bug it now prevents:

@@ -90,6 +90,39 @@ controls, several links that announce identically, skipped heading levels.
 Those findings always cover the whole page, even when `--mode` narrated part
 of it. For rule-based violations, run chrome-devtools' `lighthouse_audit`.
 
+## Setup
+
+```bash
+local-whisper setup                 # deps + model + Kokoro engine
+local-whisper setup --skip-engine   # dictation only, without the 1.2 GB
+```
+
+Installs everything that is not the binary: `sox` and `whisper-cli` via
+Homebrew, the whisper.cpp `base.en` model (~141 MB), and the Kokoro TTS engine.
+Each step is skipped when it is already done, so re-running is cheap — and
+re-running is how you refresh the engine after installing a newer binary.
+
+It exists because the binary is otherwise only half usable without a checkout.
+`make setup` does the same three things, but only from the repo, which is the
+one thing a downloaded binary does not have. The engine is carried inside the
+binary as ~600 KB of scripts, `server.py` and a `uv.lock`; the 1.2 GB of Python
+is resolved by `uv` at install time and the 339 MB Kokoro model is fetched by
+the server on first use, so neither is shipped.
+
+It lands in `~/Library/Application Support/ava/engine/`, beside the config the
+CLI and the menu bar app already share. `LOCAL_WHISPER_ENGINE_DIR` overrides
+that, mainly so the install can be exercised against a throwaway directory.
+
+**The install path has a length budget.** espeak-ng, which Kokoro phonemizes
+through, keeps its data path in a 160-byte buffer and truncates past it — the
+server then starts, loads the model and dies on a missing `phontab` against a
+path that names neither the length nor the directory. `setup` measures this up
+front and refuses rather than letting you find out after `uv` has resolved a
+gigabyte. The default uses 128 of the 160 bytes.
+
+Apple Silicon only for the engine step; on Intel it is skipped with a note, and
+speech uses the macOS `say` voice.
+
 ## Engine server
 
 ```bash

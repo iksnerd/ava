@@ -99,8 +99,13 @@ func TestNoHandWrittenCopyOfAnyProtocolValue(t *testing.T) {
 		}
 		rel, _ := filepath.Rel(root, path)
 		rel = filepath.ToSlash(rel)
+		// internal/enginedist/files is a generated copy of files that are
+		// themselves generated, for go:embed's benefit. Exempt because a
+		// different guard pins it — `make check-enginedist` fails when a copy
+		// drifts from its canonical source — not because it is convenient.
 		if generated[rel] || isProse(rel) || strings.HasSuffix(rel, "_test.go") ||
-			strings.Contains(rel, "/tests/") {
+			strings.Contains(rel, "/tests/") ||
+			strings.HasPrefix(rel, "internal/enginedist/files/") {
 			return nil
 		}
 		body, err := os.ReadFile(path)
