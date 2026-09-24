@@ -10,6 +10,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 # Generated from internal/protocol/protocol.json — the values every runtime
 # has to agree on. Never edit protocol.sh; run `make generate-protocol`.
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
+# The protocol's test overrides, honoured here as in Go (see protocol.json).
+ACTIVITY_DIR="${!ACTIVITY_DIR_ENV:-$ACTIVITY_DIR}"
+PLAYBACK_LOCK="${!PLAYBACK_LOCK_ENV:-$PLAYBACK_LOCK}"
 
 SERVER="$ENGINE_URL"
 TEXT="$1"
@@ -67,8 +70,7 @@ wait_synth() {
 }
 
 speak_with_server() {
-    local out
-    out="$(mktemp -t ava-tts).wav"
+    local out="$SPEAK_TMP/speech.wav"
     local payload
     payload=$(python3 -c 'import json,sys; print(json.dumps({"text": sys.argv[1], "voice": sys.argv[2], "speed": float(sys.argv[3])}))' "$TEXT" "$VOICE" "$SPEED")
     curl -s -f -m 300 -X POST "$SERVER/speak" \
@@ -77,30 +79,31 @@ speak_with_server() {
         -o "$out" &
     if wait_synth "$!"; then
         play_locked afplay -v "$VOLUME" "$out"
-        rm -f "$out"
         return 0
     fi
-    rm -f "$out"
     return 1
 }
 
 # `say` has no volume flag, so render to a file and play it through afplay
 # too — keeps the volume slider consistent even when the server's down.
 speak_with_say_fallback() {
-    local aiff
-    aiff="$(mktemp -t ava-tts-say).aiff"
+    local aiff="$SPEAK_TMP/speech.aiff"
     say -r "$SAY_RATE" -o "$aiff" "$TEXT" &
     if wait_synth "$!"; then
         play_locked afplay -v "$VOLUME" "$aiff"
     fi
-    rm -f "$aiff"
 }
 
 (
     mkdir -p "$ACTIVITY_DIR" 2>/dev/null
     ACTIVITY_MARKER="$ACTIVITY_DIR/$$"
     touch "$ACTIVITY_MARKER" 2>/dev/null
-    trap 'rm -f "$ACTIVITY_MARKER" "${ACTIVITY_MARKER}$SYNTH_PID_SUFFIX" "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "${ACTIVITY_MARKER}$STOPPED_SUFFIX"' EXIT
+    # One directory for this speak's audio, removed on every exit path. It
+    # used to be mktemp's file with .wav or .aiff appended, which left the
+    # unsuffixed file behind on every speak; and `mktemp -t` ignores $TMPDIR
+    # on macOS, where the leftovers piled up out of sight.
+    SPEAK_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ava-tts.XXXXXX")"
+    trap 'rm -rf "$SPEAK_TMP"; rm -f "$ACTIVITY_MARKER" "${ACTIVITY_MARKER}$SYNTH_PID_SUFFIX" "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "${ACTIVITY_MARKER}$STOPPED_SUFFIX"' EXIT
     STOPPED=0
 
     if curl -s -f -m 2 "$SERVER/health" >/dev/null 2>&1; then

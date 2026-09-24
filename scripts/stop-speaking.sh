@@ -8,6 +8,7 @@
 # Generated from internal/protocol/protocol.json; supplies ACTIVITY_DIR and
 # the sidecar suffixes. Never edit protocol.sh; run `make generate-protocol`.
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/protocol.sh"
+ACTIVITY_DIR="${!ACTIVITY_DIR_ENV:-$ACTIVITY_DIR}"
 
 shopt -s nullglob
 for marker in "$ACTIVITY_DIR"/*; do

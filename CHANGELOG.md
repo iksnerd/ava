@@ -22,6 +22,8 @@ entry is a summary rather than a record kept as it happened.
   `scripts/play_locked.py`, with the same stop checks as the Go one; a contract test runs both.
 - A monitor tab opened before the model was ready kept saying "Waiting for the session to
   start…". The session is now sent to tabs already connected when it arrives.
+- Every `speak.sh` speak left an empty file in the per-user temp folder. Each speak now gets its
+  own temp directory, removed on exit, under `$TMPDIR`.
 
 ## [0.6.2] — 2026-09-23
 

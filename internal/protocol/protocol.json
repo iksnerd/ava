@@ -16,6 +16,10 @@
     "value": "/tmp/ava-tts-playback.lock",
     "doc": "Exclusive flock(2) held for the duration of playback, so a Go speak and a speak.sh speak queue instead of talking over each other. Two paths would be two locks, and both would play at once."
   },
+  "playback_lock_env": {
+    "value": "AVA_PLAYBACK_LOCK",
+    "doc": "Overrides playback_lock, for the same reason activity_dir_env exists: a test that runs a real speak takes this lock, and on the shared path it queues behind any speech in flight on the machine. Every reader honours both or neither, or an isolated test is only half isolated."
+  },
   "synth_pid_suffix": {
     "value": ".synth.pid",
     "doc": "Sidecar naming the synthesizing process, for a stop to signal."

@@ -106,7 +106,7 @@ func New(serverURL string) *Speaker {
 		Settings:    voiceconfig.Load,
 		AutoStart:   startEngine,
 		ActivityDir: ttsproto.ActivityDir(),
-		LockPath:    ttsproto.LockPath,
+		LockPath:    ttsproto.LockPath(),
 	}
 	s.Play = s.playLocked
 	s.Say = renderWithSay

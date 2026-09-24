@@ -30,7 +30,8 @@ import (
 const (
 	defaultActivityDir = protocol.ActivityDir
 	ActivityDirEnv     = protocol.ActivityDirEnv
-	LockPath           = protocol.PlaybackLock
+	defaultLockPath    = protocol.PlaybackLock
+	LockPathEnv        = protocol.PlaybackLockEnv
 
 	SynthPIDSuffix = protocol.SynthPIDSuffix
 	PlayPIDSuffix  = protocol.PlayPIDSuffix
@@ -45,6 +46,15 @@ func ActivityDir() string {
 		return v
 	}
 	return defaultActivityDir
+}
+
+// LockPath returns the playback lock's path, honouring LockPathEnv, for the
+// same reason ActivityDir honours ActivityDirEnv.
+func LockPath() string {
+	if v := os.Getenv(LockPathEnv); v != "" {
+		return v
+	}
+	return defaultLockPath
 }
 
 // IsSidecar reports whether a directory entry is one of the sidecar files

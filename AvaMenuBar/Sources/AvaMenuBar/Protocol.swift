@@ -33,6 +33,12 @@ enum AvaProtocol {
     // would be two locks, and both would play at once.
     static let playbackLock = "/tmp/ava-tts-playback.lock"
 
+    // Overrides playback_lock, for the same reason activity_dir_env exists: a
+    // test that runs a real speak takes this lock, and on the shared path it
+    // queues behind any speech in flight on the machine. Every reader honours
+    // both or neither, or an isolated test is only half isolated.
+    static let playbackLockEnv = "AVA_PLAYBACK_LOCK"
+
     // Sidecar telling speak.sh a stop was deliberate, so it does not treat
     // the cancellation as a failure and fall back to `say`.
     static let stoppedSuffix = ".stopped"
