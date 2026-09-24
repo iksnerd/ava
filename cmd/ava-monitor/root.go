@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -124,7 +125,7 @@ func watch(opts watchOptions) error {
 
 	var lastSpeaker string
 
-	stop, err := client.StreamRealtime(realtimeOpts, func(delta realtime.RealtimeDelta) {
+	stream, err := client.StreamRealtime(realtimeOpts, func(delta realtime.RealtimeDelta) {
 		switch delta.Event {
 		case "ready":
 			fmt.Printf("✅ Listening on: %s (engine: %s%s)\n", delta.Device, orDefault(delta.Engine, "voxtral"), languageSuffix(delta.Language))
@@ -153,17 +154,34 @@ func watch(opts watchOptions) error {
 
 	server := &http.Server{Addr: listenAddr(opts.port), Handler: newMux(h)}
 
+	var interrupted atomic.Bool
 	procutil.OnInterrupt(func() {
 		fmt.Println("\n⏹️  Stopping...")
-		stop()
+		interrupted.Store(true)
+		stream.Stop()
 		server.Close()
 	})
+	// A transcriber that dies on its own takes the server down with it.
+	// Serving on left the page reading "connected" over a transcript that
+	// had stopped; a closed server makes it say "disconnected".
+	go func() {
+		<-stream.Done()
+		server.Close()
+	}()
 
 	fmt.Printf("🌐 Open http://localhost:%d to watch the live transcript\n", opts.port)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		stream.Stop()
 		return fmt.Errorf("server error: %w", err)
 	}
-	return nil
+	if interrupted.Load() {
+		return nil
+	}
+	<-stream.Done()
+	if err := stream.Err(); err != nil {
+		return fmt.Errorf("transcription stopped: realtime.py exited: %w", err)
+	}
+	return fmt.Errorf("transcription stopped: realtime.py exited on its own")
 }
 
 // listenAddr binds the transcript server to loopback only. It used to be

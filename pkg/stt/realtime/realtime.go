@@ -81,12 +81,32 @@ type RealtimeOptions struct {
 	HighpassHz float64
 }
 
+// Stream is a running realtime.py session.
+type Stream struct {
+	cmd  *exec.Cmd
+	done chan struct{}
+	err  error
+}
+
+// Done is closed once the process has exited and every event it printed has
+// been delivered, whether Stop asked it to or it died on its own.
+func (s *Stream) Done() <-chan struct{} { return s.done }
+
+// Err is the process's exit error. It is only meaningful once Done is closed.
+func (s *Stream) Err() error { return s.err }
+
+// Stop interrupts the process and returns its exit error once it has gone.
+func (s *Stream) Stop() error {
+	_ = s.cmd.Process.Signal(os.Interrupt)
+	<-s.done
+	return s.err
+}
+
 // StreamRealtime starts realtime.py listening on opts.Device (or the default
 // microphone if empty) using opts.Engine. onDelta is called for every event
-// on its stdout until the returned stop function is invoked or the process
-// exits on its own. Unlike Transcribe, this is a long-lived subprocess, not
-// a one-shot call.
-func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta)) (stop func() error, err error) {
+// on its stdout until Stop is called or the process exits on its own. Unlike
+// Transcribe, this is a long-lived subprocess, not a one-shot call.
+func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta)) (*Stream, error) {
 	if err := c.checkPython(); err != nil {
 		return nil, err
 	}
@@ -123,14 +143,12 @@ func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta
 		return nil, err
 	}
 
-	// cmd.Wait() closes stdout as soon as the process exits, which races
-	// the scanner goroutine below if stop() calls Wait() directly — the
-	// last buffered deltas (e.g. the final "done" event) can be silently
-	// dropped. scanDone lets stop() wait for the scan loop to drain the
-	// pipe before waiting on the process itself.
-	scanDone := make(chan struct{})
+	// cmd.Wait() closes stdout as soon as the process exits, so it has to
+	// come after the scan loop has drained the pipe: waiting first can drop
+	// the last buffered events, such as the final "done".
+	stream := &Stream{cmd: cmd, done: make(chan struct{})}
 	go func() {
-		defer close(scanDone)
+		defer close(stream.done)
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			var delta RealtimeDelta
@@ -138,17 +156,10 @@ func (c *Client) StreamRealtime(opts RealtimeOptions, onDelta func(RealtimeDelta
 				onDelta(delta)
 			}
 		}
+		stream.err = cmd.Wait()
 	}()
 
-	stop = func() error {
-		if cmd.Process != nil {
-			cmd.Process.Signal(os.Interrupt)
-		}
-		<-scanDone
-		return cmd.Wait()
-	}
-
-	return stop, nil
+	return stream, nil
 }
 
 // ListInputDevices runs realtime.py --list-devices and returns its stdout,

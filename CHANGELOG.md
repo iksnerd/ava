@@ -3,6 +3,13 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Fixed
+- `ava-monitor` kept serving after `realtime.py` crashed, so the page read "connected" over a
+  transcript that had stopped. It now exits with the transcriber's exit status, and the page
+  turns red.
+
 ## [0.6.2] — 2026-09-23
 
 Installing from a release, for someone who has never seen the project: a README Install section

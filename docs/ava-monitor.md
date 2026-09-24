@@ -53,8 +53,9 @@ The badge beside the title has three states. **connected** is green.
 **reconnecting…** is amber: the browser lost the stream and is retrying, which
 after a network blip or a laptop wake is normal. If it has not reconnected
 within 10 seconds it turns into a red **disconnected — transcript stopped**, and
-the tab title gets a ⚠ prefix. Since the server only exits on Ctrl-C, red means
-the monitor is no longer transcribing the call.
+the tab title gets a ⚠ prefix. The server exits on Ctrl-C and also when
+`realtime.py` dies on its own (the terminal says why), so red means the monitor
+is no longer transcribing the call.
 
 `bin/ava-monitor devices` lists audio devices and their indices. Indices
 shift whenever devices are added or removed — including disconnecting

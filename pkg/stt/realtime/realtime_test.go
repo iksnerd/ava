@@ -77,18 +77,18 @@ func waitForDone(t *testing.T, register func(onDelta func(RealtimeDelta))) []Rea
 func TestStreamRealtimeDeliversAllEvents(t *testing.T) {
 	client := NewClient(fixturePython, "testdata")
 
-	var stop func() error
+	var stream *Stream
 	events := waitForDone(t, func(onDelta func(RealtimeDelta)) {
 		var err error
-		stop, err = client.StreamRealtime(RealtimeOptions{}, onDelta)
+		stream, err = client.StreamRealtime(RealtimeOptions{}, onDelta)
 		if err != nil {
 			t.Fatalf("StreamRealtime() error = %v", err)
 		}
 	})
 	// The fixture process is one-shot and typically exits on its own before
-	// this reaches it; stop()'s job here is just to reap it, the same way
-	// cmd/ava-monitor's real caller ignores stop()'s error on Ctrl+C.
-	_ = stop()
+	// this reaches it; Stop()'s job here is just to reap it, the same way
+	// cmd/ava-monitor's real caller ignores Stop()'s error on Ctrl+C.
+	_ = stream.Stop()
 
 	if len(events) != 4 {
 		t.Fatalf("got %d events, want 4: %+v", len(events), events)
@@ -112,10 +112,10 @@ func TestStreamRealtimePassesOptionsThrough(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "realtime.log")
 	t.Setenv("REALTIME_LOG", logPath)
 
-	var stop func() error
+	var stream *Stream
 	waitForDone(t, func(onDelta func(RealtimeDelta)) {
 		var err error
-		stop, err = client.StreamRealtime(RealtimeOptions{
+		stream, err = client.StreamRealtime(RealtimeOptions{
 			Device:     "BlackHole",
 			Engine:     "whisper",
 			Model:      "custom-model",
@@ -127,7 +127,7 @@ func TestStreamRealtimePassesOptionsThrough(t *testing.T) {
 			t.Fatalf("StreamRealtime() error = %v", err)
 		}
 	})
-	_ = stop()
+	_ = stream.Stop()
 
 	log, err := os.ReadFile(logPath)
 	if err != nil {
@@ -150,21 +150,21 @@ func TestStreamRealtimePassesOptionsThrough(t *testing.T) {
 func TestStreamRealtimeStopReportsProcessFailure(t *testing.T) {
 	client := NewClient(fixturePythonFail, "testdata")
 
-	stop, err := client.StreamRealtime(RealtimeOptions{}, func(RealtimeDelta) {})
+	stream, err := client.StreamRealtime(RealtimeOptions{}, func(RealtimeDelta) {})
 	if err != nil {
 		t.Fatalf("StreamRealtime() error = %v, want nil (the process starts fine, it just exits non-zero)", err)
 	}
 
 	done := make(chan error, 1)
-	go func() { done <- stop() }()
+	go func() { done <- stream.Stop() }()
 
 	select {
 	case err := <-done:
 		if err == nil {
-			t.Error("expected stop() to surface the fixture process's non-zero exit, got nil")
+			t.Error("expected Stop() to surface the fixture process's non-zero exit, got nil")
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("stop() did not return in time")
+		t.Fatal("Stop() did not return in time")
 	}
 }
 
@@ -195,5 +195,26 @@ func TestListInputDevicesCommandFailure(t *testing.T) {
 	_, err := client.ListInputDevices()
 	if err == nil || !strings.Contains(err.Error(), "voxtral list-devices failed") {
 		t.Errorf("err = %v, want it to mention voxtral list-devices failed", err)
+	}
+}
+
+// realtime.py dying mid-session used to be visible only to a stop() that
+// nobody calls until Ctrl+C: ava-monitor kept serving a "connected" page long
+// after transcription had ended. The stream has to say so on its own.
+func TestStreamReportsAnExitNobodyAskedFor(t *testing.T) {
+	client := NewClient(fixturePythonFail, "testdata")
+
+	stream, err := client.StreamRealtime(RealtimeOptions{}, func(RealtimeDelta) {})
+	if err != nil {
+		t.Fatalf("StreamRealtime() error = %v", err)
+	}
+
+	select {
+	case <-stream.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the process exited but the stream never reported it")
+	}
+	if stream.Err() == nil {
+		t.Error("Err() = nil after the fixture exited non-zero")
 	}
 }
