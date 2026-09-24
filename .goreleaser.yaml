@@ -49,20 +49,9 @@ builds:
       - -s -w
       - -X github.com/iksnerd/ava/internal/buildinfo.Version={{ .Summary }}
 
-  - id: ava-monitor
-    main: ./cmd/ava-monitor
-    binary: ava-monitor
-    env: [CGO_ENABLED=0]
-    goos: [darwin]
-    goarch: [arm64]
-    mod_timestamp: "{{ .CommitTimestamp }}"
-    ldflags:
-      - -s -w
-      - -X github.com/iksnerd/ava/internal/buildinfo.Version={{ .Summary }}
-
 archives:
   - id: default
-    ids: [ava, ava-monitor]
+    ids: [ava]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -103,7 +92,7 @@ release:
     ava setup
     ```
 
-    `install.sh` verifies the checksum and installs both binaries to
+    `install.sh` verifies the checksum and installs `ava` to
     `~/.local/bin`. `setup` then installs sox, whisper-cli, the speech model and
     the Kokoro TTS engine.
 
@@ -113,4 +102,4 @@ release:
     downloads but not to anything `curl` or `gh` fetches. A quarantined
     unsigned binary is killed with exit 137 and no message, and the dialog
     macOS shows offers **Move to Trash**, not Open. If you have already hit
-    that: `xattr -d com.apple.quarantine ava ava-monitor`.
+    that: `xattr -d com.apple.quarantine ava`.

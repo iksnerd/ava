@@ -2,7 +2,6 @@
 /bin/
 /dist/
 /ava
-/ava-monitor
 # Pre-0.6.0 binary names, still built by old checkouts and scripts.
 
 # Python / mlx-engine

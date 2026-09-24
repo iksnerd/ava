@@ -18,7 +18,7 @@ import (
 
 // newDictationDir makes this run's own directory under root and returns a
 // cleanup that removes only that. root is internal/audio's TempDir, shared
-// with ava-monitor, which keeps its call transcripts there: removing the
+// with ava monitor, which keeps its call transcripts there: removing the
 // whole root, as dictation used to, unlinked a live call's transcript. A
 // directory per run also keeps two dictations from sharing one prompt.wav.
 func newDictationDir(root string) (dir string, cleanup func(), err error) {
@@ -101,6 +101,7 @@ func newRootCmd() *cobra.Command {
 		newVoicesCmd(),
 		newTranscribeCmd(),
 		newA11yCmd(),
+		newMonitorCmd(),
 	)
 
 	return cmd
@@ -122,7 +123,7 @@ func Execute() {
 // behind --engine voxtral. It was removed after measuring it — on the same
 // 20s sample whisper.cpp took 1.26s and Voxtral 17s warm, 127s cold including
 // a 108s model load, for a near-identical transcript. mlx-engine is TTS-only
-// now; Voxtral still runs in ava-monitor, which needs streaming rather than
+// now; Voxtral still runs in ava monitor, which needs streaming rather than
 // one subprocess per complete file.
 func newTranscriber(modelName string) (stt.Client, error) {
 	homeDir, err := os.UserHomeDir()

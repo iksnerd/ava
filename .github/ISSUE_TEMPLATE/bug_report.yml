@@ -23,7 +23,7 @@ body:
         - ava (dictation / transcribe)
         - ava speak / Kokoro engine
         - ava mcp
-        - ava-monitor
+        - ava monitor (call transcripts)
         - Ava menu bar app
         - Claude Code voice hooks
         - Install / setup

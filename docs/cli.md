@@ -1,7 +1,7 @@
 # CLI reference
 
 Every command `ava` accepts. For the MCP server see
-[`mcp.md`](mcp.md); for `ava-monitor` see [`ava-monitor.md`](ava-monitor.md).
+[`mcp.md`](mcp.md); for `ava monitor` see [`monitor.md`](monitor.md).
 
 ← [Back to the README](../README.md)
 
@@ -127,7 +127,7 @@ both measured on macOS 27:
   System Settings → Privacy & Security → "Open Anyway", or simply:
 
   ```bash
-  xattr -d com.apple.quarantine ava ava-monitor
+  xattr -d com.apple.quarantine ava
   ```
 
 ## Setup
@@ -252,10 +252,10 @@ after measuring both on the same 20-second sample:
 | Peak memory | none held | ~4GB resident, 11GB while loading |
 | Transcript | near-identical | near-identical |
 
-Voxtral is still used, in `ava-monitor`: that path streams, where the wrapper
+Voxtral is still used, in `ava monitor`: that path streams, where the wrapper
 here transcribes a complete file per subprocess. (whisper.cpp does ship a
 streaming example; it is not what `pkg/stt/whisper` wraps.) See
-[`ava-monitor.md`](ava-monitor.md).
+[`monitor.md`](monitor.md).
 
 ## Context files
 

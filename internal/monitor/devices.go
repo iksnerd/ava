@@ -1,4 +1,4 @@
-package main
+package monitor
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 )
 
 // newDevicesCmd lists available input devices, sharing shared's --python/
-// --voxtral-dir persistent flags with the root command.
-func newDevicesCmd(shared *rootOptions) *cobra.Command {
+// --voxtral-dir persistent flags with monitor.
+func newDevicesCmd(shared *clientOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:           "devices",
 		Short:         "List available input devices and exit",

@@ -69,7 +69,7 @@ This server is TTS-only. It used to also serve Voxtral STT behind
 `ava --engine voxtral`; that was removed after measuring both on the
 same 20s sample — whisper.cpp 1.26s against Voxtral's 17s warm and 127s cold
 (including a 108s model load), for a near-identical transcript. One-shot
-transcription is `pkg/stt/whisper`'s job now, and `cmd/ava-monitor` runs
+transcription is `pkg/stt/whisper`'s job now, and `internal/monitor` runs
 Voxtral in its own process for streaming, which is a different shape from one
 subprocess per complete file.
 

@@ -71,7 +71,7 @@ mlx-community/whisper-large-v3-turbo-asr-fp16         MIT
   Multilingual speech-to-text fallback.
 
 WARNING: mlx-community/diar_sortformer_4spk-v1-fp32   CC-BY-NC-4.0
-  Speaker diarization, used only by `ava-monitor --diarize`.
+  Speaker diarization, used only by `ava monitor --diarize`.
   Derived from nvidia/diar_sortformer_4spk-v1, whose model card states the
   licence covers use of the model and is accepted on download.
 

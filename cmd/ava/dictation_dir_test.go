@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Dictation shares its temp root with ava-monitor, whose call transcripts
+// Dictation shares its temp root with ava monitor, whose call transcripts
 // are kept there. Cleaning up used to be os.RemoveAll on the whole root, so
 // dictating during a monitored call unlinked the call's transcript.
 func TestDictationCleanupLeavesMonitorTranscriptsAlone(t *testing.T) {
@@ -27,7 +27,7 @@ func TestDictationCleanupLeavesMonitorTranscriptsAlone(t *testing.T) {
 	cleanup()
 
 	if _, err := os.Stat(transcript); err != nil {
-		t.Errorf("cleanup removed ava-monitor's transcript: %v", err)
+		t.Errorf("cleanup removed ava monitor's transcript: %v", err)
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("cleanup left the dictation dir behind: %v", err)

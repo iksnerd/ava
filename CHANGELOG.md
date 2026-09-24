@@ -5,6 +5,13 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Changed
+- **`ava-monitor` is now `ava monitor`**, and `ava-monitor devices` is `ava monitor devices`,
+  with the same flags. It was a second binary that releases shipped although it cannot run
+  without a checkout's Voxtral environment, and that `make install-bin` never updated. Releases
+  and `install.sh` now carry `ava` alone, and `make build-ava-monitor` is gone: `make build`
+  covers it. Delete an old `~/.local/bin/ava-monitor` by hand; nothing else uses it.
+
 ### Removed
 - The command alias and environment-variable names kept from before the 0.6.0 rename, a release
   earlier than the 0.7.0 that was announced. `install.sh` and `make install-bin` no longer create

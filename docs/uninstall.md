@@ -14,7 +14,7 @@ make uninstall
 From a checkout, this stops the Kokoro server and deletes what only this
 project uses:
 
-- `~/.local/bin/ava` and `~/.local/bin/ava-monitor`
+- `~/.local/bin/ava`
 - `~/raycast-scripts/whisper-transcribe.sh`
 - `~/Library/Application Support/ava/engine/`, the engine bundle and its
   ~1.2 GB Python environment that `ava setup` installs
@@ -42,7 +42,7 @@ read, so `make uninstall` never touches it:
 
 ```bash
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16                    # 339 MB
-rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran ava-monitor
+rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran ava monitor
 ```
 
 ### The menu bar app

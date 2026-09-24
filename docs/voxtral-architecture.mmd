@@ -43,13 +43,13 @@ flowchart TB
         diar_py -.->|speaker label per chunk| rt_py
     end
 
-    subgraph monitor["Realtime call transcript - cmd/ava-monitor"]
+    subgraph monitor["Realtime call transcript - internal/monitor"]
         meet["Google Meet<br/>(Settings -> Audio -> Speakers<br/>must be set to the Multi-Output Device<br/>explicitly - doesn't follow macOS<br/>system-default changes automatically)"]
         moutput["Multi-Output Device<br/>(Audio MIDI Setup - use built-in<br/>Speakers, NOT Bluetooth/AirPods,<br/>which silently drop the 2nd member)"]
         blackhole[("BlackHole 2ch<br/>(virtual loopback driver)")]
         speakers[("🔊 Real speakers<br/>(so you still hear the call)")]
 
-        vm["cmd/ava-monitor<br/>net/http + cobra<br/>--diarize, --highpass-hz flags"]
+        vm["internal/monitor<br/>net/http + cobra<br/>--diarize, --highpass-hz flags"]
         sse["/events (SSE)"]
         page["/ - live transcript page<br/>(EventSource, auto-updates)"]
         logf[("/tmp/voice-input/<br/>transcript-&lt;ts&gt;.txt<br/>[Speaker N] prefixed on change")]

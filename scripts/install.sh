@@ -96,7 +96,7 @@ fi
 
 tar xzf "$archive" -C "$tmp"
 mkdir -p "$BIN_DIR"
-for binary in ava ava-monitor; do
+for binary in ava; do
     [ -f "$tmp/$binary" ] || continue
     install -m 0755 "$tmp/$binary" "$BIN_DIR/$binary"
     # Belt and braces: nothing above should have set quarantine, and if

@@ -2,7 +2,7 @@
 // speech-to-text engine. pkg/stt/whisper is the only implementation now:
 // pkg/mlx used to be a second one, until measuring it removed the reason to
 // keep it. The interface stays because pkg/stt/realtime is STT too (used by
-// cmd/ava-monitor) but has a genuinely different, streaming shape
+// internal/monitor) but has a genuinely different, streaming shape
 // (StreamRealtime/ListInputDevices) so it doesn't implement Client either.
 //
 // There is still no sibling pkg/tts, and there shouldn't be one:

@@ -47,7 +47,7 @@ enum AvaProtocol {
     // Sidecar naming the synthesizing process, for a stop to signal.
     static let synthPIDSuffix = ".synth.pid"
 
-    // Where both binaries put what they produce: per-dictation audio, cleaned
-    // up on exit, and ava-monitor transcript logs, which are kept.
+    // Where ava puts what it produces: per-dictation audio, cleaned up on
+    // exit, and `ava monitor` transcript logs, which are kept.
     static let tempDir = "/tmp/voice-input"
 }

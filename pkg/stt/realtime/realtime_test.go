@@ -87,7 +87,7 @@ func TestStreamRealtimeDeliversAllEvents(t *testing.T) {
 	})
 	// The fixture process is one-shot and typically exits on its own before
 	// this reaches it; Stop()'s job here is just to reap it, the same way
-	// cmd/ava-monitor's real caller ignores Stop()'s error on Ctrl+C.
+	// internal/monitor's real caller ignores Stop()'s error on Ctrl+C.
 	_ = stream.Stop()
 
 	if len(events) != 4 {
@@ -199,7 +199,7 @@ func TestListInputDevicesCommandFailure(t *testing.T) {
 }
 
 // realtime.py dying mid-session used to be visible only to a stop() that
-// nobody calls until Ctrl+C: ava-monitor kept serving a "connected" page long
+// nobody calls until Ctrl+C: ava monitor kept serving a "connected" page long
 // after transcription had ended. The stream has to say so on its own.
 func TestStreamReportsAnExitNobodyAskedFor(t *testing.T) {
 	client := NewClient(fixturePythonFail, "testdata")

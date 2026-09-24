@@ -48,8 +48,8 @@ echo "     that is three-dot menu -> Settings -> Audio -> Speakers. Skipping thi
 echo "     is the most common reason capture reads pure silence."
 echo ""
 echo "Find BlackHole's device index/name with:"
-echo "  make build-ava-monitor && bin/ava-monitor devices"
+echo "  make build && bin/ava monitor devices"
 echo ""
 echo "Then watch a call live at http://localhost:8766 with:"
-echo "  bin/ava-monitor --device BlackHole"
+echo "  bin/ava monitor --device BlackHole"
 exit 0

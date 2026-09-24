@@ -61,10 +61,10 @@ flowchart TB
     linkStyle default stroke:#64748b,stroke-width:1.5px;
 ```
 
-`ava-monitor`, the live call-transcript binary, is not in this picture: it
+`ava monitor`, the live call transcripts, is not in this picture: it
 shares none of these paths. It streams through Voxtral in `voxtral/` rather
 than whisper.cpp, speaks nothing, and serves its transcript on
-`127.0.0.1:8766`. See [`ava-monitor.md`](ava-monitor.md) and
+`127.0.0.1:8766`. See [`monitor.md`](monitor.md) and
 [`voxtral-architecture.mmd`](voxtral-architecture.mmd).
 
 ## Why the hooks speak through the Go binary

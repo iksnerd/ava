@@ -33,8 +33,8 @@ Check: `brew --version` prints a version.
 curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
 ```
 
-It downloads the latest release, checks it against the published checksum, and installs `ava`
-and `ava-monitor` to `~/.local/bin`. If it prints a line starting `echo 'export PATH=`, run that
+It downloads the latest release, checks it against the published checksum, and installs `ava` to
+`~/.local/bin`. If it prints a line starting `echo 'export PATH=`, run that
 line, then open a new terminal window.
 
 Check: `ava --version` prints a version.
@@ -47,8 +47,8 @@ quarantined unsigned binary without a message. After extracting the `.tar.gz`, i
 
 ```bash
 shasum -a 256 -c checksums.txt --ignore-missing
-xattr -d com.apple.quarantine ava ava-monitor
-mkdir -p ~/.local/bin && mv ava ava-monitor ~/.local/bin/
+xattr -d com.apple.quarantine ava
+mkdir -p ~/.local/bin && mv ava ~/.local/bin/
 ```
 
 ## 3. Install what ava needs
@@ -138,7 +138,7 @@ above to check speech and dictation.
 | The menu bar app | `bash AvaMenuBar/scripts/build-app.sh && open -a Ava` | Installs `/Applications/Ava.app`. To start at login: System Settings → General → Login Items |
 | Claude Code speaks when it finishes or needs you | `make setup-voice-hooks`, then add the hooks to `~/.claude/settings.json` | Exact JSON in [claude-code-voice-hooks.md](claude-code-voice-hooks.md) |
 | Claude Code uses Ava as a tool | `claude mcp add -s user ava -e MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh" -- "$HOME/.local/bin/ava" mcp` | See [mcp.md](mcp.md) |
-| Live call transcripts | `make setup-voxtral && make build-ava-monitor` | Downloads a 2.9 GB model on first use. See [ava-monitor.md](ava-monitor.md) |
+| Live call transcripts | `make setup-voxtral && make build` | Downloads a 2.9 GB model on first use. See [ava monitor.md](monitor.md) |
 | A dictation hotkey (Raycast) | `make install-raycast` | Then add `~/raycast-scripts` in Raycast's settings |
 
 **Intel Mac:** `go install github.com/iksnerd/ava/cmd/ava@latest`, then `ava setup`. It skips the

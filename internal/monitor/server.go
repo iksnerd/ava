@@ -1,4 +1,4 @@
-package main
+package monitor
 
 import (
 	"encoding/json"
@@ -49,7 +49,7 @@ const indexHTML = `<!doctype html>
 <main>
   <div id="session" class="hint" aria-live="polite">Waiting for the session to start&hellip;</div>
   <div id="transcript" role="log" aria-live="polite" aria-atomic="false"></div>
-  <div id="waiting" class="hint">Listening. Nothing transcribed yet &mdash; if this stays empty while people are talking, the capture device is probably reading silence (see docs/ava-monitor.md).</div>
+  <div id="waiting" class="hint">Listening. Nothing transcribed yet &mdash; if this stays empty while people are talking, the capture device is probably reading silence (see docs/monitor.md).</div>
 </main>
 <script>
   const el = document.getElementById('transcript');

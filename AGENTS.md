@@ -1,13 +1,13 @@
 # Ava Agent Guide
 
-This repo is six components: the `ava` Go CLI (dictation, speech,
-transcription, accessibility narration, and an MCP server), `cmd/ava-monitor`
-(realtime call-transcript monitor), the `mlx-engine` Python server (local
+This repo is five components: the `ava` Go CLI (dictation, speech,
+transcription, accessibility narration, an MCP server, and `ava monitor` for
+realtime call transcripts in `internal/monitor`), the `mlx-engine` Python server (local
 Kokoro TTS, used by the CLI, the hooks and the menu bar app), `voxtral/` (Python/MLX
-primitives used by `ava-monitor`), `scripts/` (Claude Code voice hooks), and
+primitives used by `ava monitor`), `scripts/` (Claude Code voice hooks), and
 `AvaMenuBar` (a Swift menu bar app for tuning voice settings). This
 guide covers the Go CLI (`ava`) specifically; see each other
-component's own docs — `docs/ava-monitor.md` (`ava-monitor`), `mlx-engine/README.md`,
+component's own docs — `docs/monitor.md` (`ava monitor`), `mlx-engine/README.md`,
 `docs/claude-code-voice-hooks.md`, `AvaMenuBar/README.md`,
 `docs/mcp.md`.
 
@@ -34,7 +34,7 @@ Multi-package CLI tool for local voice, in both directions. Transcription is
 `mlx-engine/` used to serve STT as well, behind `--engine voxtral`. That was
 removed after measuring it: whisper.cpp took 1.26s on a 20s sample against
 Voxtral's 17s warm and 127s cold, for a near-identical transcript. Voxtral
-remains in `voxtral/` for `cmd/ava-monitor`, whose job is streaming, where
+remains in `voxtral/` for `internal/monitor`, whose job is streaming, where
 `pkg/stt/whisper` transcribes a complete file per subprocess.
 
 **Project Structure:**
@@ -96,8 +96,8 @@ scripts/mlx-engine-server.sh    - Start/stop/status for mlx-engine, wrapped by `
 ```
 
 Not covered here: `pkg/stt/realtime` (a *different*, independent client —
-wraps `voxtral/realtime.py` via `os/exec`, used only by `cmd/ava-monitor`)
-and `voxtral/` itself. See `docs/ava-monitor.md`. There is no `pkg/tts`:
+wraps `voxtral/realtime.py` via `os/exec`, used only by `internal/monitor`)
+and `voxtral/` itself. See `docs/monitor.md`. There is no `pkg/tts`:
 synthesis is `pkg/mlx.Client.Speak` (same server, same HTTP-client
 scaffolding), wrapped by `internal/speaker` (see `pkg/stt`'s own package doc
 comment for why).
@@ -112,7 +112,7 @@ comment for why).
 **Model location**: `~/.local/share/whisper-cpp/ggml-base.en.bin` (141MB, downloaded by `make setup-model` or `ava setup-model`)
 **Alternate model**: `ggml-tiny.en.bin` (74MB, faster but less accurate)
 
-**Voxtral**: used only by `cmd/ava-monitor`, through `voxtral/` and `pkg/stt/realtime`, never by `ava`. See `docs/ava-monitor.md`.
+**Voxtral**: used only by `ava monitor` (`internal/monitor`), through `voxtral/` and `pkg/stt/realtime`, never by dictation or `ava transcribe`. See `docs/monitor.md`.
 
 **Temp directory**: `/tmp/voice-input/` (raw/processed WAV files, transcript)
 
@@ -165,7 +165,7 @@ comment for why).
 - `clipboard.PlaySound()` - Async afplay (non-blocking)
 
 ## Testing
-- Go tests in `cmd/ava`, `cmd/ava-monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,buildinfo,clipboard,enginedist,procutil,protocol,recording,speaker,ttscontrol,voiceconfig}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio`, `internal/ttsproto`, `internal/testutil` and `pkg/stt` have no test files (constants, helpers and interface only)
+- Go tests in `cmd/ava`, `internal/monitor`, `pkg/stt/whisper`, `pkg/stt/realtime`, `pkg/mlx`, and `internal/{a11y,buildinfo,clipboard,enginedist,procutil,protocol,recording,speaker,ttscontrol,voiceconfig}` (fixture-driven: `testdata/bin/` fake executables, `httptest`, and the MCP SDK's in-memory transport for the `mcp` command) — `internal/audio`, `internal/ttsproto`, `internal/testutil` and `pkg/stt` have no test files (constants, helpers and interface only)
 - Run with: `make test`
 - Tests cover initialization, path handling, model validation, clipboard operations, HTTP client behavior, subprocess/signal helpers
 

@@ -1,4 +1,4 @@
-package main
+package monitor
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 
 // maxHistoryBytes bounds the in-memory transcript kept for newly opened
 // tabs — well beyond any realistic single session, but without a cap it
-// grows for as long as ava-monitor is left running unattended.
+// grows for as long as ava monitor is left running unattended.
 const maxHistoryBytes = 1 << 20 // 1 MiB
 
 // event is one SSE frame. An empty name is a plain message: a transcript

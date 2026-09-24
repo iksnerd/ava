@@ -1,7 +1,6 @@
-.PHONY: build build-ava-monitor test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole start-engine stop-engine status-engine clean help
+.PHONY: build test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole start-engine stop-engine status-engine clean help
 
 BINARY_NAME=ava
-MONITOR_BINARY_NAME=ava-monitor
 BUILD_DIR=bin
 RAYCAST_DIR=$(HOME)/raycast-scripts
 INSTALL_BIN_DIR=$(HOME)/.local/bin
@@ -11,7 +10,6 @@ INSTALL_BIN_DIR=$(HOME)/.local/bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS=-ldflags "-X github.com/iksnerd/ava/internal/buildinfo.Version=$(VERSION)"
 BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
-MONITOR_BINARY_PATH=$(BUILD_DIR)/$(MONITOR_BINARY_NAME)
 
 help:
 	@echo "ava Makefile"
@@ -31,11 +29,10 @@ help:
 	@echo "  make install-hooks      - Enable the pre-commit hook (CI only runs on tags)"
 	@echo "  make setup-deps         - Install system dependencies (sox, whisper-cli, uv)"
 	@echo "  make setup-model        - Download Whisper model to ~/.local/share/whisper-cpp/"
-	@echo "  make setup-voxtral      - Python venv for ava-monitor's realtime streaming (Voxtral)"
+	@echo "  make setup-voxtral      - Python venv for ava monitor's realtime streaming (Voxtral)"
 	@echo "  make setup-voice-hooks  - Create Python venv for the voice-hook text/summarization CLIs"
 	@echo "  make setup-blackhole    - Install BlackHole loopback driver to capture system/call audio"
 	@echo "  make build              - Build the binary to bin/"
-	@echo "  make build-ava-monitor - Build the realtime transcript monitor (localhost + log file)"
 	@echo "  make test               - Run all tests (Go, voice-hooks, mlx-engine, voxtral)"
 	@echo "  make vet                - go vet the Go code"
 	@echo "  make fmt                - Format Go (gofmt) and Python (ruff format), in place"
@@ -64,12 +61,6 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@cd cmd/ava && go build $(LDFLAGS) -o ../../$(BINARY_PATH)
 	@echo "✅ Built: ./$(BINARY_PATH)"
-
-build-ava-monitor:
-	@echo "🔨 Building $(MONITOR_BINARY_NAME)..."
-	@mkdir -p $(BUILD_DIR)
-	@cd cmd/ava-monitor && go build $(LDFLAGS) -o ../../$(MONITOR_BINARY_PATH)
-	@echo "✅ Built: ./$(MONITOR_BINARY_PATH)"
 
 test:
 	@echo "🧪 Running tests..."
@@ -245,7 +236,7 @@ uninstall:
 	@if [ -x "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" ]; then \
 		"$(INSTALL_BIN_DIR)/$(BINARY_NAME)" engine stop --keep-autostart >/dev/null 2>&1 || true; \
 	fi
-	@for f in "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" "$(INSTALL_BIN_DIR)/$(MONITOR_BINARY_NAME)" \
+	@for f in "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" \
 		"$(RAYCAST_DIR)/whisper-transcribe.sh" "$(ENGINE_DIR)"; do \
 		if [ -e "$$f" ] || [ -L "$$f" ]; then rm -rf "$$f" && echo "🗑️  Removed $$f"; fi; \
 	done

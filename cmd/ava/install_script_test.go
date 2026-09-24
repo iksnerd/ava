@@ -25,11 +25,9 @@ func fakeRelease(t *testing.T, version string) string {
 	}
 	gz := gzip.NewWriter(f)
 	tw := tar.NewWriter(gz)
-	for _, bin := range []string{"ava", "ava-monitor"} {
-		body := []byte("#!/bin/sh\necho " + bin + " " + version + "\n")
-		tw.WriteHeader(&tar.Header{Name: bin, Mode: 0755, Size: int64(len(body))})
-		tw.Write(body)
-	}
+	body := []byte("#!/bin/sh\necho ava " + version + "\n")
+	tw.WriteHeader(&tar.Header{Name: "ava", Mode: 0755, Size: int64(len(body))})
+	tw.Write(body)
 	tw.Close()
 	gz.Close()
 	f.Close()
@@ -69,10 +67,8 @@ cp "$src" "$out"
 	if err != nil {
 		t.Fatalf("install.sh with curl alone failed: %v\n%s", err, out)
 	}
-	for _, b := range []string{"ava", "ava-monitor"} {
-		if _, err := os.Stat(filepath.Join(bin, b)); err != nil {
-			t.Errorf("%s was not installed:\n%s", b, out)
-		}
+	if _, err := os.Stat(filepath.Join(bin, "ava")); err != nil {
+		t.Errorf("ava was not installed:\n%s", out)
 	}
 	if !strings.Contains(string(out), "Checksum verified") {
 		t.Errorf("install did not verify the checksum:\n%s", out)

@@ -11,8 +11,8 @@ const (
 	Channels     = "1"
 )
 
-// TempDir is where both binaries put the audio and transcripts they produce:
-// ava's per-dictation wav (cleaned up on exit) and ava-monitor's
+// TempDir is where ava puts the audio and transcripts it produces:
+// ava's per-dictation wav (cleaned up on exit) and ava monitor's
 // transcript logs (kept — see the README's privacy section). One spelling,
 // because two spellings is how one of them ends up writing somewhere the
 // other never cleans.

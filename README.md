@@ -41,7 +41,7 @@ page, and a check after every step are in
 
 ### From source
 
-The menu bar app, the Claude Code voice hooks and `ava-monitor`'s call
+The menu bar app, the Claude Code voice hooks and `ava monitor`'s call
 transcripts need a checkout:
 
 ```bash
@@ -58,8 +58,8 @@ export MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh"  # optional: lets `
   ([`AvaMenuBar/README.md`](AvaMenuBar/README.md)).
 - Voice hooks: [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md).
   They speak through `ava`, so keep a built or installed one around.
-- Call transcripts: `make setup-voxtral && make build-ava-monitor`
-  ([`docs/ava-monitor.md`](docs/ava-monitor.md)).
+- Call transcripts: `make setup-voxtral`, then `bin/ava monitor`
+  ([`docs/monitor.md`](docs/monitor.md)).
 
 On an Intel Mac only dictation works: `go install github.com/iksnerd/ava/cmd/ava@latest`,
 then `ava setup`, which skips Kokoro there and speaks with the macOS voice.
@@ -92,7 +92,7 @@ by passing several ids.
 only shows up when you listen: six links that all say "read more", skipped
 heading levels, alt text that passes the linter and sounds like nonsense.
 
-**Live call transcripts.** `ava-monitor` streams a transcript to
+**Live call transcripts.** `ava monitor` streams a transcript to
 `localhost:8766` from your mic or a loopback device, with optional speaker
 labels. It uses Voxtral, which is built for streaming; dictation's whisper.cpp
 path transcribes a complete file at a time.
@@ -128,7 +128,7 @@ Diagram and the reasoning behind each choice:
 ## Privacy
 
 No audio or transcript is ever transmitted. Both engines run locally,
-`mlx-engine` and `ava-monitor` bind `127.0.0.1`, and there is no account,
+`mlx-engine` and `ava monitor` bind `127.0.0.1`, and there is no account,
 telemetry or server component. The network is used only to install
 dependencies and download model weights.
 
@@ -138,9 +138,9 @@ What lands on disk:
 | --- | --- | --- |
 | Dictation audio | `/tmp/voice-input/` | On exit; a crash leaves the `.wav` behind |
 | Speech audio | `$TMPDIR/ava-tts-*` (your per-user temp folder) | After playback |
-| **`ava-monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and readable by every user (`0644`) |
+| **`ava monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and readable by every user (`0644`) |
 
-Pass `ava-monitor --log` to choose where a call transcript goes, and delete it
+Pass `ava monitor --log` to choose where a call transcript goes, and delete it
 when you are done.
 
 **Accessibility permission allows any keystroke**, not just Cmd+V. Grant it to a
@@ -180,7 +180,7 @@ Every command and flag: [`docs/cli.md`](docs/cli.md).
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | When nothing pastes, or nothing plays |
 | [`docs/tuning.md`](docs/tuning.md) | Kokoro's parameters, stress and IPA markup, whisper.cpp flags |
 | [`docs/mcp.md`](docs/mcp.md) | The five MCP tools |
-| [`docs/ava-monitor.md`](docs/ava-monitor.md) | Live transcripts and loopback setup |
+| [`docs/monitor.md`](docs/monitor.md) | Live transcripts and loopback setup |
 | [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) | Spoken notifications and every config key |
 | [`docs/uninstall.md`](docs/uninstall.md) | Everything an install leaves on disk |
 | [`docs/architecture.md`](docs/architecture.md) | How the pieces fit, and why |
@@ -199,4 +199,4 @@ protocol. Security reports: [`SECURITY.md`](SECURITY.md).
 ## License
 
 MIT. Third-party components and model licences are in [`NOTICE`](NOTICE).
-`ava-monitor --diarize` downloads a model licensed for non-commercial use only.
+`ava monitor --diarize` downloads a model licensed for non-commercial use only.

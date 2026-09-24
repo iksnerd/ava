@@ -1,4 +1,8 @@
-package main
+// Package monitor is `ava monitor`: it runs Voxtral Mini 4B Realtime against
+// an input device (the mic, or a loopback device like BlackHole capturing a
+// call) and serves the live transcript on localhost while logging it to a
+// file.
+package monitor
 
 import (
 	"fmt"
@@ -10,27 +14,26 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/ava/internal/audio"
-	"github.com/iksnerd/ava/internal/buildinfo"
 	"github.com/iksnerd/ava/internal/procutil"
 	"github.com/iksnerd/ava/pkg/stt/realtime"
 )
 
-// rootOptions holds the persistent --python/--voxtral-dir flags, shared by
-// the root command and the devices subcommand since both need a
-// realtime.Client to talk to voxtral/realtime.py.
-type rootOptions struct {
+// clientOptions holds the persistent --python/--voxtral-dir flags, shared by
+// monitor and its devices subcommand since both need a realtime.Client to
+// talk to voxtral/realtime.py.
+type clientOptions struct {
 	pythonPath string
 	voxtralDir string
 }
 
-func (o rootOptions) client() *realtime.Client {
+func (o clientOptions) client() *realtime.Client {
 	return realtime.NewClient(resolvePythonPath(o.pythonPath, o.voxtralDir), o.voxtralDir)
 }
 
-// watchOptions holds the root command's own --flag values (the live-watch
-// session), on top of the shared rootOptions.
+// watchOptions holds monitor's own --flag values (the live-watch session), on
+// top of the shared clientOptions.
 type watchOptions struct {
-	rootOptions
+	clientOptions
 	device     string
 	engine     string
 	sttModel   string
@@ -41,19 +44,19 @@ type watchOptions struct {
 	logPath    string
 }
 
-func newRootCmd() *cobra.Command {
+// NewCmd builds `ava monitor` and its devices subcommand.
+func NewCmd() *cobra.Command {
 	var opts watchOptions
 
 	cmd := &cobra.Command{
-		Use:   "ava-monitor",
+		Use:   "monitor",
 		Short: "Serve a live realtime transcript (mic or loopback device) over SSE, logged to a file",
 		Long: "Serve a live realtime transcript (mic or loopback device) over SSE at\n" +
 			"http://127.0.0.1:8766, logged to a file.\n\n" +
 			"Needs the Voxtral Python environment from a checkout of the repo: run\n" +
-			"`make setup-voxtral` there once, then start ava-monitor from the checkout's\n" +
+			"`make setup-voxtral` there once, then run `ava monitor` from the checkout's\n" +
 			"root, or pass --voxtral-dir <checkout>/voxtral from anywhere else.\n\n" +
-			"Guide: https://github.com/iksnerd/ava/blob/main/docs/ava-monitor.md",
-		Version:       buildinfo.Get(),
+			"Guide: https://github.com/iksnerd/ava/blob/main/docs/monitor.md",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -77,20 +80,12 @@ func newRootCmd() *cobra.Command {
 	flags.IntVar(&opts.port, "port", 8766, "Local HTTP port to serve the live transcript on")
 	flags.StringVar(&opts.logPath, "log", "", fmt.Sprintf("Path to write the transcript log (default: %s/transcript-<timestamp>.txt)", audio.TempDir))
 
-	cmd.AddCommand(newDevicesCmd(&opts.rootOptions))
+	cmd.AddCommand(newDevicesCmd(&opts.clientOptions))
 
 	return cmd
 }
 
-// Execute runs the root command and exits non-zero on failure.
-func Execute() {
-	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
-		os.Exit(1)
-	}
-}
-
-// watch is the root command's RunE body: stream realtime deltas to the log
+// watch is monitor's RunE body: stream realtime deltas to the log
 // file and to any browser tabs connected over SSE.
 func watch(opts watchOptions) error {
 	client := opts.client()
