@@ -5,16 +5,17 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"sync/atomic"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/ava/internal/audio"
-	"github.com/iksnerd/ava/internal/procutil"
 	"github.com/iksnerd/ava/pkg/stt/realtime"
 )
 
@@ -87,7 +88,15 @@ func NewCmd() *cobra.Command {
 
 // watch is monitor's RunE body: stream realtime deltas to the log
 // file and to any browser tabs connected over SSE.
+// interruptGrace is how long watch waits, after the transcriber exits, for a
+// Ctrl-C that was sent at the same moment.
+const interruptGrace = 500 * time.Millisecond
+
 func watch(opts watchOptions) error {
+	// Registered before realtime.py starts, so no Ctrl-C can arrive unwatched.
+	interrupt, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+
 	client := opts.client()
 
 	resolvedLog := opts.logPath
@@ -149,18 +158,17 @@ func watch(opts watchOptions) error {
 
 	server := &http.Server{Addr: listenAddr(opts.port), Handler: newMux(h)}
 
-	var interrupted atomic.Bool
-	procutil.OnInterrupt(func() {
-		fmt.Println("\n⏹️  Stopping...")
-		interrupted.Store(true)
-		stream.Stop()
-		server.Close()
-	})
-	// A transcriber that dies on its own takes the server down with it.
-	// Serving on left the page reading "connected" over a transcript that
-	// had stopped; a closed server makes it say "disconnected".
+	// Ctrl-C stops the transcriber and the server. A transcriber that dies on
+	// its own takes the server down too: serving on left the page reading
+	// "connected" over a transcript that had stopped, and a closed server
+	// makes it say "disconnected".
 	go func() {
-		<-stream.Done()
+		select {
+		case <-interrupt.Done():
+			fmt.Println("\n⏹️  Stopping...")
+			stream.Stop()
+		case <-stream.Done():
+		}
 		server.Close()
 	}()
 
@@ -169,10 +177,18 @@ func watch(opts watchOptions) error {
 		stream.Stop()
 		return fmt.Errorf("server error: %w", err)
 	}
-	if interrupted.Load() {
+	if interrupt.Err() != nil {
 		return nil
 	}
 	<-stream.Done()
+	// A terminal's Ctrl-C reaches realtime.py and this process at once, and
+	// realtime.py can exit first. Give the signal a moment to land before
+	// calling the exit a crash.
+	select {
+	case <-interrupt.Done():
+		return nil
+	case <-time.After(interruptGrace):
+	}
 	if err := stream.Err(); err != nil {
 		return fmt.Errorf("transcription stopped: realtime.py exited: %w", err)
 	}
