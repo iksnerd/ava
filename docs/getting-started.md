@@ -39,6 +39,18 @@ line, then open a new terminal window.
 
 Check: `ava --version` prints a version.
 
+A specific version instead of the latest: add `-s v0.6.3` after `bash`.
+
+**Downloading from the Releases page instead.** The binaries are unsigned (there is no paid Apple
+Developer account behind them), so macOS quarantines anything a browser downloads, and it kills a
+quarantined unsigned binary without a message. After extracting the `.tar.gz`, in that folder:
+
+```bash
+shasum -a 256 -c checksums.txt --ignore-missing
+xattr -d com.apple.quarantine ava ava-monitor
+mkdir -p ~/.local/bin && mv ava ava-monitor ~/.local/bin/
+```
+
 ## 3. Install what ava needs
 
 ```bash
