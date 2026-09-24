@@ -3,7 +3,11 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.7.0] — 2026-09-24
+
+One binary. Live call transcripts are `ava monitor` instead of a separate `ava-monitor`, and the
+names kept from before the 0.6.0 rename are gone. **Anything that runs `ava-monitor` needs to say
+`ava monitor`**; nothing else changes.
 
 ### Changed
 - **`ava-monitor` is now `ava monitor`**, and `ava-monitor devices` is `ava monitor devices`,
@@ -13,8 +17,8 @@ entry is a summary rather than a record kept as it happened.
   covers it. Delete an old `~/.local/bin/ava-monitor` by hand; nothing else uses it.
 
 ### Removed
-- The command alias and environment-variable names kept from before the 0.6.0 rename, a release
-  earlier than the 0.7.0 that was announced. `install.sh` and `make install-bin` no longer create
+- The command alias and environment-variable names kept from before the 0.6.0 rename, as
+  announced for this release. `install.sh` and `make install-bin` no longer create
   the alias, `AVA_BIN` and `AVA_ENGINE_DIR` are the only names read, and `install.sh` installs
   0.6.0 and later only. An alias left by an earlier install still points at `ava`; delete it from
   `~/.local/bin` whenever you like.
@@ -448,6 +452,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.7.0]: https://github.com/iksnerd/ava/releases/tag/v0.7.0
 [0.6.3]: https://github.com/iksnerd/ava/releases/tag/v0.6.3
 [0.6.2]: https://github.com/iksnerd/ava/releases/tag/v0.6.2
 [0.6.1]: https://github.com/iksnerd/ava/releases/tag/v0.6.1
