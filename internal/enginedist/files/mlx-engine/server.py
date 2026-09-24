@@ -17,7 +17,22 @@ from pydantic import BaseModel, ConfigDict
 
 import protocol
 
-app = FastAPI(title="Local Kokoro TTS Server")
+
+@contextlib.asynccontextmanager
+async def lifespan(_app):
+    # Kokoro is warmed eagerly: measured
+    # on an M3 Pro, Kokoro's first generate_audio call after loading costs an
+    # extra ~2.6s (MLX's lazy compilation) beyond the ~230-290ms steady-state
+    # a warm call takes — worth paying once at startup (delaying /health)
+    # rather than on whichever real request happens to be first, including
+    # the one right after the idle-shutdown timer below has torn things down.
+    idle = asyncio.create_task(idle_shutdown_checker())
+    _warm_tts_model()
+    yield
+    idle.cancel()
+
+
+app = FastAPI(title="Local Kokoro TTS Server", lifespan=lifespan)
 
 TTS_MODEL_PATH = "mlx-community/Kokoro-82M-bf16"
 # Pinned: the snapshot holds the weights, the config and every voice, and all
@@ -126,18 +141,6 @@ async def idle_shutdown_checker():
                 with contextlib.suppress(OSError):
                     os.remove(PID_FILE)
             os._exit(0)
-
-
-@app.on_event("startup")
-async def startup_event():
-    # Kokoro is warmed eagerly: measured
-    # on an M3 Pro, Kokoro's first generate_audio call after loading costs an
-    # extra ~2.6s (MLX's lazy compilation) beyond the ~230-290ms steady-state
-    # a warm call takes — worth paying once at startup (delaying /health)
-    # rather than on whichever real request happens to be first, including
-    # the one right after the idle-shutdown timer below has torn things down.
-    asyncio.create_task(idle_shutdown_checker())
-    _warm_tts_model()
 
 
 def _warm_tts_model():

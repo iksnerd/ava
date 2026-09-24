@@ -66,14 +66,11 @@ case "$1" in
         # --check only says whether the model is there, and never installs or
         # downloads anything: `ava setup --check` runs it at every app start.
         if [ "$2" = "--check" ]; then
-            exec .venv/bin/python -W ignore::DeprecationWarning server.py fetch --check
+            exec .venv/bin/python server.py fetch --check
         fi
         uv sync -q
         echo "⬇️  Fetching the Kokoro model (339 MB on first run)..."
-        # -W: importing server.py warns that FastAPI's on_event is deprecated,
-        # which says nothing to someone running setup.
-        .venv/bin/python -W ignore::DeprecationWarning server.py fetch ||
-            { echo "❌ Kokoro model download failed."; exit 1; }
+        .venv/bin/python server.py fetch || { echo "❌ Kokoro model download failed."; exit 1; }
         ;;
     start)
         # An explicit start (menu bar Start, or `ava engine

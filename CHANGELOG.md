@@ -15,6 +15,8 @@ entry is a summary rather than a record kept as it happened.
 - Ctrl-C on `ava monitor` could end in "transcription stopped: realtime.py exited on its own"
   instead of a clean stop, when realtime.py exited before the monitor saw the interrupt. The
   monitor now listens for Ctrl-C before starting realtime.py and gives it half a second to land.
+- The Kokoro engine used FastAPI's deprecated `on_event` startup hook, which printed a
+  deprecation warning in every server log and during `ava setup`. It uses a lifespan handler now.
 - `Ava.dmg` opened to a window holding only `Ava.app`, with no Applications shortcut to drag it
   onto. The shortcut is there now.
 
