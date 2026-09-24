@@ -3,6 +3,12 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Fixed
+- `Ava.dmg` opened to a window holding only `Ava.app`, with no Applications shortcut to drag it
+  onto. The shortcut is there now.
+
 ## [0.7.1] — 2026-09-24
 
 Installing without Terminal: the menu bar app is on the release page as `Ava.dmg`, and its **Set

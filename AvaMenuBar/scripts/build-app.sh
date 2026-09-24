@@ -129,7 +129,10 @@ trap 'rm -rf "$DMG_STAGE"' EXIT
 cp -R "$APP_DIR" "$DMG_STAGE/"
 rm -f "$DMG_STAGE/$APP_NAME.app/Contents/Resources/engine-root"
 codesign --force --deep -s - "$DMG_STAGE/$APP_NAME.app"
-hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGE/$APP_NAME.app" -ov -format UDZO "$DMG_PATH" >/dev/null
+# The Applications shortcut beside the app is what people expect to drag it
+# onto; without it the window held only Ava.app and no hint where it goes.
+ln -s /Applications "$DMG_STAGE/Applications"
+hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
 
 echo "✅ Installed. Launch with: open -a \"$APP_NAME\""
 echo "   Note: after (re)installing, 'Read Aloud with Ava' can take a"
