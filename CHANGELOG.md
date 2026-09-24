@@ -3,7 +3,12 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.7.1] — 2026-09-24
+
+Installing without Terminal: the menu bar app is on the release page as `Ava.dmg`, and its **Set
+up Ava** button installs the rest. Homebrew is the one thing to install first. `ava setup` now also
+installs `uv`, which it needed and never installed, and downloads Kokoro with every voice, so
+speech works offline once setup is done.
 
 ### Added
 - **`Ava.dmg` on the release page**, the menu bar app for installing without Terminal. It is
@@ -477,6 +482,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.7.1]: https://github.com/iksnerd/ava/releases/tag/v0.7.1
 [0.7.0]: https://github.com/iksnerd/ava/releases/tag/v0.7.0
 [0.6.3]: https://github.com/iksnerd/ava/releases/tag/v0.6.3
 [0.6.2]: https://github.com/iksnerd/ava/releases/tag/v0.6.2
