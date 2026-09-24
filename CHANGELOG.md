@@ -3,6 +3,15 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Removed
+- The command alias and environment-variable names kept from before the 0.6.0 rename, a release
+  earlier than the 0.7.0 that was announced. `install.sh` and `make install-bin` no longer create
+  the alias, `AVA_BIN` and `AVA_ENGINE_DIR` are the only names read, and `install.sh` installs
+  0.6.0 and later only. An alias left by an earlier install still points at `ava`; delete it from
+  `~/.local/bin` whenever you like.
+
 ## [0.6.3] — 2026-09-24
 
 Fixes from a second review: speech that ignored a stop, a call monitor that looked connected after
@@ -432,11 +441,12 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.6.3]: https://github.com/iksnerd/ava/releases/tag/v0.6.3
 [0.6.2]: https://github.com/iksnerd/ava/releases/tag/v0.6.2
 [0.6.1]: https://github.com/iksnerd/ava/releases/tag/v0.6.1
 [0.6.0]: https://github.com/iksnerd/ava/releases/tag/v0.6.0
-[0.5.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.5.0
-[0.4.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.4.0
-[0.3.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.3.0
-[0.2.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.2.0
-[0.1.0]: https://github.com/iksnerd/local-whisper/releases/tag/v0.1.0
+[0.5.0]: https://github.com/iksnerd/ava/releases/tag/v0.5.0
+[0.4.0]: https://github.com/iksnerd/ava/releases/tag/v0.4.0
+[0.3.0]: https://github.com/iksnerd/ava/releases/tag/v0.3.0
+[0.2.0]: https://github.com/iksnerd/ava/releases/tag/v0.2.0
+[0.1.0]: https://github.com/iksnerd/ava/releases/tag/v0.1.0

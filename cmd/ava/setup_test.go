@@ -34,7 +34,6 @@ func TestPathBudgetAcceptsAShortInstallDir(t *testing.T) {
 // so that moving the install directory cannot quietly blow the budget.
 func TestDefaultInstallDirFitsTheEspeakBudget(t *testing.T) {
 	t.Setenv(enginedist.DirEnv, "")
-	t.Setenv(enginedist.LegacyDirEnv, "")
 	dir, err := enginedist.DefaultDir()
 	if err != nil {
 		t.Skipf("no home directory available: %v", err)

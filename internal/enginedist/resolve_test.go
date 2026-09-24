@@ -17,7 +17,6 @@ import (
 func resolveEnv(t *testing.T) (installDir string) {
 	t.Helper()
 	t.Setenv(ScriptEnv, "")
-	t.Setenv(LegacyDirEnv, "")
 	installDir = t.TempDir()
 	t.Setenv(DirEnv, installDir)
 	t.Chdir(t.TempDir())

@@ -25,7 +25,7 @@ engine_healthy() {
 engine_root() {
     local recorded=""
     [ -f "$ROOT_DIR/engine-root" ] && recorded="$(cat "$ROOT_DIR/engine-root")"
-    local installed="${AVA_ENGINE_DIR:-${LOCAL_WHISPER_ENGINE_DIR:-$HOME/Library/Application Support/ava/engine}}"
+    local installed="${AVA_ENGINE_DIR:-$HOME/Library/Application Support/ava/engine}"
     local d
     for d in "$ROOT_DIR" "$recorded" "$installed"; do
         if [ -n "$d" ] && [ -x "$d/mlx-engine/.venv/bin/uvicorn" ]; then

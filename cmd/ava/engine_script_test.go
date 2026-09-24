@@ -117,7 +117,6 @@ func newEngineRun(t *testing.T) *engineRun {
 		"STUB_OUT="+r.stub,
 		// Never fall through to a real installed engine.
 		"AVA_ENGINE_DIR="+filepath.Join(tmp, "no-installed-engine"),
-		"LOCAL_WHISPER_ENGINE_DIR=",
 	)
 	t.Cleanup(func() { r.script(copyScripts(t, filepath.Join(tmp, "cleanup")), "stop", "--keep-autostart") })
 	return r

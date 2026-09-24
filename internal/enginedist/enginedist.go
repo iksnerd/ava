@@ -45,18 +45,11 @@ const ScriptRelPath = "scripts/mlx-engine-server.sh"
 // against live state does not get run.
 const DirEnv = "AVA_ENGINE_DIR"
 
-// LegacyDirEnv is DirEnv's name before the 0.6.0 rename, still honoured so
-// an existing override keeps working. Remove in 0.7.0.
-const LegacyDirEnv = "LOCAL_WHISPER_ENGINE_DIR"
-
 // DefaultDir is where `ava setup` materializes the bundle: beside
 // the config the menu bar app and the CLI already share, rather than a second
 // application-data location.
 func DefaultDir() (string, error) {
 	if v := os.Getenv(DirEnv); v != "" {
-		return v, nil
-	}
-	if v := os.Getenv(LegacyDirEnv); v != "" {
 		return v, nil
 	}
 	home, err := os.UserHomeDir()

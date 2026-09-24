@@ -22,7 +22,6 @@ func shortEngineDir(t *testing.T) string {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	t.Setenv(enginedist.DirEnv, dir)
-	t.Setenv(enginedist.LegacyDirEnv, "")
 	return dir
 }
 

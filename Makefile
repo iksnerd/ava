@@ -201,15 +201,14 @@ install-raycast: build setup-model
 	@echo "#!/bin/bash" > $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.schemaVersion 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.title Dictate with Whisper" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.description Voice transcription using local Whisper model (CPU)" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "# @raycast.title Dictate with Ava" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@echo "# @raycast.description Dictate into the focused app, on-device" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.mode fullOutput" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.currentDirectoryPath" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.icon 🎙️" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.packageName Voice" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# Local whisper voice transcription" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-$(abspath .)}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@echo "exec $(abspath $(BINARY_PATH))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/whisper-transcribe.sh
@@ -230,9 +229,7 @@ install-bin: build setup-model
 	@# install, not cp: cp rewrites the file in place, and macOS kills a running
 	@# process (a long-lived `ava mcp`) whose binary changes under it.
 	@install -m 0755 $(BINARY_PATH) $(INSTALL_BIN_DIR)/$(BINARY_NAME)
-	@# The old name, for one release: see scripts/install.sh.
-	@ln -sf $(BINARY_NAME) $(INSTALL_BIN_DIR)/local-whisper
-	@echo "✅ Installed: $(INSTALL_BIN_DIR)/$(BINARY_NAME) (and local-whisper -> $(BINARY_NAME), until 0.7.0)"
+	@echo "✅ Installed: $(INSTALL_BIN_DIR)/$(BINARY_NAME)"
 	@echo ""
 	@echo "Setup complete! You can now use:"
 	@echo "  $(BINARY_NAME)"
@@ -248,11 +245,7 @@ uninstall:
 	@if [ -x "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" ]; then \
 		"$(INSTALL_BIN_DIR)/$(BINARY_NAME)" engine stop --keep-autostart >/dev/null 2>&1 || true; \
 	fi
-	@# local-whisper and voice-monitor are the names before 0.6.0: an install
-	@# from then, or the compatibility symlink. -L because a symlink whose
-	@# target is already gone fails -e.
 	@for f in "$(INSTALL_BIN_DIR)/$(BINARY_NAME)" "$(INSTALL_BIN_DIR)/$(MONITOR_BINARY_NAME)" \
-		"$(INSTALL_BIN_DIR)/local-whisper" "$(INSTALL_BIN_DIR)/voice-monitor" \
 		"$(RAYCAST_DIR)/whisper-transcribe.sh" "$(ENGINE_DIR)"; do \
 		if [ -e "$$f" ] || [ -L "$$f" ]; then rm -rf "$$f" && echo "🗑️  Removed $$f"; fi; \
 	done

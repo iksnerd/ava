@@ -15,13 +15,12 @@
 #
 # Usage:
 #   bash scripts/install.sh              # latest release
-#   bash scripts/install.sh v0.3.0       # a specific tag
+#   bash scripts/install.sh v0.6.3       # a specific tag (0.6.0 or later)
 #   AVA_BIN=~/bin bash scripts/install.sh
 set -euo pipefail
 
 REPO="iksnerd/ava"
-# LOCAL_WHISPER_BIN is the name before the 0.6.0 rename, still honoured.
-BIN_DIR="${AVA_BIN:-${LOCAL_WHISPER_BIN:-$HOME/.local/bin}}"
+BIN_DIR="${AVA_BIN:-$HOME/.local/bin}"
 TAG="${1:-}"
 
 if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
@@ -68,13 +67,8 @@ elif command -v curl >/dev/null 2>&1; then
     base="https://github.com/$REPO/releases/download/$TAG"
     # Keep the published file name: checksums.txt lists the archive by that
     # name, and saving it as anything else left the check nothing to verify.
-    # Releases before 0.6.0 were published as local-whisper_<version>_...
     asset="ava_${version}_darwin_arm64.tar.gz"
-    curl -fsSL -o "$tmp/$asset" "$base/$asset" 2>/dev/null || {
-        rm -f "$tmp/$asset"   # a failed curl can leave an empty file for find to pick
-        asset="local-whisper_${version}_darwin_arm64.tar.gz"
-        curl -fsSL -o "$tmp/$asset" "$base/$asset"
-    }
+    curl -fsSL -o "$tmp/$asset" "$base/$asset"
     curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
 else
     echo "❌ Neither gh nor curl is available to download with."
@@ -102,8 +96,7 @@ fi
 
 tar xzf "$archive" -C "$tmp"
 mkdir -p "$BIN_DIR"
-# The old names cover installing a release from before the 0.6.0 rename.
-for binary in ava ava-monitor local-whisper voice-monitor; do
+for binary in ava ava-monitor; do
     [ -f "$tmp/$binary" ] || continue
     install -m 0755 "$tmp/$binary" "$BIN_DIR/$binary"
     # Belt and braces: nothing above should have set quarantine, and if
@@ -111,14 +104,6 @@ for binary in ava ava-monitor local-whisper voice-monitor; do
     xattr -d com.apple.quarantine "$BIN_DIR/$binary" 2>/dev/null || true
     echo "✅ Installed $binary to $BIN_DIR"
 done
-
-# The CLI was called local-whisper until 0.6.0. The alias keeps an MCP
-# registration, a Raycast launcher or an Ava.app built against the old name
-# working for one release; it goes away in 0.7.0.
-if [ -f "$BIN_DIR/ava" ]; then
-    ln -sf ava "$BIN_DIR/local-whisper"
-    echo "✅ Linked local-whisper -> ava (the old name, kept for one release)"
-fi
 
 echo ""
 case ":$PATH:" in
