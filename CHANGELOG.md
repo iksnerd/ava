@@ -3,7 +3,11 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.7.2] — 2026-09-24
+
+Polish for installing without Terminal: `Ava.dmg` now has the Applications shortcut to drag Ava
+onto, and the new-Mac guide walks a first-time user through every step. Also fixes a spurious
+error when stopping `ava monitor` with Ctrl-C, and a deprecation warning in the engine's output.
 
 ### Changed
 - The new-Mac guide's menu bar app section is a complete walkthrough for someone who has never
@@ -499,6 +503,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.7.2]: https://github.com/iksnerd/ava/releases/tag/v0.7.2
 [0.7.1]: https://github.com/iksnerd/ava/releases/tag/v0.7.1
 [0.7.0]: https://github.com/iksnerd/ava/releases/tag/v0.7.0
 [0.6.3]: https://github.com/iksnerd/ava/releases/tag/v0.6.3
