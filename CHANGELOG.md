@@ -20,6 +20,8 @@ entry is a summary rather than a record kept as it happened.
 - `speak.sh` (the hooks and the menu bar) had the same stop race, and a stop landing just after
   afplay started killed only its wrapper and left afplay playing. Its player is now
   `scripts/play_locked.py`, with the same stop checks as the Go one; a contract test runs both.
+- A monitor tab opened before the model was ready kept saying "Waiting for the session to
+  start…". The session is now sent to tabs already connected when it arrives.
 
 ## [0.6.2] — 2026-09-23
 

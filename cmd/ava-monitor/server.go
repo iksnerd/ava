@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -193,8 +194,7 @@ func newMux(h *hub) http.Handler {
 		// Session metadata first, so a page that has not heard a word yet can
 		// still say what it is listening to and where the log is going.
 		if info := h.sessionInfo(); info != "" {
-			payload, _ := json.Marshal(map[string]string{"text": info})
-			fmt.Fprintf(w, "event: session\ndata: %s\n\n", payload)
+			writeEvent(w, sessionEvent(info))
 			flusher.Flush()
 		}
 
@@ -211,11 +211,11 @@ func newMux(h *hub) http.Handler {
 
 		for {
 			select {
-			case payload, ok := <-ch:
+			case ev, ok := <-ch:
 				if !ok {
 					return
 				}
-				fmt.Fprintf(w, "data: %s\n\n", payload)
+				writeEvent(w, ev)
 				flusher.Flush()
 			case <-r.Context().Done():
 				return
@@ -224,6 +224,13 @@ func newMux(h *hub) http.Handler {
 	})
 
 	return loopbackOnly(mux)
+}
+
+func writeEvent(w io.Writer, ev event) {
+	if ev.name != "" {
+		fmt.Fprintf(w, "event: %s\n", ev.name)
+	}
+	fmt.Fprintf(w, "data: %s\n\n", ev.data)
 }
 
 // loopbackOnly refuses any request whose Host is not a loopback name.

@@ -22,9 +22,9 @@ func TestHubBroadcastAndSnapshot(t *testing.T) {
 
 	for _, want := range []string{"hello ", "world"} {
 		select {
-		case payload := <-ch:
+		case ev := <-ch:
 			var msg map[string]string
-			if err := json.Unmarshal(payload, &msg); err != nil {
+			if err := json.Unmarshal(ev.data, &msg); err != nil {
 				t.Fatalf("unmarshal payload: %v", err)
 			}
 			if msg["text"] != want {
@@ -70,11 +70,11 @@ func TestHubMultipleSubscribers(t *testing.T) {
 
 	h.broadcast("delta")
 
-	for i, ch := range []chan []byte{ch1, ch2} {
+	for i, ch := range []chan event{ch1, ch2} {
 		select {
-		case payload := <-ch:
+		case ev := <-ch:
 			var msg map[string]string
-			json.Unmarshal(payload, &msg)
+			json.Unmarshal(ev.data, &msg)
 			if msg["text"] != "delta" {
 				t.Errorf("subscriber %d got %q, want %q", i, msg["text"], "delta")
 			}

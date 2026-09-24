@@ -333,3 +333,50 @@ func TestServerRejectsForeignHostHeaders(t *testing.T) {
 		}
 	}
 }
+
+// A tab opened before the model finished loading connected with no session
+// yet, and setSession never told it: the page said "Waiting for the session
+// to start…" while the transcript streamed in underneath.
+func TestNewMuxEventsSendsSessionInfoThatArrivesAfterConnecting(t *testing.T) {
+	h := newHub()
+	srv := httptest.NewServer(newMux(h))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/events", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /events: %v", err)
+	}
+	defer res.Body.Close()
+
+	// The handler subscribes after it has flushed the headers, so wait until it
+	// has, or setSession could run first and take the connect-time path.
+	for deadline := time.Now().Add(2 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		h.mu.Lock()
+		n := len(h.clients)
+		h.mu.Unlock()
+		if n == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the /events handler never subscribed")
+		}
+	}
+	h.setSession("Listening on BlackHole · engine whisper")
+
+	scanner := bufio.NewScanner(res.Body)
+	var prev string
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "data: ") {
+			if prev != "event: session" || !strings.Contains(line, "BlackHole") {
+				t.Fatalf("got %q after %q, want the session as an `event: session` frame", line, prev)
+			}
+			return
+		}
+		prev = line
+	}
+	t.Fatalf("stream ended without the session: %v", scanner.Err())
+}
