@@ -95,10 +95,7 @@ func downloadModel(out io.Writer, dir string, m whisperModel, url string) error 
 	path := filepath.Join(dir, m.file)
 
 	if info, err := os.Stat(path); err == nil {
-		// Size, not a full hash: a truncated download is the failure that
-		// actually happens, and the size catches it without reading 141 MB
-		// on every re-run.
-		if info.Size() == m.size {
+		if modelPresent(path, m) {
 			fmt.Fprintf(out, "✅ Model already present (%s, %s)\n", m.file, humanBytes(info.Size()))
 			return nil
 		}
@@ -145,4 +142,13 @@ func downloadModel(out io.Writer, dir string, m whisperModel, url string) error 
 	}
 	fmt.Fprintf(out, "✅ Model installed (%s, sha256 verified)\n", humanBytes(n))
 	return nil
+}
+
+// modelPresent is setup's rule for skipping the download, shared with `setup
+// --check`. Size, not a full hash: a truncated download is the failure that
+// actually happens, and the size catches it without reading 141 MB on every
+// re-run.
+func modelPresent(path string, m whisperModel) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Size() == m.size
 }

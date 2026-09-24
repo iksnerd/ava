@@ -5,6 +5,19 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Added
+- **A Set up button in the menu bar app.** At launch the app runs its bundled `ava setup --check`,
+  and if anything is missing it offers **Set up Ava**, which runs `ava setup` with its progress
+  shown and goes away when done. Someone who installed only the app no longer needs Terminal,
+  except to install Homebrew, which the card links to.
+- **`ava setup --check`** reports what setup would still install, using setup's own rules, and
+  installs nothing. It exits non-zero until setup is complete.
+
+### Fixed
+- `ava setup` never installed `uv`, which its engine step needs, so on a fresh Mac it stopped
+  there with "install uv and re-run". It now installs `uv` through Homebrew with the other
+  tools.
+
 ### Changed
 - **`ava setup` downloads the Kokoro model**, weights and every voice, so a finished setup
   speaks with no network. It used to arrive on the first `ava speak`, and each voice separately

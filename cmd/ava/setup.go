@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -23,25 +24,30 @@ import (
 // feature never runs. `make setup` does the same three things, but only from
 // a checkout — which is the one thing a downloaded binary does not have.
 func newSetupCmd() *cobra.Command {
-	var skipEngine bool
+	var skipEngine, check bool
 
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Install the dependencies, model and TTS engine the binary needs",
 		Long: "Installs what ava needs beyond the binary itself:\n" +
-			"  1. sox and whisper-cli, via Homebrew\n" +
+			"  1. sox, whisper-cli and uv, via Homebrew\n" +
 			"  2. the whisper.cpp base.en model (~141 MB)\n" +
 			"  3. the Kokoro TTS engine (~1.2 GB of Python)\n" +
 			"  4. the Kokoro model and all its voices (339 MB), so speech needs no\n" +
 			"     network afterwards\n\n" +
 			"Every step is skipped if it is already done, so re-running is cheap " +
 			"and is how you upgrade the engine bundle after installing a new binary.\n\n" +
-			"Use --skip-engine for dictation only, without steps 3 and 4.",
+			"Use --skip-engine for dictation only, without steps 3 and 4. --check\n" +
+			"reports what is missing and installs nothing; it exits non-zero until\n" +
+			"setup is complete.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()
+			if check {
+				return checkSetup(out, skipEngine)
+			}
 
 			if err := setupTools(out); err != nil {
 				return err
@@ -66,15 +72,22 @@ func newSetupCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&check, "check", false,
+		"Report what is missing without installing anything")
 	cmd.Flags().BoolVar(&skipEngine, "skip-engine", false,
 		"Skip the Kokoro TTS engine and model (~1.5 GB); speech falls back to the macOS say voice")
 	return cmd
 }
 
-// setupTools installs the two external binaries dictation shells out to.
+// setupTools maps each external binary setup installs to its Homebrew
+// formula: sox and whisper-cli for dictation, and uv, which the engine step
+// needs to resolve its Python environment.
+var setupToolFormulae = map[string]string{"sox": "sox", "whisper-cli": "whisper-cpp", "uv": "uv"}
+
+// setupTools installs the external binaries in setupToolFormulae.
 func setupTools(out io.Writer) error {
 	missing := map[string]string{} // binary -> brew formula
-	for bin, formula := range map[string]string{"sox": "sox", "whisper-cli": "whisper-cpp"} {
+	for bin, formula := range setupToolFormulae {
 		if _, err := exec.LookPath(bin); err != nil {
 			missing[bin] = formula
 		} else {
@@ -87,7 +100,9 @@ func setupTools(out io.Writer) error {
 
 	if _, err := exec.LookPath("brew"); err != nil {
 		// Naming the formulae matters: without them this is a dead end for
-		// anyone who installs packages another way.
+		// anyone who installs packages another way. The menu bar app's Set up
+		// card matches "Homebrew is not installed" to offer brew.sh instead,
+		// so keep that phrase if this is reworded.
 		var formulae []string
 		for _, f := range missing {
 			formulae = append(formulae, f)
@@ -106,6 +121,56 @@ func setupTools(out io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// checkSetup reports what `ava setup` would still install, using the same
+// tests setup uses to skip a step, and installs nothing. The menu bar app
+// runs it at every start to decide whether to offer Set up.
+func checkSetup(out io.Writer, skipEngine bool) error {
+	var missing []string
+	tools := keysOf(setupToolFormulae)
+	sort.Strings(tools)
+	for _, bin := range tools {
+		if _, err := exec.LookPath(bin); err != nil {
+			missing = append(missing, fmt.Sprintf("%s (brew install %s)", bin, setupToolFormulae[bin]))
+		}
+	}
+	if home, err := os.UserHomeDir(); err != nil ||
+		!modelPresent(filepath.Join(home, modelDirRel, whisperModels["base"].file), whisperModels["base"]) {
+		missing = append(missing, "the whisper speech model")
+	}
+	if !skipEngine && runtime.GOARCH == "arm64" {
+		if script, ok := installedEngine(); !ok {
+			missing = append(missing, "the Kokoro engine", "the Kokoro model")
+		} else if exec.Command("bash", script, "fetch", "--check").Run() != nil {
+			// The engine answers for its own model: only it knows the
+			// revision it pins and where the Hugging Face cache keeps it.
+			missing = append(missing, "the Kokoro model")
+		}
+	}
+
+	if len(missing) == 0 {
+		fmt.Fprintln(out, "✅ Ava is set up.")
+		return nil
+	}
+	for _, m := range missing {
+		fmt.Fprintf(out, "❌ Missing: %s\n", m)
+	}
+	return fmt.Errorf("setup is incomplete; run `ava setup` to install what is missing")
+}
+
+// installedEngine returns the control script of the bundle `ava setup`
+// installs, when its Python environment has been resolved too.
+func installedEngine() (string, bool) {
+	script, ok := enginedist.InstalledScript()
+	if !ok {
+		return "", false
+	}
+	root := filepath.Dir(filepath.Dir(script))
+	if _, err := os.Stat(filepath.Join(root, "mlx-engine", ".venv", "bin", "uvicorn")); err != nil {
+		return "", false
+	}
+	return script, true
 }
 
 func keysOf(m map[string]string) []string {

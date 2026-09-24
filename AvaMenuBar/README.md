@@ -188,9 +188,10 @@ present in that file come from `../scripts/voice-defaults.json`.
 
 | Setting | Effect |
 |---|---|
+| Set up Ava (card, only when something is missing) | At launch the app runs its bundled `ava setup --check`; if anything is missing (tools, the whisper model, the Kokoro engine or its model) the panel offers **Set up Ava**, which runs `ava setup` and shows its progress, then checks again and goes away. Without Homebrew it says so and links to brew.sh, the one step that still needs Terminal. |
 | Mute (button) | Global switch — silences hooks, Read Aloud, and Test/Preview until turned off again; also stoppable/settable system-wide via the "Toggle Ava Mute" Service. See "Mute" above. |
 | Open Keyboard Settings (link) | Opens System Settings' Keyboard pane; from there, Keyboard Shortcuts → Services is where the two Services below get enabled and can be bound to a global keyboard shortcut — see "Mute" above for why it can't jump straight there |
-| Dictate (button) | Runs `ava` (whisper.cpp — works on any Mac, no extra setup) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
+| Dictate (button) | Runs `ava` (whisper.cpp, which works on any Mac once `sox`, `whisper-cli` and the speech model are installed: see Set up Ava) — records, transcribes, copies/pastes at your cursor. Grayed out with an explanatory tooltip if no built binary is found (`make build`/`make install-bin` in the repo root, or the bundled copy in a packaged `.app`). |
 | Speed | Kokoro playback speed multiplier |
 | Volume | `afplay` output volume |
 | Voice | Any of Kokoro's English voices, with a one-click preview |

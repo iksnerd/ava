@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 func TestPathBudgetRejectsAnInstallDirThatWouldTruncate(t *testing.T) {
@@ -62,4 +66,28 @@ func TestSetupIsRegisteredOnTheRootCommand(t *testing.T) {
 		}
 	}
 	t.Fatal("the root command has no setup subcommand")
+}
+
+// The engine step needs uv, and setup never installed it: on a fresh Mac with
+// Homebrew, `ava setup` got through the tools and the whisper model, then
+// stopped with "install uv (https://docs.astral.sh/uv/) and re-run".
+func TestSetupToolsInstallsUvWithTheOtherTools(t *testing.T) {
+	bin := t.TempDir()
+	calls := filepath.Join(t.TempDir(), "brew-calls")
+	for name, body := range map[string]string{
+		"sox":         "exit 0",
+		"whisper-cli": "exit 0",
+		"brew":        `echo "$@" >> ` + calls,
+	} {
+		os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0755)
+	}
+	testutil.SetPath(t, bin, "/usr/bin", "/bin")
+
+	if err := setupTools(&bytes.Buffer{}); err != nil {
+		t.Fatalf("setupTools: %v", err)
+	}
+	got, _ := os.ReadFile(calls)
+	if strings.TrimSpace(string(got)) != "install uv" {
+		t.Errorf("brew was run as %q, want only `install uv`", strings.TrimSpace(string(got)))
+	}
 }

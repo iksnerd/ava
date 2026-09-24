@@ -241,14 +241,36 @@ def _synthesize(req: SpeakRequest) -> Response:
     return Response(content=audio_bytes, media_type="audio/wav")
 
 
+def tts_model_cached() -> bool:
+    """Whether the pinned snapshot is already in the Hugging Face cache.
+    Never downloads: `ava setup --check` runs this every time the menu bar app
+    starts."""
+    from huggingface_hub import snapshot_download
+
+    try:
+        snapshot_download(
+            repo_id=TTS_MODEL_PATH, revision=TTS_MODEL_REVISION, local_files_only=True
+        )
+    except Exception:
+        return False
+    return True
+
+
 def main(argv: list[str]) -> int:
     """`python server.py fetch` downloads the model and prints where it is;
-    with no arguments, it serves."""
+    `fetch --check` only says whether it is there. With no arguments, it
+    serves."""
     if argv == ["fetch"]:
         print(fetch_tts_model())
         return 0
+    if argv == ["fetch", "--check"]:
+        if tts_model_cached():
+            print("Kokoro model: downloaded")
+            return 0
+        print("Kokoro model: not downloaded")
+        return 1
     if argv:
-        print(f"usage: {sys.argv[0]} [fetch]", file=sys.stderr)
+        print(f"usage: {sys.argv[0]} [fetch [--check]]", file=sys.stderr)
         return 2
 
     import uvicorn

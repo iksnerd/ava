@@ -63,6 +63,11 @@ case "$1" in
         # `make setup` run this, so a finished setup needs no network to speak.
         DIR="$(require_engine_root fetch)" || exit 1
         cd "$DIR/mlx-engine" || exit 1
+        # --check only says whether the model is there, and never installs or
+        # downloads anything: `ava setup --check` runs it at every app start.
+        if [ "$2" = "--check" ]; then
+            exec .venv/bin/python -W ignore::DeprecationWarning server.py fetch --check
+        fi
         uv sync -q
         echo "⬇️  Fetching the Kokoro model (339 MB on first run)..."
         # -W: importing server.py warns that FastAPI's on_event is deprecated,
@@ -206,7 +211,7 @@ case "$1" in
         fi
         ;;
     *)
-        echo "Usage: $0 {start|stop|status|fetch}"
+        echo "Usage: $0 {start|stop|status|fetch [--check]}"
         exit 1
         ;;
 esac

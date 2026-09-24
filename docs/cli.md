@@ -133,12 +133,16 @@ both measured on macOS 27:
 ## Setup
 
 ```bash
-ava setup                 # deps + model + Kokoro engine
-ava setup --skip-engine   # dictation only, without the 1.2 GB
+ava setup                 # tools + speech model + Kokoro engine and its model
+ava setup --skip-engine   # dictation only, without the ~1.5 GB of Kokoro
+ava setup --check         # what is still missing; installs nothing, exits 1 until done
 ```
 
-Installs everything that is not the binary: `sox` and `whisper-cli` via
-Homebrew, the whisper.cpp `base.en` model (~141 MB), and the Kokoro TTS engine.
+Installs everything that is not the binary: `sox`, `whisper-cli` and `uv` via
+Homebrew, the whisper.cpp `base.en` model (~141 MB), the Kokoro TTS engine, and
+its model with every voice (339 MB), so speech needs no network afterwards.
+`--check` uses the same rules setup uses to skip a step; the menu bar app runs
+it at startup to decide whether to offer its Set up button.
 Each step is skipped when it is already done, so re-running is cheap — and
 re-running is how you refresh the engine after installing a newer binary.
 

@@ -10,6 +10,7 @@ import re
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -385,3 +386,33 @@ class TestModelSource:
     def test_fetch_command_downloads_the_snapshot_and_says_where(self, server, capsys):
         assert server.main(["fetch"]) == 0
         assert str(FAKE_SNAPSHOT) in capsys.readouterr().out
+
+
+class TestFetchCheck:
+    """`ava setup --check`, and through it the menu bar app's Set up button,
+    ask the engine whether the model is there rather than knowing the Hugging
+    Face cache layout and the pinned revision themselves. It must never
+    download: it runs every time the app starts."""
+
+    @pytest.fixture
+    def hub(self, monkeypatch, recording_stub):
+        hub = types.ModuleType("huggingface_hub")
+        monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+        return hub
+
+    def test_a_cached_model_passes(self, server, hub, recording_stub):
+        hub.snapshot_download = recording_stub(result=str(FAKE_SNAPSHOT))
+        assert server.main(["fetch", "--check"]) == 0
+        assert hub.snapshot_download.last == {
+            "repo_id": server.TTS_MODEL_PATH,
+            "revision": server.TTS_MODEL_REVISION,
+            "local_files_only": True,
+        }
+
+    def test_a_missing_model_fails_without_downloading(self, server, hub, recording_stub, capsys):
+        hub.snapshot_download = recording_stub(raises=FileNotFoundError("not cached"))
+        get_model_path = sys.modules["mlx_audio.utils"].get_model_path
+        before = len(get_model_path.calls)
+        assert server.main(["fetch", "--check"]) == 1
+        assert len(get_model_path.calls) == before, "the check downloaded"
+        assert "not downloaded" in capsys.readouterr().out

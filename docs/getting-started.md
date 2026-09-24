@@ -57,7 +57,7 @@ mkdir -p ~/.local/bin && mv ava ~/.local/bin/
 ava setup
 ```
 
-This installs `sox` and `whisper-cli` through Homebrew, the 141 MB speech model, and the Kokoro
+This installs `sox`, `whisper-cli` and `uv` through Homebrew, the 141 MB speech model, and the Kokoro
 voice engine with its model and every voice (about 1.5 GB, a few minutes the first time). After
 it, speech needs no network. Every step is skipped when it is
 already done, so if anything fails, fix it and run `ava setup` again.

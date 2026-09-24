@@ -336,3 +336,24 @@ func TestEngineFetchFailsFastWithNoEngine(t *testing.T) {
 		t.Errorf("fetch with no engine said %q; want it to point at `ava setup`", out)
 	}
 }
+
+// `ava setup --check` asks the engine whether its model is there. The
+// answer has to come from the engine's own check, and the exit status has to
+// survive the script.
+func TestEngineFetchCheckPassesTheAnswerThrough(t *testing.T) {
+	r := newEngineRun(t)
+	checkout := engineLayout(t)
+	python := filepath.Join(checkout, "mlx-engine", ".venv", "bin", "python")
+	script := copyScripts(t, filepath.Join(checkout, "scripts"))
+
+	for _, exit := range []string{"0", "1"} {
+		os.WriteFile(python, []byte("#!/bin/sh\necho \"$@\" > \"$STUB_OUT/python-argv\"\nexit "+exit+"\n"), 0755)
+		_, err := r.script(script, "fetch", "--check")
+		if got := strings.TrimSpace(r.saw("python-argv")); !strings.HasSuffix(got, "server.py fetch --check") {
+			t.Errorf("fetch --check ran python with %q", got)
+		}
+		if (err == nil) != (exit == "0") {
+			t.Errorf("engine check exited %s, script returned err=%v", exit, err)
+		}
+	}
+}

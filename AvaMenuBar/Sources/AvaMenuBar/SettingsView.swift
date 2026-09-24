@@ -6,10 +6,12 @@ struct SettingsView: View {
     @EnvironmentObject private var activity: SpeechActivityMonitor
     @StateObject private var server = ServerController()
     @StateObject private var ollama = OllamaStatus()
+    @StateObject private var setup = SetupController()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+            setupCard
             errorBanner
 
             Button {
@@ -217,6 +219,78 @@ struct SettingsView: View {
     /// The panel had no error surface at all: nothing anywhere said "the last
     /// thing you asked me to do failed". Shown under the header so it is the
     /// first thing read, and only when there is something to say.
+    /// Only while something is missing: a set-up Ava shows nothing here.
+    @ViewBuilder
+    private var setupCard: some View {
+        switch setup.state {
+        case .checking, .complete:
+            EmptyView()
+        case .incomplete:
+            SectionCard(header: "Setup") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ava still needs its speech tools and voices: about 1.7 GB, a few minutes.")
+                        .font(.system(size: 11))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !setup.missing.isEmpty {
+                        Text("Missing: " + setup.missing.joined(separator: ", "))
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Button {
+                        setup.setUp()
+                    } label: {
+                        Label("Set up Ava", systemImage: "arrow.down.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.indigo)
+                }
+            }
+        case .running:
+            SectionCard(header: "Setup") {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Setting up Ava…").font(.system(size: 11, weight: .medium))
+                    }
+                    Text(setup.progress)
+                        .font(.system(size: 9.5, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text("You can close this panel; setup keeps going.")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case .failed:
+            SectionCard(header: "Setup") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if setup.needsHomebrew {
+                        Text("Ava installs its tools with Homebrew, which isn't on this Mac yet.")
+                            .font(.system(size: 11))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Open brew.sh, copy the one line it shows into Terminal, and press Return. When it finishes, click Try again.")
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let url = URL(string: "https://brew.sh") {
+                            Link("Open brew.sh", destination: url).font(.system(size: 11))
+                        }
+                    } else {
+                        Text("Setup stopped: " + (setup.failure ?? "unknown error"))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Button("Try again") { setup.setUp() }
+                        .buttonStyle(.bordered)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var errorBanner: some View {
         if let message = server.lastError ?? Speech.lastError {
