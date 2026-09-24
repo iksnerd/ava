@@ -3,15 +3,19 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.6.3] — 2026-09-24
+
+Fixes from a second review: speech that ignored a stop, a call monitor that looked connected after
+its transcriber died or dropped text, and `--no-paste` skipping the copy. The voice hooks now speak
+through `ava` itself, so **after pulling, run `make build` in the checkout the hooks point at** (or
+install a release); the menu bar app bundles its own `ava` and needs nothing.
 
 ### Changed
 - **`scripts/speak.sh` now speaks through `ava speak`.** It checks the mute and hands off to
   `ava speak --async`, instead of carrying its own synthesis, `say` fallback and player: a stop
   fix made to the Go player had missed the bash copy. The hooks and the menu bar's Test and Read
   Aloud therefore need `ava` built (`make build`) or installed; without it `speak.sh` exits
-  non-zero and says how to get one. `scripts/play_locked.py`, added earlier in this release, is
-  gone with it.
+  non-zero and says how to get one.
 
 ### Fixed
 - `ava-monitor` kept serving after `realtime.py` crashed, so the page read "connected" over a
