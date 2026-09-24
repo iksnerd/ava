@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -282,6 +283,15 @@ func TestEngineStatusSeesAServerWithoutAPidFile(t *testing.T) {
 	if out, err := r.script(script, "start"); err != nil {
 		t.Fatalf("start: %v\n%s", err, out)
 	}
+	// With the pid file gone, the usual cleanup's `stop` rightly leaves the
+	// server alone, and every run of this test used to leak one: 51 of them
+	// were found running. So this test kills its own server.
+	pidText, _ := os.ReadFile(r.pid)
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidText)))
+	if err != nil {
+		t.Fatalf("read the server's pid: %v", err)
+	}
+	t.Cleanup(func() { syscall.Kill(pid, syscall.SIGKILL) })
 	os.Remove(r.pid)
 
 	out, _ := r.script(script, "status")
