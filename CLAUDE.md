@@ -41,6 +41,8 @@ make setup-voice-hooks     # Create the venv for scripts/voice_hooks/ (needed be
 
 To smoke-test mlx-engine for real (not the stubbed `make test-mlx-engine`), run it from a short path such as the repo's own `mlx-engine/` on a spare `--port`: espeak-ng truncates its data path at 160 bytes, so a venv under a long temp or scratch directory dies with a missing `phontab` that looks like a dependency bug (see `checkPathBudget` in `cmd/ava/setup.go`).
 
+To smoke-test speech for real without hearing it or touching your settings, point both config readers at a temp file and zero the volume: `VOICE_CONFIG_FILE=$f VOICECONFIG_PATH=$f TTS_VOLUME=0 bash scripts/speak.sh "..."` with `$f` holding `{"muted": false}`. A machine left muted otherwise turns every speak into a silent no-op that looks like a hand-off bug.
+
 Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtral/`, `scripts/voice_hooks/`) are linted/formatted with `ruff` (a `uv` dev dependency in each's `pyproject.toml`); `E501` is intentionally off there since `ruff format` governs code line length and the rest is unwrappable help/print strings.
 
 ## Project Structure
