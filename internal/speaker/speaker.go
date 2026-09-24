@@ -295,6 +295,12 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 
+	// A stop between the last poll above and the PID file below finds no
+	// player to kill, so check on both sides of that gap.
+	if stopped(marker) {
+		return nil
+	}
+
 	cmd := exec.Command("afplay", "-v", strconv.FormatFloat(volume, 'f', -1, 64), audioPath)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start afplay: %w", err)
@@ -304,6 +310,12 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
+
+	if stopped(marker) {
+		_ = cmd.Process.Kill()
+		<-done
+		return nil
+	}
 
 	select {
 	case err := <-done:

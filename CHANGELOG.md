@@ -14,6 +14,9 @@ entry is a summary rather than a record kept as it happened.
   the reconnect replaces the page with the full transcript.
 - `ava --no-paste` skipped the clipboard copy as well as the paste, while it printed "Copied"
   and the docs said the transcript stays on the clipboard. It now copies.
+- A stop that landed while a speak was taking the playback lock found no player to kill, and
+  the speech played in full. The speak now checks for the stop on both sides of starting the
+  player.
 
 ## [0.6.2] — 2026-09-23
 

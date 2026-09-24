@@ -125,3 +125,24 @@ func TestPlayingSpeakNamesThePlayer(t *testing.T) {
 		t.Error("play pid file left behind after playback")
 	}
 }
+
+// A stop can land after the last queued check and before the player's PID is
+// published: it finds no PID to kill, and the speak used to play in full
+// anyway. The .stopped sidecar is written before any signal, so a speak that
+// finds it on getting the lock must not start the player at all.
+func TestSpeakStoppedBeforeItGetsTheLockNeverPlays(t *testing.T) {
+	afplayPID := stubAfplay(t)
+	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
+	marker := filepath.Join(t.TempDir(), "marker")
+	if err := os.WriteFile(marker+ttsproto.StoppedSuffix, nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.playLocked("clip.wav", 0, marker+ttsproto.PlayPIDSuffix); err != nil {
+		t.Fatalf("playLocked: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if _, err := os.Stat(afplayPID); err == nil {
+		t.Error("a speak that was already stopped still started afplay")
+	}
+}
