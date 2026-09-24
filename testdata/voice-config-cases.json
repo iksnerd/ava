@@ -147,7 +147,7 @@
       }
     },
     {
-      "name": "a wrong-typed sayRate or voice falls back, as speak.sh reads them",
+      "name": "a wrong-typed sayRate or voice falls back",
       "live": {
         "sayRate": {
           "nested": "object"
