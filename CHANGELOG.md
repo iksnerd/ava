@@ -12,6 +12,8 @@ entry is a summary rather than a record kept as it happened.
 - A browser tab too slow to keep up had transcript updates silently dropped and stayed
   "connected" with gaps, and Copy and Save kept the gaps. The server now disconnects it, and
   the reconnect replaces the page with the full transcript.
+- `ava --no-paste` skipped the clipboard copy as well as the paste, while it printed "Copied"
+  and the docs said the transcript stays on the clipboard. It now copies.
 
 ## [0.6.2] — 2026-09-23
 

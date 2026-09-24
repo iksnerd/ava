@@ -76,7 +76,7 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc.")
 	flags.IntVar(&opts.beamSize, "beam-size", 0, beamSizeUsage)
-	flags.BoolVar(&opts.noPaste, "no-paste", false, "Don't auto-paste to clipboard/cursor")
+	flags.BoolVar(&opts.noPaste, "no-paste", false, "Copy to the clipboard but don't paste")
 	flags.BoolVar(&opts.noSound, "no-sound", false, "Disable sound effects")
 	flags.BoolVar(&opts.showStatus, "verbose", true, "Show processing status")
 	// --verbose already defaults to true, so the only way to get a quiet run was
@@ -253,18 +253,36 @@ func run(opts options) error {
 		}
 	}
 
-	// Copy to clipboard and paste if not disabled
-	if !opts.noPaste {
-		if err := clipboard.CopyToClipboard(text); err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️ Failed to copy to clipboard: %v\n", err)
-		} else {
-			// Auto-paste using AppleScript
-			clipboard.PasteWithAppleScript()
-		}
+	if err := systemClipboard.deliver(text, !opts.noPaste); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️ Failed to copy to clipboard: %v\n", err)
 	}
 
 	// Play completion sound
 	clipboard.PlaySound("/System/Library/Sounds/Pop.aiff", !opts.noSound)
 
+	return nil
+}
+
+// clipboardOps is the copy and paste the dictation ends with, as functions so
+// a test can check which of them ran.
+type clipboardOps struct {
+	copy  func(text string) error
+	paste func()
+}
+
+var systemClipboard = clipboardOps{
+	copy:  clipboard.CopyToClipboard,
+	paste: clipboard.PasteWithAppleScript,
+}
+
+// deliver always copies; paste only adds the keystroke into the focused app,
+// so --no-paste still leaves the transcript on the clipboard.
+func (c clipboardOps) deliver(text string, paste bool) error {
+	if err := c.copy(text); err != nil {
+		return err
+	}
+	if paste {
+		c.paste()
+	}
 	return nil
 }
