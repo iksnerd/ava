@@ -21,15 +21,15 @@ func TestStopSpeakingUsesEnvOverride(t *testing.T) {
 	if err := os.WriteFile(marker, nil, 0644); err != nil {
 		t.Fatalf("write marker: %v", err)
 	}
-	synth := startSleeper(t)
-	writePid(t, marker+".synth.pid", synth.Process.Pid)
+	play := startSleeper(t)
+	writePid(t, marker+".play.pid", play.Process.Pid)
 
 	StopSpeaking()
 
 	if _, err := os.Stat(marker + ".stopped"); err != nil {
 		t.Errorf("expected %s.stopped to be created, got error: %v", marker, err)
 	}
-	waitExited(t, synth, "synth")
+	waitExited(t, play, "play")
 }
 
 func TestStopNoActivityDir(t *testing.T) {
@@ -42,7 +42,7 @@ func TestStopEmptyActivityDir(t *testing.T) {
 
 func TestStopIgnoresBareSidecarFiles(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"123.synth.pid", "123.play.pid", "123.stopped"} {
+	for _, name := range []string{"123.play.pid", "123.stopped"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("1"), 0644); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
@@ -58,9 +58,9 @@ func TestStopIgnoresBareSidecarFiles(t *testing.T) {
 }
 
 // TestStopKillsTrackedProcesses simulates an in-flight speak: a marker
-// file plus .synth.pid/.play.pid sidecars naming real (sleeping) processes,
-// the shape the protocol defines. stop() should
-// signal both and wait for the marker directory to empty out.
+// file plus a .play.pid sidecar naming a real (sleeping) process, the shape
+// the protocol defines. stop() should signal it and wait for the marker
+// directory to empty out.
 func TestStopKillsTrackedProcesses(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "4242")
@@ -68,9 +68,7 @@ func TestStopKillsTrackedProcesses(t *testing.T) {
 		t.Fatalf("write marker: %v", err)
 	}
 
-	synth := startSleeper(t)
 	play := startSleeper(t)
-	writePid(t, marker+".synth.pid", synth.Process.Pid)
 	writePid(t, marker+".play.pid", play.Process.Pid)
 
 	stop(dir)
@@ -79,7 +77,6 @@ func TestStopKillsTrackedProcesses(t *testing.T) {
 		t.Errorf("expected %s.stopped to be created, got error: %v", marker, err)
 	}
 
-	waitExited(t, synth, "synth")
 	waitExited(t, play, "play")
 }
 

@@ -13,7 +13,7 @@ ACTIVITY_DIR="${!ACTIVITY_DIR_ENV:-$ACTIVITY_DIR}"
 shopt -s nullglob
 for marker in "$ACTIVITY_DIR"/*; do
     case "$marker" in
-        *"$SYNTH_PID_SUFFIX" | *"$PLAY_PID_SUFFIX" | *"$STOPPED_SUFFIX") continue ;;
+        *"$PLAY_PID_SUFFIX" | *"$STOPPED_SUFFIX") continue ;;
     esac
     [ -f "$marker" ] || continue
 
@@ -21,11 +21,11 @@ for marker in "$ACTIVITY_DIR"/*; do
     # neither plays nor falls back to the next TTS option (e.g. `say`).
     touch "${marker}$STOPPED_SUFFIX" 2>/dev/null
 
-    for pidfile in "${marker}$SYNTH_PID_SUFFIX" "${marker}$PLAY_PID_SUFFIX"; do
-        [ -f "$pidfile" ] || continue
+    pidfile="${marker}$PLAY_PID_SUFFIX"
+    if [ -f "$pidfile" ]; then
         pid=$(cat "$pidfile" 2>/dev/null)
         [ -n "$pid" ] && kill "$pid" 2>/dev/null
-    done
+    fi
 done
 
 exit 0

@@ -33,9 +33,8 @@ const (
 	defaultLockPath    = protocol.PlaybackLock
 	LockPathEnv        = protocol.PlaybackLockEnv
 
-	SynthPIDSuffix = protocol.SynthPIDSuffix
-	PlayPIDSuffix  = protocol.PlayPIDSuffix
-	StoppedSuffix  = protocol.StoppedSuffix
+	PlayPIDSuffix = protocol.PlayPIDSuffix
+	StoppedSuffix = protocol.StoppedSuffix
 )
 
 // ActivityDir returns the directory holding in-flight speak markers,
@@ -60,14 +59,10 @@ func LockPath() string {
 // IsSidecar reports whether a directory entry is one of the sidecar files
 // written beside a marker rather than a marker itself.
 func IsSidecar(name string) bool {
-	for _, suffix := range []string{SynthPIDSuffix, PlayPIDSuffix, StoppedSuffix} {
+	for _, suffix := range []string{PlayPIDSuffix, StoppedSuffix} {
 		if strings.HasSuffix(name, suffix) {
 			return true
 		}
 	}
 	return false
 }
-
-// PIDSuffixes are the sidecars naming a process a stop should signal, in the
-// order a stop should signal them.
-func PIDSuffixes() []string { return []string{SynthPIDSuffix, PlayPIDSuffix} }

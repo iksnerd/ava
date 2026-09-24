@@ -58,9 +58,7 @@ func stop(dir string) {
 		// neither plays nor falls back to `say`.
 		_ = os.WriteFile(marker+ttsproto.StoppedSuffix, nil, 0644)
 
-		for _, suffix := range ttsproto.PIDSuffixes() {
-			killFromPidFile(marker + suffix)
-		}
+		killFromPidFile(marker + ttsproto.PlayPIDSuffix)
 	}
 
 	if !stopped {

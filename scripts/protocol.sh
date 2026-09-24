@@ -43,9 +43,6 @@ PLAYBACK_LOCK_ENV="AVA_PLAYBACK_LOCK"
 # treats the cancellation as a failure and falls back to `say`.
 STOPPED_SUFFIX=".stopped"
 
-# Sidecar naming the synthesizing process, for a stop to signal.
-SYNTH_PID_SUFFIX=".synth.pid"
-
 # Where ava puts what it produces: per-dictation audio, cleaned up on exit,
 # and `ava monitor` transcript logs, which are kept.
 TEMP_DIR="/tmp/voice-input"

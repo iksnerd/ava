@@ -16,8 +16,8 @@
 //     so concurrent speaks from several processes queue instead of talking
 //     over one another.
 //
-// No .synth.pid sidecar is written: synthesis is an in-process HTTP call,
-// and naming our own PID would have a stop kill the whole server.
+// Synthesis has no PID sidecar: it is an in-process HTTP call, and naming
+// our own PID would have a stop kill the whole server.
 // Cancellation mid-synthesis is instead observed through the .stopped
 // sidecar after the request returns.
 //

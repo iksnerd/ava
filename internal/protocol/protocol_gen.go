@@ -44,9 +44,6 @@ const (
 	// treats the cancellation as a failure and falls back to `say`.
 	StoppedSuffix = ".stopped"
 
-	// Sidecar naming the synthesizing process, for a stop to signal.
-	SynthPIDSuffix = ".synth.pid"
-
 	// Where ava puts what it produces: per-dictation audio, cleaned up on
 	// exit, and `ava monitor` transcript logs, which are kept.
 	TempDir = "/tmp/voice-input"

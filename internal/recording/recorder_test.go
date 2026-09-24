@@ -127,13 +127,13 @@ func TestRecordStopsInFlightTTSBeforeRecording(t *testing.T) {
 	if err := os.WriteFile(marker, nil, 0644); err != nil {
 		t.Fatalf("write marker: %v", err)
 	}
-	synth := exec.Command("sleep", "5")
-	if err := synth.Start(); err != nil {
-		t.Fatalf("start fake in-flight synth process: %v", err)
+	player := exec.Command("sleep", "5")
+	if err := player.Start(); err != nil {
+		t.Fatalf("start fake in-flight player: %v", err)
 	}
-	t.Cleanup(func() { _ = synth.Process.Kill() })
-	if err := os.WriteFile(marker+".synth.pid", []byte(strconv.Itoa(synth.Process.Pid)), 0644); err != nil {
-		t.Fatalf("write synth pid file: %v", err)
+	t.Cleanup(func() { _ = player.Process.Kill() })
+	if err := os.WriteFile(marker+".play.pid", []byte(strconv.Itoa(player.Process.Pid)), 0644); err != nil {
+		t.Fatalf("write play pid file: %v", err)
 	}
 
 	r := NewRecorder(filepath.Join(t.TempDir(), "audio.wav"), false)
@@ -146,11 +146,11 @@ func TestRecordStopsInFlightTTSBeforeRecording(t *testing.T) {
 	}
 
 	done := make(chan error, 1)
-	go func() { done <- synth.Wait() }()
+	go func() { done <- player.Wait() }()
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Error("Record() did not stop the in-flight synth process")
+		t.Error("Record() did not stop the in-flight player process")
 	}
 }
 

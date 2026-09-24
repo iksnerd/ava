@@ -20,10 +20,6 @@
     "value": "AVA_PLAYBACK_LOCK",
     "doc": "Overrides playback_lock, for the same reason activity_dir_env exists: a test that runs a real speak takes this lock, and on the shared path it queues behind any speech in flight on the machine. Every reader honours both or neither, or an isolated test is only half isolated."
   },
-  "synth_pid_suffix": {
-    "value": ".synth.pid",
-    "doc": "Sidecar naming the synthesizing process, for a stop to signal."
-  },
   "play_pid_suffix": {
     "value": ".play.pid",
     "doc": "Sidecar naming the playing process, for a stop to signal."
