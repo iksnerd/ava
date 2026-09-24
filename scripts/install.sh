@@ -15,7 +15,7 @@
 #
 # Usage:
 #   bash scripts/install.sh              # latest release
-#   bash scripts/install.sh v0.6.3       # a specific tag (0.6.0 or later)
+#   bash scripts/install.sh v0.7.0       # a specific tag (0.6.0 or later)
 #   AVA_BIN=~/bin bash scripts/install.sh
 set -euo pipefail
 

@@ -39,7 +39,7 @@ line, then open a new terminal window.
 
 Check: `ava --version` prints a version.
 
-A specific version instead of the latest: add `-s v0.6.3` after `bash`.
+A specific version instead of the latest: add `-s v0.7.0` after `bash`.
 
 **Downloading from the Releases page instead.** The binaries are unsigned (there is no paid Apple
 Developer account behind them), so macOS quarantines anything a browser downloads, and it kills a
@@ -58,7 +58,8 @@ ava setup
 ```
 
 This installs `sox` and `whisper-cli` through Homebrew, the 141 MB speech model, and the Kokoro
-voice engine (about 1.2 GB, a few minutes the first time). Every step is skipped when it is
+voice engine with its model and every voice (about 1.5 GB, a few minutes the first time). After
+it, speech needs no network. Every step is skipped when it is
 already done, so if anything fails, fix it and run `ava setup` again.
 
 Check: it ends with `✅ Setup complete.`
@@ -69,11 +70,9 @@ Check: it ends with `✅ Setup complete.`
 ava speak "hello"
 ```
 
-The first time, the engine starts and downloads its 339 MB voice model, so give it a minute.
-You should hear a natural voice. If `ava speak` prints a warning about the macOS `say` voice
-instead, run `ava engine start`, wait for "ready", and try again. On a slow connection that first
-start can report "failed to start in time" while the model is still downloading; wait a minute
-and check with `ava engine status`.
+The first time, the engine starts, which takes a few seconds; `ava setup` already downloaded its
+model. You should hear a natural voice. If `ava speak` prints a warning about the macOS `say`
+voice instead, run `ava engine start`, wait for "ready", and try again.
 
 Check: a natural-sounding voice says "hello".
 
@@ -138,7 +137,7 @@ above to check speech and dictation.
 | The menu bar app | `bash AvaMenuBar/scripts/build-app.sh && open -a Ava` | Installs `/Applications/Ava.app`. To start at login: System Settings → General → Login Items |
 | Claude Code speaks when it finishes or needs you | `make setup-voice-hooks`, then add the hooks to `~/.claude/settings.json` | Exact JSON in [claude-code-voice-hooks.md](claude-code-voice-hooks.md) |
 | Claude Code uses Ava as a tool | `claude mcp add -s user ava -e MLX_ENGINE_SCRIPT="$HOME/src/ava/scripts/mlx-engine-server.sh" -- "$HOME/.local/bin/ava" mcp` | See [mcp.md](mcp.md) |
-| Live call transcripts | `make setup-voxtral && make build` | Downloads a 2.9 GB model on first use. See [ava monitor.md](monitor.md) |
+| Live call transcripts | `make setup-voxtral && make build` | Downloads a 2.9 GB model on first use. See [monitor.md](monitor.md) |
 | A dictation hotkey (Raycast) | `make install-raycast` | Then add `~/raycast-scripts` in Raycast's settings |
 
 **Intel Mac:** `go install github.com/iksnerd/ava/cmd/ava@latest`, then `ava setup`. It skips the

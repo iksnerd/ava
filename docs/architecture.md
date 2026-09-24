@@ -132,7 +132,8 @@ honest outcome of generation, which covers most consumers rather than all.
 three shell files it sources, plus `server.py`, `protocol.py`, `pyproject.toml`,
 `uv.lock` and `.python-version` — so `ava setup` can install Kokoro on
 a machine with no checkout. About 600 KB travels; the 1.2 GB venv is resolved by
-`uv` at install time and the 339 MB model is fetched on first use.
+`uv` at install time, and `ava setup` then fetches the 339 MB model (weights and
+every voice, at the revision `server.py` pins) through the engine's own loader.
 
 `make generate-enginedist` copies the canonical files into
 `internal/enginedist/files` (go:embed cannot reach outside its own package) and

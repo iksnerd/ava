@@ -289,3 +289,50 @@ func TestEngineStatusSeesAServerWithoutAPidFile(t *testing.T) {
 		t.Errorf("status = %q with /health answering, want RUNNING", out)
 	}
 }
+
+// stubPython stands in for the engine venv's python3: it records how it was
+// run and prints a snapshot path, as `server.py fetch` does.
+const stubPython = `#!/bin/sh
+echo "$@" > "$STUB_OUT/python-argv"
+pwd > "$STUB_OUT/python-cwd"
+echo /fake/hf-cache/kokoro-snapshot
+`
+
+// `ava setup` downloads Kokoro through this, so it must run the engine's own
+// loader, in the engine's own environment, from wherever the engine lives.
+func TestEngineFetchRunsTheEnginesOwnDownload(t *testing.T) {
+	r := newEngineRun(t)
+	checkout := engineLayout(t)
+	os.WriteFile(filepath.Join(checkout, "mlx-engine", ".venv", "bin", "python"), []byte(stubPython), 0755)
+	script := copyScripts(t, filepath.Join(checkout, "scripts"))
+
+	out, err := r.script(script, "fetch")
+	if err != nil {
+		t.Fatalf("fetch: %v\n%s", err, out)
+	}
+	if argv := strings.TrimSpace(r.saw("python-argv")); !strings.HasSuffix(argv, "server.py fetch") {
+		t.Errorf("fetch ran python with %q, want it to end in %q", argv, "server.py fetch")
+	}
+	if cwd := r.saw("python-cwd"); !strings.Contains(cwd, filepath.Join(filepath.Base(checkout), "mlx-engine")) {
+		t.Errorf("fetch ran in %q, want %s/mlx-engine", cwd, checkout)
+	}
+	if !strings.Contains(out, "/fake/hf-cache/kokoro-snapshot") {
+		t.Errorf("fetch output %q does not say where the model is", out)
+	}
+	if r.healthy() {
+		t.Error("fetch started the server; it should only download")
+	}
+}
+
+func TestEngineFetchFailsFastWithNoEngine(t *testing.T) {
+	r := newEngineRun(t)
+	script := copyScripts(t, filepath.Join(t.TempDir(), "scripts"))
+
+	out, err := r.script(script, "fetch")
+	if err == nil {
+		t.Fatalf("fetch with no engine exited 0:\n%s", out)
+	}
+	if !strings.Contains(out, "ava setup") {
+		t.Errorf("fetch with no engine said %q; want it to point at `ava setup`", out)
+	}
+}

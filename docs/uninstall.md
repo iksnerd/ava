@@ -42,6 +42,7 @@ read, so `make uninstall` never touches it:
 
 ```bash
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16                    # 339 MB
+rm -rf ~/.cache/huggingface/hub/models--prince-canuma--Kokoro-82M                         # a few MB of voices, from before 0.7.1
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran ava monitor
 ```
 

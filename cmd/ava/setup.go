@@ -31,11 +31,12 @@ func newSetupCmd() *cobra.Command {
 		Long: "Installs what ava needs beyond the binary itself:\n" +
 			"  1. sox and whisper-cli, via Homebrew\n" +
 			"  2. the whisper.cpp base.en model (~141 MB)\n" +
-			"  3. the Kokoro TTS engine (~1.2 GB of Python, plus a 339 MB model\n" +
-			"     the server fetches on first use)\n\n" +
+			"  3. the Kokoro TTS engine (~1.2 GB of Python)\n" +
+			"  4. the Kokoro model and all its voices (339 MB), so speech needs no\n" +
+			"     network afterwards\n\n" +
 			"Every step is skipped if it is already done, so re-running is cheap " +
 			"and is how you upgrade the engine bundle after installing a new binary.\n\n" +
-			"Use --skip-engine for dictation only, without the 1.2 GB.",
+			"Use --skip-engine for dictation only, without steps 3 and 4.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -66,7 +67,7 @@ func newSetupCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&skipEngine, "skip-engine", false,
-		"Skip the Kokoro TTS engine (~1.2 GB); speech falls back to the macOS say voice")
+		"Skip the Kokoro TTS engine and model (~1.5 GB); speech falls back to the macOS say voice")
 	return cmd
 }
 
@@ -158,7 +159,16 @@ func setupEngine(out io.Writer) error {
 	}
 
 	fmt.Fprintln(out, "✅ Kokoro engine installed.")
-	fmt.Fprintln(out, "   The 339 MB voice model downloads on the first `ava speak`.")
+
+	// Through the bundle just installed, not whichever script `ava engine`
+	// would resolve: the fetch must fill the cache this engine will read.
+	fetch := exec.Command("bash", filepath.Join(dir, enginedist.ScriptRelPath), "fetch")
+	fetch.Stdout, fetch.Stderr = out, os.Stderr
+	if err := fetch.Run(); err != nil {
+		return fmt.Errorf("the Kokoro model did not download (%w); re-run `ava setup` to retry, "+
+			"the engine itself is already installed", err)
+	}
+	fmt.Fprintln(out, "✅ Kokoro model downloaded.")
 	return nil
 }
 

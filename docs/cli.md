@@ -143,11 +143,11 @@ Each step is skipped when it is already done, so re-running is cheap — and
 re-running is how you refresh the engine after installing a newer binary.
 
 It exists because the binary is otherwise only half usable without a checkout.
-`make setup` does the same three things, but only from the repo, which is the
+`make setup` does the same things, but only from the repo, which is the
 one thing a downloaded binary does not have. The engine is carried inside the
 binary as ~600 KB of scripts, `server.py` and a `uv.lock`; the 1.2 GB of Python
-is resolved by `uv` at install time and the 339 MB Kokoro model is fetched by
-the server on first use, so neither is shipped.
+is resolved by `uv` at install time and the 339 MB Kokoro model is fetched at
+the end of setup (`mlx-engine-server.sh fetch`), so neither is shipped.
 
 It lands in `~/Library/Application Support/ava/engine/`, beside the config the
 CLI and the menu bar app already share. `AVA_ENGINE_DIR` overrides

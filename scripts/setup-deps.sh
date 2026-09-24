@@ -73,6 +73,13 @@ if ! (cd mlx-engine && uv sync); then
 fi
 echo "✅ mlx-engine dependencies installed"
 
+# The same fetch `ava setup` runs, so a checkout install leaves nothing for
+# the first speak to download either.
+if ! bash scripts/mlx-engine-server.sh fetch; then
+    echo "❌ Failed to download the Kokoro model; re-run \`make setup\` to retry"
+    exit 1
+fi
+
 echo ""
 echo "✅ All dependencies installed!"
 exit 0

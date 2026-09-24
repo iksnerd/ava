@@ -27,10 +27,11 @@ ava setup
 The first line installs the latest [release](https://github.com/iksnerd/ava/releases)
 to `~/.local/bin` after checking its checksum. `ava setup` installs `sox` and
 `whisper-cli` through Homebrew, the 141 MB speech model, and the Kokoro voice
-engine (about 1.2 GB; `--skip-engine` for dictation only). Then:
+engine with its 339 MB model and every voice (about 1.5 GB in all;
+`--skip-engine` for dictation only), so speech works offline afterwards. Then:
 
 ```bash
-ava speak "hello"   # the first run downloads the 339 MB voice model
+ava speak "hello"   # the first run starts the engine, a few seconds
 ava                 # dictate: speak, pause for 2 seconds, the text is pasted at your cursor
 ```
 

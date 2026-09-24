@@ -1,14 +1,18 @@
 import asyncio
 import contextlib
+import functools
 import os
+import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.tts.utils import load_model as load_tts_model
+from mlx_audio.utils import get_model_path
 from pydantic import BaseModel, ConfigDict
 
 import protocol
@@ -16,6 +20,11 @@ import protocol
 app = FastAPI(title="Local Kokoro TTS Server")
 
 TTS_MODEL_PATH = "mlx-community/Kokoro-82M-bf16"
+# Pinned: the snapshot holds the weights, the config and every voice, and all
+# of it is read from here. Kokoro used to fetch each voice from a second repo
+# (prince-canuma/Kokoro-82M) the first time it was used, so neither `ava
+# setup` nor an offline machine could have the whole engine.
+TTS_MODEL_REVISION = "a71e4d38b236d968966a2002c4c895dbd12b1c3c"
 last_request_time = time.time()
 IDLE_TIMEOUT_SEC = 15 * 60  # 15 minutes
 
@@ -78,7 +87,30 @@ class LazyModel:
         return self.instance is not None
 
 
-tts_model = LazyModel("TTS", TTS_MODEL_PATH, load_tts_model)
+@functools.cache
+def fetch_tts_model() -> Path:
+    """The pinned Kokoro snapshot, downloaded into the Hugging Face cache if it
+    is not there yet. The server loads from it and `fetch` (run by `ava setup`
+    through mlx-engine-server.sh) downloads it, so the two cannot disagree."""
+    return Path(get_model_path(path_or_hf_repo=TTS_MODEL_PATH, revision=TTS_MODEL_REVISION))
+
+
+def voice_files(voice: str) -> str:
+    """Maps a voice id, or a comma-separated blend, to the snapshot's voice
+    files. Kokoro loads a value ending in .safetensors as a file instead of
+    downloading the voice from its own default repo."""
+    voices = fetch_tts_model() / "voices"
+    return ",".join(str(voices / f"{v.strip()}.safetensors") for v in voice.split(","))
+
+
+# The repo id, not the snapshot path: mlx_audio names the model type after the
+# path it is given, and the snapshot's directory is the revision hash. Given the
+# id and revision it resolves the same snapshot fetch_tts_model() does.
+tts_model = LazyModel(
+    "TTS",
+    TTS_MODEL_PATH,
+    lambda repo: load_tts_model(model_path=repo, revision=TTS_MODEL_REVISION),
+)
 
 
 async def idle_shutdown_checker():
@@ -115,7 +147,7 @@ def _warm_tts_model():
         generate_audio(
             text="Ready.",
             model=tts_model.get(),
-            voice="af_heart",
+            voice=voice_files("af_heart"),
             speed=1.0,
             output_path=tmpdir,
             file_prefix="warmup",
@@ -178,7 +210,7 @@ def _synthesize(req: SpeakRequest) -> Response:
             generate_audio(
                 text=req.text,
                 model=tts_model_instance,
-                voice=req.voice,
+                voice=voice_files(req.voice),
                 speed=req.speed,
                 lang_code=lang_code,
                 **({"split_pattern": req.split_pattern} if req.split_pattern else {}),
@@ -209,8 +241,22 @@ def _synthesize(req: SpeakRequest) -> Response:
     return Response(content=audio_bytes, media_type="audio/wav")
 
 
-if __name__ == "__main__":
+def main(argv: list[str]) -> int:
+    """`python server.py fetch` downloads the model and prints where it is;
+    with no arguments, it serves."""
+    if argv == ["fetch"]:
+        print(fetch_tts_model())
+        return 0
+    if argv:
+        print(f"usage: {sys.argv[0]} [fetch]", file=sys.stderr)
+        return 2
+
     import uvicorn
 
     _host, _port = protocol.ENGINE_URL.rsplit("//", 1)[1].split(":")
     uvicorn.run(app, host=_host, port=int(_port))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

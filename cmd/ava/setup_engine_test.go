@@ -26,12 +26,19 @@ func shortEngineDir(t *testing.T) string {
 }
 
 // stubUv records where and how it ran, and creates the venv's uvicorn the
-// way a real `uv sync` would, so the result looks like a usable engine.
+// way a real `uv sync` would, so the result looks like a usable engine. The
+// venv's python it creates records a model fetch to $STUB_FETCH_RECORD and
+// exits with $STUB_FETCH_EXIT (default 0).
 func stubUv(t *testing.T) (record string) {
 	t.Helper()
 	bin := t.TempDir()
 	record = filepath.Join(t.TempDir(), "uv-ran")
-	script := "#!/bin/sh\necho \"$PWD $*\" > " + record + "\nmkdir -p .venv/bin && touch .venv/bin/uvicorn\n"
+	python := `#!/bin/sh
+[ -n "$STUB_FETCH_RECORD" ] && echo "$PWD $*" > "$STUB_FETCH_RECORD"
+exit "${STUB_FETCH_EXIT:-0}"
+`
+	script := "#!/bin/sh\necho \"$PWD $*\" > " + record + "\nmkdir -p .venv/bin && touch .venv/bin/uvicorn && chmod +x .venv/bin/uvicorn\n" +
+		"cat > .venv/bin/python <<'PY'\n" + python + "PY\nchmod +x .venv/bin/python\n"
 	if err := os.WriteFile(filepath.Join(bin, "uv"), []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -93,5 +100,45 @@ func TestSetupEngineRefusesATooLongPathBeforeWritingAnything(t *testing.T) {
 	}
 	if _, err := os.Stat(long); !os.IsNotExist(err) {
 		t.Error("setup wrote into the too-long path before refusing it")
+	}
+}
+
+// Kokoro's model used to download on the first `ava speak`, so a finished
+// setup still needed the network, and a machine set up and then taken offline
+// could not speak at all. Setup now fetches it, through the engine's own
+// loader, from the bundle it just installed.
+func TestSetupEngineFetchesTheModel(t *testing.T) {
+	if runtime.GOARCH != "arm64" {
+		t.Skip("setupEngine skips the engine off Apple Silicon")
+	}
+	dir := shortEngineDir(t)
+	stubUv(t)
+	fetched := filepath.Join(t.TempDir(), "fetched")
+	t.Setenv("STUB_FETCH_RECORD", fetched)
+
+	if err := setupEngine(&bytes.Buffer{}); err != nil {
+		t.Fatalf("setupEngine: %v", err)
+	}
+	got, err := os.ReadFile(fetched)
+	if err != nil {
+		t.Fatal("setup never fetched the Kokoro model")
+	}
+	ran := strings.TrimSpace(string(got))
+	if !strings.HasPrefix(ran, filepath.Join(dir, "mlx-engine")+" ") || !strings.HasSuffix(ran, "server.py fetch") {
+		t.Errorf("the fetch ran as %q, want `server.py fetch` in %s/mlx-engine", ran, dir)
+	}
+}
+
+func TestSetupEngineFailsWhenTheModelDownloadFails(t *testing.T) {
+	if runtime.GOARCH != "arm64" {
+		t.Skip("setupEngine skips the engine off Apple Silicon")
+	}
+	shortEngineDir(t)
+	stubUv(t)
+	t.Setenv("STUB_FETCH_EXIT", "1")
+
+	err := setupEngine(&bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "Kokoro model") {
+		t.Fatalf("setupEngine with a failing download: err = %v, want it to say the model did not download", err)
 	}
 }

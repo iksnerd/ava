@@ -7,11 +7,13 @@ and until now nothing checked any of it. It is TTS-only: the STT half moved out
 """
 
 import re
+import sys
 import threading
 import time
 from pathlib import Path
 
 import pytest
+from conftest import FAKE_SNAPSHOT
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -68,7 +70,7 @@ class TestSpeakValidation:
         assume it."""
         gen = _stub_successful_tts(server, tmp_path)
         client.post("/speak", json={"text": "hi"})
-        assert gen.last["voice"] == "af_heart"
+        assert gen.last["voice"] == str(FAKE_SNAPSHOT / "voices" / "af_heart.safetensors")
         assert gen.last["speed"] == 1.0
 
 
@@ -244,7 +246,7 @@ class TestStartupWarmUp:
         with TestClient(server.app):
             pass
         assert len(calls) == 1, "startup should warm the TTS model exactly once"
-        assert calls[0]["voice"] == "af_heart"
+        assert calls[0]["voice"] == str(FAKE_SNAPSHOT / "voices" / "af_heart.safetensors")
         assert server.tts_model.loaded
 
 
@@ -263,7 +265,7 @@ class TestRequestSurface:
         gen = _stub_successful_tts(server, tmp_path)
         res = client.post("/speak", json={"text": "hi", "voice": "bf_emma", "speed": 1.4})
         assert res.status_code == 200
-        assert gen.last["voice"] == "bf_emma"
+        assert gen.last["voice"] == str(FAKE_SNAPSHOT / "voices" / "bf_emma.safetensors")
         assert gen.last["speed"] == 1.4
 
     def test_split_pattern_is_forwarded_when_given(self, client, server, tmp_path):
@@ -337,3 +339,49 @@ class TestSpeakDoesNotBlockHealth:
         for t in threads:
             t.join()
         assert not overlap, "two /speak requests ran generate_audio at the same time"
+
+
+class TestModelSource:
+    """Kokoro used to come from two repos, neither pinned: the weights from
+    mlx-community on first load, and each voice from prince-canuma the first
+    time someone picked it. `ava setup` could not make the engine complete, and
+    a machine offline could not use a voice it had never spoken with. There is
+    now one snapshot, at one revision, and everything is read from it."""
+
+    def test_fetches_one_snapshot_at_a_pinned_revision(self, server):
+        get_model_path = sys.modules["mlx_audio.utils"].get_model_path
+        assert server.fetch_tts_model() == FAKE_SNAPSHOT
+        assert get_model_path.last == {
+            "path_or_hf_repo": server.TTS_MODEL_PATH,
+            "revision": server.TTS_MODEL_REVISION,
+        }
+        assert re.fullmatch(r"[0-9a-f]{40}", server.TTS_MODEL_REVISION), (
+            "pin a commit, not a branch: a branch moves under you"
+        )
+
+    def test_loads_the_model_at_that_same_revision(self, server):
+        # By repo id: mlx_audio names the model type after the path it is
+        # given, and a snapshot's directory is the revision hash. The first
+        # version of this passed the snapshot path, and the real engine failed
+        # to start with "Model type a71e4d38... not supported".
+        load_model = sys.modules["mlx_audio.tts.utils"].load_model
+        server.tts_model.get()
+        assert load_model.last == {
+            "model_path": server.TTS_MODEL_PATH,
+            "revision": server.TTS_MODEL_REVISION,
+        }
+
+    def test_reads_voices_from_that_snapshot(self, client, server):
+        calls = []
+        server.generate_audio = lambda **kw: calls.append(kw)
+        client.post("/speak", json={"text": "hi", "voice": "bf_emma,af_heart"})
+        voices = FAKE_SNAPSHOT / "voices"
+        assert (
+            calls[-1]["voice"]
+            == f"{voices / 'bf_emma.safetensors'},{voices / 'af_heart.safetensors'}"
+        )
+        assert calls[-1]["lang_code"] == "b", "the language still comes from the voice id"
+
+    def test_fetch_command_downloads_the_snapshot_and_says_where(self, server, capsys):
+        assert server.main(["fetch"]) == 0
+        assert str(FAKE_SNAPSHOT) in capsys.readouterr().out

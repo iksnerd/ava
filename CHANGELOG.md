@@ -3,6 +3,15 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Changed
+- **`ava setup` downloads the Kokoro model**, weights and every voice, so a finished setup
+  speaks with no network. It used to arrive on the first `ava speak`, and each voice separately
+  the first time it was used, from a second repository. The engine now reads everything from
+  one snapshot of `mlx-community/Kokoro-82M-bf16` at a pinned revision. `make setup` fetches it
+  the same way, through the new `mlx-engine-server.sh fetch`.
+
 ## [0.7.0] — 2026-09-24
 
 One binary. Live call transcripts are `ava monitor` instead of a separate `ava-monitor`, and the

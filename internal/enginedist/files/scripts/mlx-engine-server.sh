@@ -47,7 +47,29 @@ START_LOCKDIR="${AVA_ENGINE_LOCKDIR:-/tmp/mlx-engine-server-start.lockdir}"
 ENGINE_URL="${AVA_ENGINE_URL:-$ENGINE_URL}"
 START_LOCK_STALE_SEC=30
 
+# require_engine_root <verb> -> engine_root, or says where it looked and fails.
+require_engine_root() {
+    engine_root && return 0
+    echo "❌ No mlx-engine to $1: none beside these scripts ($ROOT_DIR)," >&2
+    echo "   in the checkout this app was built from, or installed by \`ava setup\`." >&2
+    echo "   Run \`ava setup\`, or \`make setup\` in a checkout." >&2
+    return 1
+}
+
 case "$1" in
+    fetch)
+        # Downloads Kokoro (weights and every voice, at the revision
+        # server.py pins) without starting the server. `ava setup` and
+        # `make setup` run this, so a finished setup needs no network to speak.
+        DIR="$(require_engine_root fetch)" || exit 1
+        cd "$DIR/mlx-engine" || exit 1
+        uv sync -q
+        echo "⬇️  Fetching the Kokoro model (339 MB on first run)..."
+        # -W: importing server.py warns that FastAPI's on_event is deprecated,
+        # which says nothing to someone running setup.
+        .venv/bin/python -W ignore::DeprecationWarning server.py fetch ||
+            { echo "❌ Kokoro model download failed."; exit 1; }
+        ;;
     start)
         # An explicit start (menu bar Start, or `ava engine
         # start`) re-arms speak.sh's on-demand auto-start for future hook
@@ -75,12 +97,7 @@ case "$1" in
             exit 0
         fi
 
-        if ! DIR="$(engine_root)"; then
-            echo "❌ No mlx-engine to start: none beside these scripts ($ROOT_DIR),"
-            echo "   in the checkout this app was built from, or installed by \`ava setup\`."
-            echo "   Run \`ava setup\`, or \`make setup\` in a checkout."
-            exit 1
-        fi
+        DIR="$(require_engine_root start)" || exit 1
 
         echo "🚀 Starting the Kokoro TTS server from $DIR/mlx-engine..."
         cd "$DIR/mlx-engine" || exit 1
@@ -189,7 +206,7 @@ case "$1" in
         fi
         ;;
     *)
-        echo "Usage: $0 {start|stop|status}"
+        echo "Usage: $0 {start|stop|status|fetch}"
         exit 1
         ;;
 esac
