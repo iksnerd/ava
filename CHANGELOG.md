@@ -6,6 +6,9 @@ entry is a summary rather than a record kept as it happened.
 ## [Unreleased]
 
 ### Added
+- **`Ava.dmg` on the release page**, the menu bar app for installing without Terminal. It is
+  built with the new `make release-dmg` and listed in `checksums.txt`. It is unsigned, so the
+  first open needs System Settings → Privacy & Security → Open Anyway.
 - **A Set up button in the menu bar app.** At launch the app runs its bundled `ava setup --check`,
   and if anything is missing it offers **Set up Ava**, which runs `ava setup` with its progress
   shown and goes away when done. Someone who installed only the app no longer needs Terminal,

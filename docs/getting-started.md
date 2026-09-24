@@ -6,8 +6,9 @@ follow it. Every step ends with a check; don't move on until it passes.
 ← [Back to the README](../README.md)
 
 **Which path?** Steps 0 to 5 install `ava` from a release: dictation, natural-voice speech,
-transcribing files, and the MCP server for Claude Code. The menu bar app, the Claude Code voice
-hooks and live call transcripts need the source: [Full install from source](#full-install-from-source).
+transcribing files, and the MCP server for Claude Code. For the menu bar app with as little
+Terminal as possible, see [The menu bar app](#the-menu-bar-app). The Claude Code voice hooks and
+live call transcripts need the source: [Full install from source](#full-install-from-source).
 
 ## 0. Check the machine
 
@@ -100,6 +101,22 @@ That is the release install done. Optional:
   `claude mcp add -s user ava -- "$HOME/.local/bin/ava" mcp`, then restart Claude Code. See
   [mcp.md](mcp.md).
 - **Every command and flag:** `ava --help`, or [cli.md](cli.md).
+
+## The menu bar app
+
+For someone who would rather not use Terminal. Do step 0 and step 1 (Homebrew) above first; the
+app installs everything else itself.
+
+1. Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), open it, and drag Ava into Applications.
+2. Open Ava from Applications. macOS says it "could not verify Ava is free of malware", because
+   the app is not signed. Click **Done**, open System Settings → Privacy & Security, scroll down,
+   click **Open Anyway** next to the message about Ava, and confirm.
+3. A waveform appears in the menu bar. Click it, then **Set up Ava**. It downloads about 1.7 GB
+   and takes a few minutes; you can close the panel meanwhile.
+
+Check: the Setup card goes away, and **Speak a Test Phrase** at the bottom of the panel plays a
+natural voice. Dictate asks for the Microphone and Accessibility permissions the first time
+(see step 5).
 
 ## Full install from source
 

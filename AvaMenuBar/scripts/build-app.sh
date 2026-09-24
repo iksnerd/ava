@@ -21,7 +21,12 @@ RELEASE_BIN="$(swift build -c release --show-bin-path)/$BIN_NAME"
 echo "🔨 Building ava (bundled for Dictate — whisper.cpp, no extra setup)..."
 make -C "$REPO_ROOT" build
 
-echo "📦 Packaging $APP_NAME.app..."
+# The app reports the same version as the ava it bundles: 0.7.1 from tag
+# v0.7.1, or 0.7.1-3-gabc1234 between tags.
+APP_VERSION="$(git -C "$REPO_ROOT" describe --tags --always 2>/dev/null || echo 0.0.0)"
+APP_VERSION="${APP_VERSION#v}"
+
+echo "📦 Packaging $APP_NAME.app ($APP_VERSION)..."
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/$BIN_NAME"
@@ -32,10 +37,10 @@ cp "$DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 # runtime, falling back to the dev-checkout path only when unbundled).
 # .venv/__pycache__ are excluded: per-machine and uv-managed — voice_hooks/
 # syncs its own fresh on first use, same as `make setup-voice-hooks` today.
-# mlx-engine/ is deliberately NOT bundled: its venv alone is ~1.2GB, and the
-# Kokoro model downloads on first use anyway. The app runs the checkout's
-# engine instead (engine-root, below), or the one `ava setup` installed, and
-# `ava speak` falls back to macOS `say` when neither exists.
+# mlx-engine/ is deliberately NOT bundled: its venv alone is ~1.2GB. The app
+# runs the checkout's engine instead (engine-root, below), or the one `ava
+# setup` installed (the app's Set up button runs that), and `ava speak` falls
+# back to macOS `say` when neither exists.
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' \
     "$REPO_ROOT/scripts/" "$APP_DIR/Contents/Resources/scripts/"
 cp "$REPO_ROOT/bin/ava" "$APP_DIR/Contents/Resources/ava"
@@ -63,7 +68,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>$APP_VERSION</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSUIElement</key>

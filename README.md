@@ -40,10 +40,18 @@ accessibility narrator. A pinned version, a manual download from the Releases
 page, and a check after every step are in
 [`docs/getting-started.md`](docs/getting-started.md).
 
+### The menu bar app, without Terminal
+
+Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), drag Ava into Applications and open it. It is not
+signed, so macOS first says it cannot verify it: open System Settings → Privacy
+& Security and click **Open Anyway**. Then click the waveform in the menu bar
+and **Set up Ava**. The one thing it still needs from Terminal is
+[Homebrew](https://brew.sh), which the app links to if it is missing.
+
 ### From source
 
-The menu bar app, the Claude Code voice hooks and `ava monitor`'s call
-transcripts need a checkout:
+The Claude Code voice hooks and `ava monitor`'s call transcripts need a
+checkout, as does building the menu bar app yourself:
 
 ```bash
 brew install sox whisper-cpp go

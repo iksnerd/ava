@@ -1,8 +1,9 @@
-# GoReleaser builds the two CLI binaries for a tagged release.
+# GoReleaser builds the CLI binary for a tagged release.
 #
-# Scope: the CLI only. The menu bar app is a Swift package that needs
-# notarization before a .dmg is worth distributing, which is blocked on an
-# Apple Developer Program membership.
+# Scope: the CLI only. The menu bar app's Ava.dmg is built on the maintainer's
+# Mac and attached afterwards with `make release-dmg`, which also adds its line
+# to checksums.txt. It is unsigned too (see below), so its first open needs
+# Open Anyway.
 #
 # darwin/arm64 alone is deliberate. Cross-compilation is GoReleaser's usual
 # selling point and it is moot here: the code shells out to afplay, pbcopy,
@@ -93,8 +94,13 @@ release:
     ```
 
     `install.sh` verifies the checksum and installs `ava` to
-    `~/.local/bin`. `setup` then installs sox, whisper-cli, the speech model and
-    the Kokoro TTS engine.
+    `~/.local/bin`. `setup` then installs sox, whisper-cli, uv, the speech
+    model, and the Kokoro TTS engine with its model.
+
+    **`Ava.dmg`** is the menu bar app, for installing without Terminal: drag
+    it to Applications, open it, and when macOS says it cannot verify it, use
+    System Settings → Privacy & Security → **Open Anyway**. Its **Set up Ava**
+    button installs the rest; only Homebrew has to be there first.
 
     **Prefer that over downloading these files in a browser.** These binaries
     are unsigned — signing for distribution needs a paid Apple Developer

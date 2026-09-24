@@ -1,4 +1,4 @@
-.PHONY: build test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole start-engine stop-engine status-engine clean help
+.PHONY: build test test-mlx-engine test-voxtral install-hooks uninstall-hooks vet fmt fmt-check lint check-paths check-names check-docs check-protocol generate-protocol check-enginedist generate-enginedist check-swift-config release-snapshot release-notes release-dmg install-raycast install-bin uninstall setup-deps setup-model setup setup-voxtral setup-voice-hooks setup-blackhole start-engine stop-engine status-engine clean help
 
 BINARY_NAME=ava
 BUILD_DIR=bin
@@ -24,6 +24,7 @@ help:
 	@echo "  make check-enginedist   - Fail if the embedded engine bundle is stale"
 	@echo "  make release-snapshot   - Build the release artifacts locally, publishing nothing"
 	@echo "  make release-notes      - Print the newest CHANGELOG.md section (for --release-notes)"
+	@echo "  make release-dmg        - Build Ava.dmg from the checked-out tag and attach it to that release"
 	@echo "  make check-names        - Fail if a tracked filename breaks another checkout"
 	@echo "  make check-docs         - Fail if a make target or script is documented nowhere"
 	@echo "  make install-hooks      - Enable the pre-commit hook (CI only runs on tags)"
@@ -141,6 +142,24 @@ release-snapshot:
 # The newest CHANGELOG.md section, for `goreleaser release --release-notes`.
 # The changelog is written by hand and is the release notes; GoReleaser's own
 # commit-list generator is disabled so the two cannot contradict each other.
+# Builds the menu bar app's .dmg from the checked-out tag and attaches it to
+# that tag's GitHub release, which CI has already published with the CLI.
+# Built here, not in CI: packaging runs build-app.sh, which also installs the
+# app on this Mac. checksums.txt is re-uploaded with the .dmg's line added, so
+# one file still verifies every asset.
+release-dmg:
+	@tag="$$(git describe --tags --exact-match 2>/dev/null)" || { echo "❌ Check out a release tag first (git checkout vX.Y.Z)."; exit 1; }; \
+	[ -z "$$(git status --porcelain)" ] || { echo "❌ The tree has changes; the .dmg must be built from the tag alone."; exit 1; }; \
+	bash AvaMenuBar/scripts/build-app.sh && \
+	tmp="$$(mktemp -d)" && \
+	gh release download "$$tag" --pattern checksums.txt --dir "$$tmp" && \
+	{ grep -v ' Ava.dmg$$' "$$tmp/checksums.txt" || true; } > "$$tmp/checksums.new" && \
+	(cd AvaMenuBar/.build && shasum -a 256 Ava.dmg) >> "$$tmp/checksums.new" && \
+	mv "$$tmp/checksums.new" "$$tmp/checksums.txt" && \
+	gh release upload "$$tag" AvaMenuBar/.build/Ava.dmg "$$tmp/checksums.txt" --clobber && \
+	rm -rf "$$tmp" && \
+	echo "✅ Attached Ava.dmg to $$tag"
+
 release-notes:
 	@awk '/^## /{n++} n==1' CHANGELOG.md | tail -n +2
 
