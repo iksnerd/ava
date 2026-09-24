@@ -11,8 +11,14 @@ everything Claude Code's Stop/Notification hooks speak through — speed,
 volume, voice, spoken-message length, and whether to summarize long
 messages with a local LLM instead of cutting them off mid-sentence.
 
+**Just want to use it?** Download `Ava.dmg` from the
+[latest release](https://github.com/iksnerd/ava/releases/latest) and follow
+[the menu bar app](../docs/getting-started.md#the-menu-bar-app) in the new-Mac
+guide. Its **Set up Ava** button installs everything else.
+
 Packaged via `scripts/build-app.sh` into a real `.app` (and a `.dmg`) that
-runs from any checkout, not just this one — see "Run it" below.
+runs from any checkout, not just this one — see "Run it" below. Releases
+attach the `.dmg` with `make release-dmg`.
 
 ## Run it
 

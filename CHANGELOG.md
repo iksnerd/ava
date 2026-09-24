@@ -5,6 +5,12 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Changed
+- The new-Mac guide's menu bar app section is a complete walkthrough for someone who has never
+  used Terminal: checking the Mac from About This Mac, installing Homebrew (the silent password
+  prompt, the wait, the lines it can skip), Open Anyway, finding the icon when the menu bar is
+  full, Set up Ava, and the two permission prompts.
+
 ### Fixed
 - `Ava.dmg` opened to a window holding only `Ava.app`, with no Applications shortcut to drag it
   onto. The shortcut is there now.

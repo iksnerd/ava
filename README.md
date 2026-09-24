@@ -42,11 +42,14 @@ page, and a check after every step are in
 
 ### The menu bar app, without Terminal
 
-Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), drag Ava into Applications and open it. It is not
-signed, so macOS first says it cannot verify it: open System Settings → Privacy
-& Security and click **Open Anyway**. Then click the waveform in the menu bar
-and **Set up Ava**. The one thing it still needs from Terminal is
-[Homebrew](https://brew.sh), which the app links to if it is missing.
+Install [Homebrew](https://brew.sh) first; it is the one step that needs
+Terminal. Then download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg),
+drag Ava into Applications and open it. It is not signed, so macOS first says it
+cannot verify it: open System Settings → Privacy & Security and click **Open
+Anyway**. Then click the waveform in the menu bar and **Set up Ava**.
+
+Every step, written for someone who has never used Terminal:
+[the menu bar app](docs/getting-started.md#the-menu-bar-app).
 
 ### From source
 

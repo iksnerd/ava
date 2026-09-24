@@ -431,9 +431,8 @@ struct SettingsView: View {
         }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: bin)
-        // No -engine flag: ava's own default (whisper) works on
-        // any Mac with zero extra setup, unlike voxtral (Apple Silicon +
-        // mlx-engine's 1.3GB venv + a 2.9GB model download).
+        // Plain `ava`: record, transcribe with whisper.cpp, paste. It needs
+        // sox, whisper-cli and the speech model, which Set up Ava installs.
         task.environment = VoicePaths.hardenedEnvironment
         do {
             try task.run()

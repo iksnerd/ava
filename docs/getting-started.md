@@ -104,24 +104,77 @@ That is the release install done. Optional:
 
 ## The menu bar app
 
-For someone who would rather not use Terminal. Do step 0 and step 1 (Homebrew) above first; the
-app installs everything else itself.
+For someone who would rather not use Terminal. Ava lives in the menu bar, and a **Set up Ava**
+button in it installs what it needs. Homebrew is the one thing to install by hand first. It means
+copying one line from a website into Terminal; section B walks through it.
 
-1. Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), open it, and drag Ava into Applications.
-2. Open Ava from Applications. macOS says it "could not verify Ava is free of malware", because
-   the app is not signed. Click **Done**, open System Settings → Privacy & Security, scroll down,
-   click **Open Anyway** next to the message about Ava, and confirm.
-3. A waveform appears in the menu bar. Click it, then **Set up Ava**. It downloads about 1.7 GB
-   and takes a few minutes; you can close the panel meanwhile.
+### A. Check the Mac
 
-Check: the Setup card goes away, and **Speak a Test Phrase** at the bottom of the panel plays a
-natural voice. Dictate asks for the Microphone and Accessibility permissions the first time
-(see step 5).
+Apple menu (top left) → **About This Mac**. **Chip** has to be an Apple M-series chip (M1 or later) and
+**macOS** 13 or later. On an Intel Mac, the menu bar app cannot speak with the natural voice.
+
+### B. Install Homebrew
+
+Skip this if Homebrew is already installed. The app checks, and links you back here if it isn't.
+
+1. Open **Terminal** (press ⌘-Space, type `Terminal`, press Return).
+2. Go to [brew.sh](https://brew.sh), copy the line under "Install Homebrew", paste it into
+   Terminal and press Return.
+3. When it asks for your password, type your Mac login password and press Return. **Nothing
+   appears as you type**; that is normal.
+4. It may say it needs the Command Line Tools and install them first. The whole thing can take 10
+   minutes or more. Wait until it prints **Installation successful!**
+5. It ends with "Next steps" and a few lines starting with `echo`. Ignore them: Ava does not need
+   them. You can close Terminal now.
+
+### C. Install Ava
+
+1. Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg) and open it from your Downloads folder.
+2. A window opens showing the Ava icon.
+   - If there is an **Applications** folder next to Ava in that window, drag Ava onto it.
+   - If Ava is alone in the window, click **Finder** in the Dock to open a second window. In the
+     list on its left, find **Applications**, and drag Ava from the first window onto it.
+3. Open **Applications** and double-click **Ava**. macOS says it "could not verify Ava is free of
+   malware", because the app is not signed. Click **Done**.
+4. Open System Settings → **Privacy & Security** and scroll down to Security. Next to the message
+   about Ava, click **Open Anyway**. A box pops up asking you to confirm: click **Open Anyway** in
+   it too, and enter your password or use Touch ID. Ava then opens by itself (if it does not,
+   double-click it in Applications again). You only do this once.
+
+### D. Set it up
+
+1. Once Ava is open, a waveform icon appears in the menu bar at the top right. Ava has no window
+   of its own; everything happens from that icon. If you cannot see it, the menu bar
+   may be too full: on a MacBook with a notch, icons that do not fit are hidden behind it. Quit an
+   app you do not need in the menu bar, or hold ⌘ and drag other icons out of the way.
+2. Click the waveform. A **Setup** card at the top says what is missing. Click **Set up Ava**. It
+   downloads about 1.7 GB and takes a few minutes; you can close the panel meanwhile.
+3. If the card says Homebrew is missing, go back to B, then click **Try again**. If it says setup
+   stopped for another reason, click **Try again** once. If it stops again, copy the message it
+   shows and send it to whoever pointed you to Ava, or post it as an
+   [issue](https://github.com/iksnerd/ava/issues).
+
+Check: the Setup card goes away. Click **Speak a Test Phrase** at the bottom of the panel: a
+natural voice speaks. The first time takes a few seconds while the voice engine starts.
+
+### E. Dictate
+
+1. Click in the app you want to type into, where the text should go.
+2. Click the waveform, then **Dictate**. The panel closes and Ava starts listening; nothing shows
+   on screen while it does.
+3. Say a sentence, then stay quiet for 2 seconds. A short pop sound means it has finished, and
+   the text is pasted where you clicked.
+
+- The first time, macOS asks whether **Ava** may use the **Microphone**. Click **Allow**.
+- Pasting needs **Accessibility**. If macOS says Ava wants to control your computer, open System
+  Settings → Privacy & Security → **Accessibility** and turn **Ava** on. Then dictate again.
+
+Check: the sentence appears where your cursor was.
 
 ## Full install from source
 
-Needed for the menu bar app, the Claude Code voice hooks and live call transcripts. Do step 0 and
-step 1 above first.
+Needed for the Claude Code voice hooks and live call transcripts, or to build the menu bar app
+yourself. Do step 0 and step 1 above first.
 
 ```bash
 xcode-select --install          # git and Swift; skip if already installed
