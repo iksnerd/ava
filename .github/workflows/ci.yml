@@ -23,7 +23,10 @@ jobs:
   # no cgo, no build tags, no *_darwin.go. Running it on Linux keeps that true —
   # every test stubs its subprocesses through testdata/bin or httptest.
   go:
-    runs-on: ubuntu-latest
+    # Pinned, not -latest: a -latest label moves to a new OS on GitHub's
+    # schedule (ubuntu-latest to 26 from 2026-10-19), and with CI only on tags
+    # the first run on it would be a release. Bump these deliberately.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -57,7 +60,7 @@ jobs:
   # building the app needs no toolchain setup — only *running* it would need a
   # TCC grant, which a headless runner cannot give.
   macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -99,7 +102,7 @@ jobs:
   release:
     needs: [go, macos]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
