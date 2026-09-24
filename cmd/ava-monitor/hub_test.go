@@ -102,8 +102,8 @@ func TestHubUnsubscribeClosesChannel(t *testing.T) {
 
 func TestHubSlowSubscriberDoesNotBlockBroadcast(t *testing.T) {
 	h := newHub()
-	// A subscriber that never reads its channel: broadcast must drop
-	// updates for it rather than block, once its buffer (cap 16) fills.
+	// A subscriber that never reads its channel: broadcast must disconnect
+	// it rather than block, once its buffer (cap 16) fills.
 	_ = h.subscribe()
 
 	done := make(chan struct{})
@@ -149,4 +149,35 @@ func TestHubConcurrentAccess(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// A subscriber whose buffer filled used to have updates silently dropped: the
+// tab stayed "connected" with holes in its transcript, and Copy and Save took
+// the holes with them. Closing its channel ends the SSE response instead, so
+// the browser reconnects and gets a whole snapshot.
+func TestHubDisconnectsASubscriberThatFallsBehind(t *testing.T) {
+	h := newHub()
+	ch := h.subscribe()
+
+	for range 100 {
+		h.broadcast("x")
+	}
+
+	closed := false
+drain:
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				closed = true
+				break drain
+			}
+		default:
+			break drain
+		}
+	}
+	if !closed {
+		t.Fatal("a subscriber that fell behind was kept connected with updates missing")
+	}
+	h.unsubscribe(ch) // the SSE handler still defers this; it must not panic
 }

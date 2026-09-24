@@ -45,11 +45,19 @@ func (h *hub) subscribeWithSnapshot() (string, chan []byte) {
 	return string(h.history), ch
 }
 
+// unsubscribe is safe to call after broadcast has already dropped ch.
 func (h *hub) unsubscribe(ch chan []byte) {
 	h.mu.Lock()
-	delete(h.clients, ch)
-	h.mu.Unlock()
-	close(ch)
+	defer h.mu.Unlock()
+	h.drop(ch)
+}
+
+// drop removes and closes ch if it is still subscribed. Callers hold h.mu.
+func (h *hub) drop(ch chan []byte) {
+	if h.clients[ch] {
+		delete(h.clients, ch)
+		close(ch)
+	}
 }
 
 func (h *hub) broadcast(text string) {
@@ -73,7 +81,11 @@ func (h *hub) broadcast(text string) {
 		select {
 		case ch <- payload:
 		default:
-			// Slow client - drop this update rather than block the pipeline.
+			// A slow client is disconnected rather than blocking the
+			// pipeline. Skipping just this update left its tab "connected"
+			// with a hole in the transcript; closing the channel ends its SSE
+			// response, and the browser reconnects to a whole snapshot.
+			h.drop(ch)
 		}
 	}
 	h.mu.Unlock()

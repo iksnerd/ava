@@ -9,6 +9,9 @@ entry is a summary rather than a record kept as it happened.
 - `ava-monitor` kept serving after `realtime.py` crashed, so the page read "connected" over a
   transcript that had stopped. It now exits with the transcriber's exit status, and the page
   turns red.
+- A browser tab too slow to keep up had transcript updates silently dropped and stayed
+  "connected" with gaps, and Copy and Save kept the gaps. The server now disconnects it, and
+  the reconnect replaces the page with the full transcript.
 
 ## [0.6.2] — 2026-09-23
 
