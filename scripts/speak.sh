@@ -41,37 +41,12 @@ fi
 
 # Multiple Claude Code sessions can call this at once. The server already
 # serializes /speak generation (single-worker, synchronous), but playback
-# doesn't unless we lock it too — so wrap afplay/say in a cross-process
-# mutex (fcntl advisory lock) so sessions queue instead of talking over each
-# other. A hard timeout on the *held* command keeps one wedged player from
-# permanently blocking every other session's audio. Runs the player as its
-# own tracked subprocess (rather than exec'ing bash's own PID over cmd) so
-# stop-speaking.sh has a real PID to kill instead of only the lock-holding
-# python wrapper.
+# doesn't unless we lock it too — so play_locked.py wraps afplay in the same
+# flock the Go speaker takes, and follows the same stop protocol (see its
+# docstring).
 play_locked() {
-    python3 -c "
-import fcntl, subprocess, sys, os
-lock_path, timeout, pidfile, cmd = sys.argv[1], float(sys.argv[2]), sys.argv[3], sys.argv[4:]
-# Written *before* acquiring the lock too (as this process's own pid), so a
-# speak still queued behind another one's playback can still be killed by
-# stop-speaking.sh instead of only ones already actually playing.
-with open(pidfile, 'w') as pf:
-    pf.write(str(os.getpid()))
-with open(lock_path, 'w') as f:
-    fcntl.flock(f, fcntl.LOCK_EX)
-    proc = subprocess.Popen(cmd)
-    with open(pidfile, 'w') as pf:
-        pf.write(str(proc.pid))
-    try:
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-    finally:
-        try:
-            os.remove(pidfile)
-        except OSError:
-            pass
-" "$PLAYBACK_LOCK" "$PLAYBACK_TIMEOUT_SEC" "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "$@"
+    python3 "$SCRIPT_DIR/play_locked.py" "$PLAYBACK_LOCK" "$PLAYBACK_TIMEOUT_SEC" \
+        "${ACTIVITY_MARKER}$PLAY_PID_SUFFIX" "${ACTIVITY_MARKER}$STOPPED_SUFFIX" "$@"
 }
 
 # Runs $1 (a synthesis command already backgrounded by the caller via `&`)
