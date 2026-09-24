@@ -174,9 +174,8 @@ app. Two engines underneath: whisper.cpp as a subprocess per transcription,
 Kokoro on a local server that idles down after 15 minutes and restarts in a
 couple of seconds.
 
-The hooks deliberately don't go through the Go binary; they're bash talking to
-`scripts/speak.sh`, so spoken notifications work on a machine where
-`ava` was never installed. One JSON config file has three independent
+The hooks call `scripts/speak.sh`, which hands off to `ava speak`, so there is
+one speak implementation and the hooks need a built or installed `ava`. One JSON config file has three independent
 readers — Go, bash and Swift — held to identical answers by a contract test.
 
 Diagram and the reasoning behind each of those choices:

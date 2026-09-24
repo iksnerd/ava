@@ -21,7 +21,7 @@ flowchart TB
         a11y["internal/a11y<br/>AX tree to announcements"]
     end
 
-    speaksh["scripts/speak.sh<br/>same protocol, in bash"]
+    speaksh["scripts/speak.sh<br/>mute check, then ava speak"]
     cfg[("config.json<br/>mute, voice, speed")]
 
     subgraph engines["ON-DEVICE ENGINES"]
@@ -67,19 +67,22 @@ than whisper.cpp, speaks nothing, and serves its transcript on
 `127.0.0.1:8766`. See [`ava-monitor.md`](ava-monitor.md) and
 [`voxtral-architecture.mmd`](voxtral-architecture.mmd).
 
-## Why the hooks bypass the Go binary
+## Why the hooks speak through the Go binary
 
-The Claude Code hooks are plain bash talking to `scripts/speak.sh`, not to
-`ava`. That is deliberate: speech still works on a machine where the
-Go binary was never installed, which is the common case for someone who cloned
-the repo to get spoken notifications and nothing else.
+The Claude Code hooks and the menu bar app call `scripts/speak.sh`, which checks
+the mute and hands off to `ava speak --async`. It used to synthesize and play
+by itself, so that speech worked without a built binary, at the cost of a
+second implementation of the player and its stop handling. A stop race fixed in
+the Go player survived in the bash one; with one implementation, that class of
+bug has nowhere to hide. The hooks now need `ava` built (`make build`) or
+installed, and `speak.sh` fails with a message saying so when it is missing.
 
 ## Why one config file has three readers
 
 `~/Library/Application Support/ava/config.json` is parsed independently by Go
-(`internal/voiceconfig`), bash (`scripts/lib.sh`) and Swift
-(`VoiceSettings.swift`) — because each of those runs in a context where the
-others are unavailable. They must agree, including on malformed input, so
+(`internal/voiceconfig`), bash (`scripts/lib.sh`, for the hooks' mute and the
+engine auto-start only) and Swift (`VoiceSettings.swift`) — because each of
+those runs in a context where the others are unavailable. They must agree, including on malformed input, so
 `internal/voiceconfig/contract_test.go` runs the bash and Go readers against
 shared cases in `testdata/voice-config-cases.json`, and `make
 check-swift-config` is the Swift arm.
@@ -90,8 +93,9 @@ the app — in the one component nothing could test at the time.
 ## Why speech is a cross-process protocol
 
 A global mute, an activity marker at `/tmp/ava-tts-active`, and an exclusive
-`flock(2)` on `/tmp/ava-tts-playback.lock` are shared by the Go binary,
-`speak.sh`, the menu bar app and the hooks. Two of them speaking over each other
+`flock(2)` on `/tmp/ava-tts-playback.lock` are shared by every `ava` process
+that speaks (the CLI, the MCP server, the hooks and the menu bar through
+`speak.sh`), the menu bar's indicator and every stop path. Two of them speaking over each other
 is the failure this prevents. `internal/speaker`'s package comment has the
 details.
 
@@ -174,7 +178,7 @@ throwaway path instead of the real one; nothing in normal operation sets those.
 
 | Variable | Read by | Does |
 |---|---|---|
-| `TTS_SPEED`, `TTS_VOLUME`, `TTS_SAY_RATE` | `scripts/speak.sh`, `internal/voiceconfig` | Override the configured speed, volume and `say` rate for one run. See [the hooks doc](claude-code-voice-hooks.md#settings) |
+| `TTS_SPEED`, `TTS_VOLUME`, `TTS_SAY_RATE` | `internal/voiceconfig` (so `speak.sh` too, through `ava speak`) | Override the configured speed, volume and `say` rate for one run. See [the hooks doc](claude-code-voice-hooks.md#settings) |
 | `TTS_NOTIFY_MAX_CHARS`, `TTS_STOP_MAX_CHARS` | `scripts/hook-notify.sh`, `scripts/hook-stop.sh` | Override the spoken-length caps |
 | `MLX_ENGINE_SCRIPT` | `internal/speaker` | Control script that `speak`'s implicit auto-start runs. See [the CLI reference](cli.md#engine-server) |
 | `AVA_ENGINE_DIR` | `internal/enginedist` | Where `ava setup` installs the engine bundle, and where auto-start looks for it |
@@ -183,7 +187,8 @@ throwaway path instead of the real one; nothing in normal operation sets those.
 | `VOICECONFIG_PATH` | `internal/voiceconfig` | Test hook: the config file the Go reader loads |
 | `VOICE_CONFIG_FILE`, `VOICE_DEFAULTS_FILE` | `scripts/lib.sh` | Test hook: the config and defaults files the bash reader loads, so the contract test can hand both readers the same fixture |
 | `AVA_ENGINE_PID_FILE`, `AVA_ENGINE_LOG`, `AVA_ENGINE_LOCKDIR`, `AVA_ENGINE_URL` | `scripts/mlx-engine-server.sh` | Test hook: throwaway pid file, log, start lock and URL, so the engine-script tests in `cmd/ava/engine_script_test.go` never touch the real engine |
-| `TTSCONTROL_ACTIVITY_DIR` | `internal/ttsproto` | Test hook: the speech activity-marker directory. Only the Go side honours it; `speak.sh`, the menu bar app and mlx-engine always use `/tmp/ava-tts-active` |
+| `TTSCONTROL_ACTIVITY_DIR` | `internal/ttsproto`, `scripts/stop-speaking.sh` | Test hook: the speech activity-marker directory. The menu bar app and mlx-engine always use `/tmp/ava-tts-active` |
+| `AVA_PLAYBACK_LOCK` | `internal/ttsproto` | Test hook: the playback lock, so a test that really plays does not queue behind speech on the machine |
 
 The test suites also set a few variables (`AFPLAY_LOG`, `SOX_LOG`,
 `WHISPER_LOG` and similar) that only their stub binaries read.

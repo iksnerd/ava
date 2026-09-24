@@ -14,7 +14,7 @@
   },
   "playback_lock": {
     "value": "/tmp/ava-tts-playback.lock",
-    "doc": "Exclusive flock(2) held for the duration of playback, so a Go speak and a speak.sh speak queue instead of talking over each other. Two paths would be two locks, and both would play at once."
+    "doc": "Exclusive flock(2) held for the duration of playback, so concurrent speaks (the MCP server, hooks, the menu bar) queue instead of talking over each other. Two paths would be two locks, and both would play at once."
   },
   "playback_lock_env": {
     "value": "AVA_PLAYBACK_LOCK",
@@ -30,7 +30,7 @@
   },
   "stopped_suffix": {
     "value": ".stopped",
-    "doc": "Sidecar telling speak.sh a stop was deliberate, so it does not treat the cancellation as a failure and fall back to `say`."
+    "doc": "Sidecar telling a speak a stop was deliberate, so it neither plays nor treats the cancellation as a failure and falls back to `say`."
   },
   "engine_url": {
     "value": "http://127.0.0.1:8765",

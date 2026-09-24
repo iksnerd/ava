@@ -5,6 +5,14 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Changed
+- **`scripts/speak.sh` now speaks through `ava speak`.** It checks the mute and hands off to
+  `ava speak --async`, instead of carrying its own synthesis, `say` fallback and player: a stop
+  fix made to the Go player had missed the bash copy. The hooks and the menu bar's Test and Read
+  Aloud therefore need `ava` built (`make build`) or installed; without it `speak.sh` exits
+  non-zero and says how to get one. `scripts/play_locked.py`, added earlier in this release, is
+  gone with it.
+
 ### Fixed
 - `ava-monitor` kept serving after `realtime.py` crashed, so the page read "connected" over a
   transcript that had stopped. It now exits with the transcriber's exit status, and the page
@@ -18,12 +26,11 @@ entry is a summary rather than a record kept as it happened.
   the speech played in full. The speak now checks for the stop on both sides of starting the
   player.
 - `speak.sh` (the hooks and the menu bar) had the same stop race, and a stop landing just after
-  afplay started killed only its wrapper and left afplay playing. Its player is now
-  `scripts/play_locked.py`, with the same stop checks as the Go one; a contract test runs both.
+  afplay started killed only its wrapper and left afplay playing. It now uses the Go player.
 - A monitor tab opened before the model was ready kept saying "Waiting for the session to
   start…". The session is now sent to tabs already connected when it arrives.
-- Every `speak.sh` speak left an empty file in the per-user temp folder. Each speak now gets its
-  own temp directory, removed on exit, under `$TMPDIR`.
+- Every `speak.sh` speak left an empty file in the per-user temp folder. `speak.sh` no longer
+  writes audio files of its own.
 
 ## [0.6.2] — 2026-09-23
 

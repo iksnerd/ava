@@ -79,7 +79,7 @@ internal/voiceconfig/           - the live Ava settings (mute, speed, volume, vo
                                   and Go against testdata/voice-config-cases.json and fails if the
                                   two readers of this config disagree; `make check-swift-config`
                                   is the Swift arm (needs swiftc, so not in `make test`)
-internal/speaker/               - synthesis + playback, joining scripts/speak.sh's protocol
+internal/speaker/               - synthesis + playback; scripts/speak.sh hands off to it
                                   (mute gate, activity marker, shared flock, `say` fallback)
 internal/ttscontrol/            - cancels speech in flight (Go port of stop-speaking.sh)
 internal/a11y/                  - accessibility tree -> screen-reader announcements + findings.

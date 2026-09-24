@@ -82,8 +82,9 @@ silently unmuting the app, in the component that had no test.
 
 **Speech is a cross-process protocol, not a function call.** A global mute, an
 activity marker in `/tmp/ava-tts-active`, and an exclusive `flock(2)` on
-`/tmp/ava-tts-playback.lock` are shared by the Go binary, `scripts/speak.sh`,
-the menu bar app and the Claude Code hooks. Two of them speaking at once is the
+`/tmp/ava-tts-playback.lock` are shared by every `ava` process that speaks
+(the CLI, the MCP server, and `scripts/speak.sh` for the hooks and the menu
+bar app) and by `scripts/stop-speaking.sh`. Two of them speaking at once is the
 failure this prevents. `internal/speaker`'s package comment documents the
 contract.
 

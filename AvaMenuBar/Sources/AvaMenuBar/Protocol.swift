@@ -28,9 +28,10 @@ enum AvaProtocol {
     // Sidecar naming the playing process, for a stop to signal.
     static let playPIDSuffix = ".play.pid"
 
-    // Exclusive flock(2) held for the duration of playback, so a Go speak and
-    // a speak.sh speak queue instead of talking over each other. Two paths
-    // would be two locks, and both would play at once.
+    // Exclusive flock(2) held for the duration of playback, so concurrent
+    // speaks (the MCP server, hooks, the menu bar) queue instead of talking
+    // over each other. Two paths would be two locks, and both would play at
+    // once.
     static let playbackLock = "/tmp/ava-tts-playback.lock"
 
     // Overrides playback_lock, for the same reason activity_dir_env exists: a
@@ -39,8 +40,8 @@ enum AvaProtocol {
     // both or neither, or an isolated test is only half isolated.
     static let playbackLockEnv = "AVA_PLAYBACK_LOCK"
 
-    // Sidecar telling speak.sh a stop was deliberate, so it does not treat
-    // the cancellation as a failure and fall back to `say`.
+    // Sidecar telling a speak a stop was deliberate, so it neither plays nor
+    // treats the cancellation as a failure and falls back to `say`.
     static let stoppedSuffix = ".stopped"
 
     // Sidecar naming the synthesizing process, for a stop to signal.

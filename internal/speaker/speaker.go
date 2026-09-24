@@ -1,9 +1,10 @@
 // Package speaker speaks text through the local Kokoro TTS server, falling
 // back to macOS's `say` when that server isn't available.
 //
-// It is the Go half of scripts/speak.sh, and deliberately *joins* that
-// script's protocol rather than replacing it, so a hook speaking and an MCP
-// client speaking are the same kind of event to everything watching:
+// It is the one speak implementation: `ava speak`, the MCP server, and
+// scripts/speak.sh (the hooks and the menu bar app), which hands off to
+// `ava speak`. It used to be one of two, and a stop fix made here missed
+// the bash copy. Everything watching speech sees the same protocol:
 //
 //   - the global mute in ~/Library/Application Support/ava/config.json
 //     is checked before anything is synthesized (internal/voiceconfig);
@@ -12,23 +13,17 @@
 //     polls for its speaking indicator and internal/ttscontrol looks for when
 //     cancelling;
 //   - playback holds an exclusive flock(2) on /tmp/ava-tts-playback.lock,
-//     the same lock speak.sh takes via Python's fcntl.flock — which is
-//     flock(2) too, so the two genuinely queue behind each other instead of
-//     talking over one another.
+//     so concurrent speaks from several processes queue instead of talking
+//     over one another.
 //
-// One deliberate difference from speak.sh: no .synth.pid sidecar is written.
-// There, synthesis is a curl subprocess that StopSpeaking() can signal; here
-// it's an in-process HTTP call, and naming our own PID would have a stop
-// kill the whole server. Cancellation mid-synthesis is instead observed
-// through the .stopped sidecar after the request returns.
+// No .synth.pid sidecar is written: synthesis is an in-process HTTP call,
+// and naming our own PID would have a stop kill the whole server.
+// Cancellation mid-synthesis is instead observed through the .stopped
+// sidecar after the request returns.
 //
 // The protocol's constants are not spelled here: they live in
-// internal/ttsproto, which both this package and internal/ttscontrol read,
-// and which carries the test pinning them to scripts/speak.sh. That pin is
-// the standing constraint, replacing the hand-sync note this comment used to
-// carry — ava is usually installed standalone to ~/.local/bin and
-// can't assume the repo's scripts/ directory is on disk, so the bash copy
-// cannot simply be imported.
+// internal/ttsproto, generated from internal/protocol/protocol.json with the
+// bash and Swift copies that scripts/stop-speaking.sh and the menu bar read.
 package speaker
 
 import (
@@ -49,7 +44,7 @@ import (
 	"github.com/iksnerd/ava/pkg/mlx"
 )
 
-// playbackTimeout matches speak.sh's PLAYBACK_TIMEOUT_SEC: long enough for a
+// playbackTimeout is long enough for a
 // whole article read aloud in one go, short enough that one wedged player
 // can't block every other session's audio forever.
 const playbackTimeout = 600 * time.Second
@@ -73,8 +68,7 @@ type Options struct {
 	Voice string
 	// Speed is Kokoro's multiplier; 0 means "use the configured speed".
 	Speed float64
-	// Async returns as soon as the work is handed off, the way speak.sh
-	// behaves for hooks. Errors then go to stderr, since there's no caller
+	// Async returns as soon as the work is handed off, as a hook needs. Errors then go to stderr, since there's no caller
 	// left to return them to.
 	Async bool
 }
@@ -194,8 +188,7 @@ func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Set
 
 // speakWithSay is the always-available fallback. `say` has no volume flag,
 // so render to a file and play it through afplay too — that keeps the
-// volume slider meaningful even with the server down, exactly as
-// speak.sh's speak_with_say_fallback does.
+// volume slider meaningful even with the server down.
 func (s *Speaker) speakWithSay(text string, settings voiceconfig.Settings, marker string) error {
 	out, err := os.CreateTemp("", "ava-tts-say-*.aiff")
 	if err != nil {
@@ -234,7 +227,7 @@ func (s *Speaker) playTemp(audio []byte, pattern string, volume float64, marker 
 // markActive creates this speak's marker file. The name only has to be
 // unique — ttscontrol treats any non-sidecar file in the directory as a
 // marker — so it carries a timestamp as well as the PID, since one process
-// can have several speaks in flight where speak.sh had one subshell each.
+// can have several speaks in flight at once (the MCP server).
 func (s *Speaker) markActive() (string, error) {
 	if err := os.MkdirAll(s.ActivityDir, 0755); err != nil {
 		return "", fmt.Errorf("create activity dir: %w", err)

@@ -18,6 +18,10 @@ import (
 // package reads it in Go for the CLI and the MCP server, and
 // AvaMenuBar/VoiceSettings.swift reads it in Swift for the UI.
 //
+// Bash reads only bashKeys. It resolved the speech settings too until
+// speak.sh became a hand-off to `ava speak`, and a reader that no longer
+// exists has nothing to agree with.
+//
 // Pinning the default *values* (TestDefaultsMatchVoiceDefaultsJSON) is not
 // enough: what actually diverges is the resolution *logic* — what each
 // reader does with a key that's missing, wrongly typed, or in a file that
@@ -41,7 +45,7 @@ type contractCase struct {
 // keyKind decides how a resolved value is compared, and which of bash's
 // accessors is the right one to call. Each kind must name the accessor the
 // real call sites use: raw config_get returns whatever is in the file, while
-// config_get_bool/_int/_float coerce. Testing an accessor no caller uses
+// config_get_bool/_int coerce. Testing an accessor no caller uses
 // proves nothing.
 var keyKind = map[string]string{
 	"muted":           "bool",
@@ -144,29 +148,23 @@ func goResolved(t *testing.T, configPath, key string) string {
 	return ""
 }
 
+// bashKeys are the keys scripts/lib.sh reads: the mute every hook checks
+// and the engine auto-start mlx-engine-server.sh honours.
+var bashKeys = map[string]bool{"muted": true, "engineAutoStart": true}
+
 // bashResolved calls the accessor scripts/lib.sh actually offers for this
 // key, with the same last-resort default its real call sites pass.
 func bashResolved(t *testing.T, configPath, key, lastResort string) string {
 	t.Helper()
 
-	// The keys speak.sh uses go through the function it actually calls, so
-	// the contract covers what speaks rather than a parallel accessor.
-	speakVars := map[string]string{"speed": "SPEED", "volume": "VOLUME", "sayRate": "SAY_RATE", "voice": "VOICE"}
-
 	var call string
-	if v, ok := speakVars[key]; ok {
-		call = `resolve_speak_settings; echo "$` + v + `"`
-	} else {
-		switch keyKind[key] {
-		case "bool":
-			call = fmt.Sprintf("config_get_bool %s %s", key, lastResort)
-		case "int":
-			call = fmt.Sprintf("config_get_int %s %s", key, lastResort)
-		case "float":
-			call = fmt.Sprintf("config_get_float %s %s", key, lastResort)
-		default:
-			call = fmt.Sprintf("config_get %s", key)
-		}
+	switch keyKind[key] {
+	case "bool":
+		call = fmt.Sprintf("config_get_bool %s %s", key, lastResort)
+	case "int":
+		call = fmt.Sprintf("config_get_int %s %s", key, lastResort)
+	default:
+		call = fmt.Sprintf("config_get %s", key)
 	}
 
 	libPath, err := filepath.Abs(filepath.Join("..", "..", "scripts", "lib.sh"))
@@ -235,6 +233,9 @@ func TestBashAndGoAgree(t *testing.T) {
 			configPath := writeCaseConfig(t, c)
 
 			for key, want := range c.Expect {
+				if !bashKeys[key] {
+					continue
+				}
 				if want == "default" {
 					want = defaults[key]
 				}

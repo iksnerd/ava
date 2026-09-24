@@ -1,5 +1,5 @@
 #!/bin/bash
-# Immediately cancels any speech currently in flight from speak.sh — both
+# Immediately cancels any speech currently in flight — both
 # audio already playing and synthesis still being generated — instead of
 # waiting for it to finish naturally. Used by the menu bar app's "Stop
 # Speaking" button.
@@ -17,8 +17,8 @@ for marker in "$ACTIVITY_DIR"/*; do
     esac
     [ -f "$marker" ] || continue
 
-    # Tells speak.sh's own wait_synth that this was a deliberate stop, not a
-    # failure, so it doesn't fall back to the next TTS option (e.g. `say`).
+    # Tells the speak this was a deliberate stop, not a failure, so it
+    # neither plays nor falls back to the next TTS option (e.g. `say`).
     touch "${marker}$STOPPED_SUFFIX" 2>/dev/null
 
     for pidfile in "${marker}$SYNTH_PID_SUFFIX" "${marker}$PLAY_PID_SUFFIX"; do

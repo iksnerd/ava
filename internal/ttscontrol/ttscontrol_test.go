@@ -57,9 +57,9 @@ func TestStopIgnoresBareSidecarFiles(t *testing.T) {
 	}
 }
 
-// TestStopKillsTrackedProcesses simulates an in-flight speak.sh: a marker
+// TestStopKillsTrackedProcesses simulates an in-flight speak: a marker
 // file plus .synth.pid/.play.pid sidecars naming real (sleeping) processes,
-// the same shape speak.sh's play_locked/wait_synth write. stop() should
+// the shape the protocol defines. stop() should
 // signal both and wait for the marker directory to empty out.
 func TestStopKillsTrackedProcesses(t *testing.T) {
 	dir := t.TempDir()

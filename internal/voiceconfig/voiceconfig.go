@@ -1,5 +1,5 @@
 // Package voiceconfig reads the Ava settings that the menu bar app
-// writes and scripts/speak.sh reads — global mute, TTS speed/volume/voice,
+// writes — global mute, TTS speed/volume/voice,
 // the `say` fallback rate, and whether the mlx-engine may auto-start.
 //
 // This is a Go port of scripts/lib.sh's config_get/config_get_bool helpers,

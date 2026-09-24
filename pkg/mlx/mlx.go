@@ -94,8 +94,8 @@ func (c *Client) Speak(opts SpeakOptions) ([]byte, error) {
 	return audio, nil
 }
 
-// healthTimeout matches the 2s curl timeout scripts/speak.sh uses to decide
-// whether to talk to the server or fall back to `say`. /health deliberately
+// healthTimeout bounds the check that decides whether to talk to the server
+// or fall back to `say`. /health deliberately
 // doesn't load models or reset the server's idle timer, so polling it is
 // cheap and won't keep an idle engine pinned open.
 const healthTimeout = 2 * time.Second

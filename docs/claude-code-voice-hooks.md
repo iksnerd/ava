@@ -9,6 +9,10 @@ without watching the terminal.
 
 ## Setup
 
+The hooks speak through `ava speak`, so build it first (`make build`, found
+as the checkout's `bin/ava`) or install a release (`ava` on PATH or in
+`~/.local/bin`). Without one, `speak.sh` exits non-zero and says so.
+
 Add to `~/.claude/settings.json` (global, not per-project — hooks fire for
 every Claude Code session):
 
@@ -36,8 +40,8 @@ regardless of how long the actual speech takes.
 
 | Script | Role |
 |---|---|
-| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`config_get_float`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`), `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release` (generic PID-file + mkdir-lock helpers used by `mlx-engine-server.sh`) |
-| `speak.sh` | The actual "say this" entry point — starts the server on demand, calls `/speak`, plays via `afplay` with a cross-process lock so concurrent sessions queue instead of talking over each other, falls back to macOS `say` if the server's unreachable |
+| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`), `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release` (generic PID-file + mkdir-lock helpers used by `mlx-engine-server.sh`) |
+| `speak.sh` | The "say this" entry point: checks the mute, then hands off to `ava speak --async`, which starts the server on demand, plays under the cross-process lock so concurrent sessions queue, and falls back to macOS `say` if the server's unreachable |
 | `hook-notify.sh` | Speaks the Notification hook's `message` field verbatim (truncated per `notifyMaxChars`) |
 | `hook-stop.sh` | Extracts Claude's last message from the transcript, then speaks it — see below for the length/summary logic |
 | `voice_hooks/` | `uv`-managed Python package (flat scripts, no nested package — same pattern as `../voxtral/`): markdown stripping, `pysbd`-based sentence-boundary truncation, and Ollama summarization (`httpx`). `hook-stop.sh`/`hook-notify.sh` each shell out to it exactly once per firing via `lib.sh`'s `voice_hooks_run`. First-time setup: `make setup-voice-hooks`. |

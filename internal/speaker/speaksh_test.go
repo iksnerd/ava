@@ -4,86 +4,162 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/iksnerd/ava/internal/protocol"
 	"github.com/iksnerd/ava/internal/testutil"
 )
 
-var speakScript = filepath.Join("..", "..", "scripts", "speak.sh")
+// speak.sh (the Claude Code hooks, the menu bar's Test and Read Aloud) hands
+// every speak to `ava speak`. It used to carry a second implementation of
+// synthesis, the `say` fallback and the stop-aware player, and a stop fix
+// applied to the Go one missed the bash one. Now there is one.
 
-// runSpeakSh runs scripts/speak.sh against stub curl, say and afplay, with
-// every shared path (activity dir, playback lock, config, $TMPDIR) isolated,
-// and waits for its backgrounded speak to finish. engineUp picks whether the
-// stub server answers, and so whether the WAV or the `say` path runs.
-func runSpeakSh(t *testing.T, engineUp bool) (tmp, audio string) {
+// Where a stub ava goes in the layout: a checkout's `make build` output, or
+// beside scripts/ in the menu bar app's Resources, as build-app.sh bundles it.
+const (
+	noAva       = ""
+	checkoutAva = "bin/ava"
+	bundledAva  = "ava"
+)
+
+// speakShLayout copies scripts/*.sh into a throwaway checkout, so the real
+// bin/ava a developer has built cannot stand in for the stub. ava names where
+// to put a stub `ava` that records its arguments.
+func speakShLayout(t *testing.T, ava string, muted bool) (script, argvFile string) {
 	t.Helper()
-	bin, tmp, work := t.TempDir(), t.TempDir(), t.TempDir()
-	played := filepath.Join(work, "played")
-	audioPath := filepath.Join(work, "audio-path")
-	health := "exit 7"
-	if engineUp {
-		health = "exit 0"
+	root := t.TempDir()
+	if ava == bundledAva {
+		root = filepath.Join(root, "Ava.app", "Contents", "Resources")
 	}
-	stubs := map[string]string{
-		// -o names the output file; /health has no -o.
-		"curl": `out=""; url=""
-while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; http*) url="$1" ;; esac; shift; done
-case "$url" in */health) ` + health + ` ;; esac
-[ -n "$out" ] && echo wav > "$out" && echo "$out" > ` + audioPath + `; exit 0`,
-		"say":    `while [ $# -gt 0 ]; do [ "$1" = -o ] && echo aiff > "$2" && echo "$2" > ` + audioPath + `; shift; done`,
-		"afplay": `touch ` + played,
+	scripts := filepath.Join(root, "scripts")
+	if err := os.MkdirAll(scripts, 0755); err != nil {
+		t.Fatal(err)
 	}
-	for name, body := range stubs {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0755); err != nil {
+	sources, _ := filepath.Glob(filepath.Join("..", "..", "scripts", "*.sh"))
+	sources = append(sources, filepath.Join("..", "..", "scripts", "voice-defaults.json"))
+	for _, src := range sources {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(scripts, filepath.Base(src)), data, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	testutil.PrependPath(t, bin)
-	config := filepath.Join(work, "config.json")
-	if err := os.WriteFile(config, []byte(`{"engineAutoStart": false}`), 0644); err != nil {
+
+	argvFile = filepath.Join(t.TempDir(), "argv")
+	if ava != noAva {
+		path := filepath.Join(root, ava)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		stub := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > " + argvFile + "\n"
+		if err := os.WriteFile(path, []byte(stub), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	config := filepath.Join(t.TempDir(), "config.json")
+	body := `{"muted": false}`
+	if muted {
+		body = `{"muted": true}`
+	}
+	if err := os.WriteFile(config, []byte(body), 0644); err != nil {
 		t.Fatal(err)
 	}
-	activity := filepath.Join(work, "active")
-	t.Setenv("TMPDIR", tmp)
 	t.Setenv("VOICE_CONFIG_FILE", config)
-	t.Setenv(protocol.ActivityDirEnv, activity)
-	t.Setenv(protocol.PlaybackLockEnv, filepath.Join(work, "playback.lock"))
+	// No real ava on PATH or in ~/.local/bin either.
+	testutil.SetPath(t, "/usr/bin", "/bin")
+	t.Setenv("HOME", t.TempDir())
+	return filepath.Join(scripts, "speak.sh"), argvFile
+}
 
-	if out, err := exec.Command("bash", speakScript, "hello").CombinedOutput(); err != nil {
+func runSpeak(t *testing.T, script string, args ...string) (string, error) {
+	t.Helper()
+	out, err := exec.Command("bash", append([]string{script}, args...)...).CombinedOutput()
+	return string(out), err
+}
+
+func handedOff(t *testing.T, argvFile string) []string {
+	t.Helper()
+	data, err := os.ReadFile(argvFile)
+	if err != nil {
+		t.Fatalf("speak.sh never called ava: %v", err)
+	}
+	return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+}
+
+func TestSpeakShHandsOffToAvaSpeak(t *testing.T) {
+	script, argv := speakShLayout(t, checkoutAva, false)
+	if out, err := runSpeak(t, script, "build finished", "bf_emma"); err != nil {
 		t.Fatalf("speak.sh: %v\n%s", err, out)
 	}
-	// speak.sh returns at once and speaks in the background: done once the
-	// player has run and the activity marker is gone.
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(20 * time.Millisecond) {
-		entries, _ := os.ReadDir(activity)
-		if _, err := os.Stat(played); err == nil && len(entries) == 0 {
-			data, _ := os.ReadFile(audioPath)
-			return tmp, strings.TrimSpace(string(data))
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("speak.sh never finished playing")
-		}
+	want := []string{"speak", "--async", "--voice", "bf_emma", "--", "build finished"}
+	if got := handedOff(t, argv); !slices.Equal(got, want) {
+		t.Errorf("ava called with %q, want %q", got, want)
 	}
 }
 
-// Every speak.sh speak left an empty file behind: it appended .wav or .aiff
-// to a name mktemp had already created, and removed only the suffixed one.
-// It wrote them where `mktemp -t` chose, which on macOS ignores $TMPDIR, so
-// they piled up in the per-user temp folder out of any test's sight.
-func TestSpeakShLeavesNoTempFiles(t *testing.T) {
-	for name, engineUp := range map[string]bool{"engine": true, "say fallback": false} {
-		t.Run(name, func(t *testing.T) {
-			tmp, audio := runSpeakSh(t, engineUp)
-			if !strings.HasPrefix(audio, tmp+string(filepath.Separator)) {
-				t.Fatalf("speak.sh wrote its audio to %q, outside $TMPDIR %q", audio, tmp)
-			}
-			entries, _ := os.ReadDir(tmp)
-			for _, e := range entries {
-				t.Errorf("left behind in $TMPDIR: %s", e.Name())
-			}
-		})
+// The packaged menu bar app runs its bundled copy of scripts/, with the
+// binary it shipped beside them rather than under bin/.
+func TestSpeakShFindsTheAppBundlesAva(t *testing.T) {
+	script, argv := speakShLayout(t, bundledAva, false)
+	if out, err := runSpeak(t, script, "hello"); err != nil {
+		t.Fatalf("speak.sh: %v\n%s", err, out)
+	}
+	handedOff(t, argv)
+}
+
+// A checkout's root holds whatever a bare `go build ./cmd/ava` left there
+// (gitignored, often days stale). Only an app bundle keeps its binary beside
+// scripts/; in a checkout, bin/ava wins.
+func TestSpeakShIgnoresAStrayBuildInACheckoutRoot(t *testing.T) {
+	script, argv := speakShLayout(t, checkoutAva, false)
+	stray := filepath.Join(filepath.Dir(filepath.Dir(script)), "ava")
+	if err := os.WriteFile(stray, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runSpeak(t, script, "hello"); err != nil {
+		t.Fatalf("speak.sh: %v\n%s", err, out)
+	}
+	handedOff(t, argv)
+}
+
+// Text starting with a dash must reach ava as text, not as a flag.
+func TestSpeakShPassesDashedTextAsText(t *testing.T) {
+	script, argv := speakShLayout(t, checkoutAva, false)
+	if out, err := runSpeak(t, script, "-v is verbose"); err != nil {
+		t.Fatalf("speak.sh: %v\n%s", err, out)
+	}
+	want := []string{"speak", "--async", "--", "-v is verbose"}
+	if got := handedOff(t, argv); !slices.Equal(got, want) {
+		t.Errorf("ava called with %q, want %q", got, want)
+	}
+}
+
+// `ava speak` warns on stderr while muted; a hook firing on every turn
+// should stay quiet instead.
+func TestSpeakShDoesNothingWhileMuted(t *testing.T) {
+	script, argv := speakShLayout(t, checkoutAva, true)
+	if out, err := runSpeak(t, script, "hello"); err != nil {
+		t.Fatalf("speak.sh: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(argv); err == nil {
+		t.Error("speak.sh called ava while muted")
+	}
+}
+
+// Without a binary there is nothing to speak with, and a hook that exits 0
+// having said nothing looks exactly like one that worked.
+func TestSpeakShFailsLoudlyWithoutAva(t *testing.T) {
+	script, _ := speakShLayout(t, noAva, false)
+	out, err := runSpeak(t, script, "hello")
+	if err == nil {
+		t.Fatal("speak.sh exited 0 with no ava to speak with")
+	}
+	if !strings.Contains(out, "make build") || !strings.Contains(out, "install") {
+		t.Errorf("speak.sh output %q: want it to say how to get an ava binary", out)
 	}
 }

@@ -18,9 +18,9 @@ import (
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and
 // the menu bar app use: Kokoro on the local mlx-engine, falling back to
-// macOS `say`, under the global mute and the shared playback lock. It is
-// the CLI counterpart of scripts/speak.sh, for a binary installed to
-// ~/.local/bin with no repo checkout in sight.
+// macOS `say`, under the global mute and the shared playback lock.
+// scripts/speak.sh hands off to it with --async, so the hooks and the menu
+// bar app speak through this too.
 func newSpeakCmd() *cobra.Command {
 	var (
 		voice     string

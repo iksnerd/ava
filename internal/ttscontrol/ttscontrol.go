@@ -1,5 +1,5 @@
 // Package ttscontrol lets other ava commands cancel any Claude
-// Voice TTS currently in flight from scripts/speak.sh — needed before
+// Voice TTS currently in flight — needed before
 // opening the mic, since speech still playing goes out the speakers and
 // back in through the mic while sox is capturing.
 //
@@ -54,8 +54,8 @@ func stop(dir string) {
 		stopped = true
 		marker := filepath.Join(dir, name)
 
-		// Tells speak.sh's wait_synth this was a deliberate stop, not a
-		// failure, so it doesn't fall back to `say`.
+		// Tells the speak this was a deliberate stop, not a failure, so it
+		// neither plays nor falls back to `say`.
 		_ = os.WriteFile(marker+ttsproto.StoppedSuffix, nil, 0644)
 
 		for _, suffix := range ttsproto.PIDSuffixes() {

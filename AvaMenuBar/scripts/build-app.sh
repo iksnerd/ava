@@ -35,7 +35,7 @@ cp "$DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 # mlx-engine/ is deliberately NOT bundled: its venv alone is ~1.2GB, and the
 # Kokoro model downloads on first use anyway. The app runs the checkout's
 # engine instead (engine-root, below), or the one `ava setup` installed, and
-# speak.sh falls back to macOS `say` when neither exists.
+# `ava speak` falls back to macOS `say` when neither exists.
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' \
     "$REPO_ROOT/scripts/" "$APP_DIR/Contents/Resources/scripts/"
 cp "$REPO_ROOT/bin/ava" "$APP_DIR/Contents/Resources/ava"
