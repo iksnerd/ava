@@ -2,6 +2,7 @@ package archtest
 
 import (
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -113,5 +114,53 @@ func TestMatch(t *testing.T) {
 		if got := match(c.pat, c.path); got != c.want {
 			t.Errorf("match(%q,%q)=%v", c.pat, c.path, got)
 		}
+	}
+}
+
+// Except has to change the result. The package it excepts here makes the
+// forbidden import, so the rule only passes because of Except; remove it and the
+// same package is flagged beside the one that is always in scope.
+func TestCheckExceptChangesTheResult(t *testing.T) {
+	g := Graph{"m/core": {"m/cmd/x"}, "m/cmd/y": {"m/cmd/x"}, "m/cmd/x": nil}
+	rule := Rule{Name: "only-cmd-imports-cmd", From: []string{"m/..."}, Except: []string{"m/cmd/..."}, Forbid: []string{"m/cmd/..."}, Direct: true}
+
+	got := Check(g, []Rule{rule})
+	if len(got) != 1 || !strings.Contains(got[0], "m/core imports m/cmd/x") {
+		t.Fatalf("with Except only m/core should be flagged, got %q", got)
+	}
+	rule.Except = nil
+	got = Check(g, []Rule{rule})
+	if len(got) != 2 || !strings.Contains(got[0], "m/cmd/y imports m/cmd/x") {
+		t.Fatalf("without Except m/cmd/y is in scope too, got %q", got)
+	}
+}
+
+// The output is sorted, not merely stable: a rule listed second whose name sorts
+// first comes first. TestCheckDeterministic only reruns the same input.
+func TestCheckOutputIsSortedAcrossRules(t *testing.T) {
+	rules := []Rule{
+		{Name: "z-rule", From: []string{"m/pkg/b"}, Forbid: []string{"ext/cobra"}},
+		{Name: "a-rule", From: []string{"m/pkg/b"}, Forbid: []string{"m/internal/x"}},
+	}
+	got := Check(graph(), rules)
+	if len(got) != 2 || !sort.StringsAreSorted(got) || !strings.HasPrefix(got[0], `rule "a-rule"`) {
+		t.Fatalf("want a-rule before z-rule in sorted order, got %q", got)
+	}
+}
+
+// Two chains of the same length: the one reported must not depend on the order
+// the importer's imports were listed in (go list's order is not part of the
+// contract), so the same tree gives the same message on every machine.
+func TestCheckChainDoesNotDependOnImportOrder(t *testing.T) {
+	forward := Graph{"a": {"b", "c"}, "b": {"bad"}, "c": {"bad"}, "bad": nil}
+	reverse := Graph{"a": {"c", "b"}, "b": {"bad"}, "c": {"bad"}, "bad": nil}
+	rules := []Rule{{Name: "r", From: []string{"a"}, Forbid: []string{"bad"}}}
+
+	f, r := Check(forward, rules), Check(reverse, rules)
+	if !reflect.DeepEqual(f, r) {
+		t.Fatalf("import order changed the report:\n%q\n%q", f, r)
+	}
+	if len(f) != 1 || !strings.Contains(f[0], "a -> b -> bad") {
+		t.Fatalf("want the alphabetically first of equal chains, got %q", f)
 	}
 }
