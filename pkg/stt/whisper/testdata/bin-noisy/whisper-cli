@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fixture whisper-cli that fails after writing a lot to stderr.
+head -c 200000 /dev/zero | tr "\0" e >&2
+exit 1

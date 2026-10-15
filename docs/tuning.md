@@ -147,6 +147,8 @@ request does.
 | `--prompt` | the context file | Vocabulary hints — see below |
 | `-bs` | `--beam-size` | Only when set; otherwise whisper-cli's default of 5 applies |
 
+`whisper-cli` is started with a clean environment: only `PATH`, `HOME`, `LANG` and `TMPDIR` (those that are set) reach it, so a token or key in your shell is not passed on, and neither is a variable you might have set for whisper.cpp itself. Its output is read up to 32 MiB and the run is stopped past that; a transcript of hours of audio is a few hundred kilobytes.
+
 `--beam-size` is on dictation, `transcribe` and the MCP `transcribe` tool
 (`beam_size`). Lowering it trades accuracy for speed, which is mostly worth
 doing on `tiny`: `--model tiny --beam-size 1` is greedy decoding on the

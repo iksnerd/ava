@@ -26,6 +26,11 @@ const DefaultTimeout = 30 * time.Minute
 type Client struct {
 	ModelPath string
 	Timeout   time.Duration
+
+	// extraEnv are variables passed to whisper-cli beyond the base environment.
+	// Only the tests set it, to hand data to their stub program. Nothing needs
+	// it in production, so it is not part of the API.
+	extraEnv []string
 }
 
 // NewClient creates a new Whisper client
@@ -73,9 +78,25 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	return rendered, nil
 }
 
+// maxOutputBytes caps what is read from whisper-cli's stdout. A transcript of
+// hours of audio is a few hundred kilobytes, so this is far above anything real
+// and stops a runaway program from filling memory. RFC 0002 section 6 caps a
+// plugin's stdout at 64 KB, but whisper-cli is not a plugin and a long
+// recording's captions are larger than that. A variable so a test can lower it.
+var maxOutputBytes = 32 << 20
+
+// stderrKept is how much of whisper-cli's stderr an error carries. Its verbose
+// model-load and timing log is long; the reason for a failure is near the start.
+const stderrKept = 16 << 10
+
 // run executes whisper-cli with args under the client's timeout and returns
 // its stdout. The one place a run is started, so plain text and captions
-// cannot differ in how they time out or report a failure.
+// cannot differ in how they time out, are bounded or report a failure.
+//
+// It is started the way RFC 0002 sections 4 and 6 have a host start a program:
+// an empty environment plus PATH, HOME, LANG and TMPDIR, in a process group of
+// its own that is killed on a timeout and again after it exits, with its output
+// capped.
 func (c *Client) run(args []string) ([]byte, error) {
 	timeout := c.Timeout
 	if timeout <= 0 {
@@ -84,32 +105,39 @@ func (c *Client) run(args []string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "whisper-cli", args...)
+	cmd.Env = append(procutil.BaseEnv(), c.extraEnv...)
 	// Killing whisper-cli is not enough if something it started still holds
-	// the output pipe (a wrapper script's child): Output() would wait on the
+	// the output pipe (a wrapper script's child): Run() would wait on the
 	// pipe regardless. WaitDelay bounds that wait after the kill.
 	cmd.WaitDelay = 2 * time.Second
 	// ... and whisper-cli's own children: a timeout kills the whole process
 	// group, not only the program, and nothing it started is left running.
 	procutil.InOwnGroup(cmd)
 	procutil.KillGroupOnCancel(cmd)
-	// cmd.Output() leaves Stderr nil, so it buffers the child's stderr
-	// (whisper-cli's verbose model-load/timing logs) into ExitError.Stderr
-	// instead of printing it — silencing it on success, and giving a real
-	// diagnostic instead of a bare "exit status 1" on failure.
 
-	out, err := cmd.Output()
+	// Output past the cap cancels the context, which kills the group.
+	stdout := &procutil.CappedBuffer{Max: maxOutputBytes, OnOver: cancel}
+	// Stderr is kept (a bounded head of it) rather than discarded: it is the
+	// diagnostic a failure needs, where a bare "exit status 1" is not.
+	stderr := &procutil.HeadBuffer{Max: stderrKept}
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+
+	err := cmd.Run()
 	procutil.ReapGroup(cmd)
+	if stdout.Over() {
+		return nil, fmt.Errorf("whisper-cli output exceeded the cap of %d bytes and was stopped", maxOutputBytes)
+	}
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("whisper-cli timed out after %s", timeout)
 	}
 	if err != nil {
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			return nil, fmt.Errorf("whisper-cli failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		if reason := strings.TrimSpace(string(stderr.Bytes())); errors.As(err, &exitErr) && reason != "" {
+			return nil, fmt.Errorf("whisper-cli failed: %w: %s", err, reason)
 		}
 		return nil, fmt.Errorf("whisper-cli failed: %w", err)
 	}
-	return out, nil
+	return stdout.Bytes(), nil
 }
 
 // captions runs whisper-cli for its JSON, which carries each segment's start

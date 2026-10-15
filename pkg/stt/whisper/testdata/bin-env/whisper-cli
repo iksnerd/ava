@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fixture whisper-cli that prints the environment it was started with.
+/usr/bin/env | /usr/bin/sort

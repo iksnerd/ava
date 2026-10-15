@@ -15,6 +15,19 @@ import (
 
 const fixtureModelPath = "testdata/model.bin"
 
+// fixtureClient is a client whose stub whisper-cli can read the WHISPER_*
+// variables a test sets. whisper-cli itself is started with a clean environment,
+// so the stubs get their data through the one door the tests control.
+func fixtureClient() *Client {
+	c := NewClient(fixtureModelPath)
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "WHISPER_") {
+			c.extraEnv = append(c.extraEnv, kv)
+		}
+	}
+	return c
+}
+
 func TestNewClient(t *testing.T) {
 	modelPath := "/path/to/model.bin"
 	client := NewClient(modelPath)
@@ -63,7 +76,7 @@ func TestTranscribeSuccess(t *testing.T) {
 	logPath := filepath.Join(dir, "whisper.log")
 	t.Setenv("WHISPER_LOG", logPath)
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	text, err := client.Transcribe(stt.Options{
 		AudioPath:     audioPath,
 		OutputPath:    outputPath,
@@ -112,7 +125,7 @@ func TestTranscribePassesBeamSize(t *testing.T) {
 		logPath := filepath.Join(dir, "whisper.log")
 		t.Setenv("WHISPER_LOG", logPath)
 
-		if _, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audioPath, BeamSize: tc.beam}); err != nil {
+		if _, err := fixtureClient().Transcribe(stt.Options{AudioPath: audioPath, BeamSize: tc.beam}); err != nil {
 			t.Fatalf("BeamSize %d: %v", tc.beam, err)
 		}
 		log, _ := os.ReadFile(logPath)
@@ -146,7 +159,7 @@ func TestTranscribeTrimsWhisperCliOutput(t *testing.T) {
 	// through.
 	t.Setenv("WHISPER_FIXTURE_TEXT", "\n  padded transcript  \n")
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	text, err := client.Transcribe(stt.Options{AudioPath: audioPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
@@ -163,7 +176,7 @@ func TestTranscribeNoOutputPathSkipsWrite(t *testing.T) {
 	audioPath := filepath.Join(dir, "audio.wav")
 	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	text, err := client.Transcribe(stt.Options{AudioPath: audioPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v", err)
@@ -185,7 +198,7 @@ func TestTranscribeOutputWriteFailureIsNonFatal(t *testing.T) {
 
 	badOutputPath := filepath.Join(dir, "no-such-dir", "out.txt")
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	text, err := client.Transcribe(stt.Options{AudioPath: audioPath, OutputPath: badOutputPath})
 	if err != nil {
 		t.Fatalf("Transcribe() error = %v, want nil despite the bad OutputPath", err)
@@ -202,7 +215,7 @@ func TestTranscribeCommandFailure(t *testing.T) {
 	audioPath := filepath.Join(dir, "audio.wav")
 	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	_, err := client.Transcribe(stt.Options{
 		AudioPath:  audioPath,
 		OutputPath: filepath.Join(dir, "prompt.txt"),
@@ -223,7 +236,7 @@ func TestTranscribeGivesUpOnAHungWhisperCli(t *testing.T) {
 	audioPath := filepath.Join(dir, "audio.wav")
 	os.WriteFile(audioPath, []byte("fixture audio"), 0644)
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	client.Timeout = 200 * time.Millisecond
 
 	start := time.Now()
@@ -258,7 +271,7 @@ func TestTranscribeFormatsSegmentsAsCaptions(t *testing.T) {
 			logPath := filepath.Join(dir, "whisper.log")
 			t.Setenv("WHISPER_LOG", logPath)
 
-			got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: format})
+			got, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio, Format: format})
 			if err != nil {
 				t.Fatalf("Transcribe(%s): %v", format, err)
 			}
@@ -278,7 +291,7 @@ func TestTranscribeFormatJSONIsMillisecondOffsets(t *testing.T) {
 	audio := filepath.Join(t.TempDir(), "a.wav")
 	os.WriteFile(audio, []byte("x"), 0644)
 
-	got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "json"})
+	got, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio, Format: "json"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +310,7 @@ func TestTranscribeTextFormatStillUsesNoTimestamps(t *testing.T) {
 	t.Setenv("WHISPER_LOG", logPath)
 
 	for _, format := range []string{"", "text"} {
-		if _, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: format}); err != nil {
+		if _, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio, Format: format}); err != nil {
 			t.Fatal(err)
 		}
 		log, _ := os.ReadFile(logPath)
@@ -315,7 +328,7 @@ func TestTranscribeFormatFailsWhenWhisperWritesNoJSON(t *testing.T) {
 	audio := filepath.Join(t.TempDir(), "a.wav")
 	os.WriteFile(audio, []byte("x"), 0644)
 
-	_, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
+	_, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
 	if err == nil || !strings.Contains(err.Error(), "timestamps") {
 		t.Fatalf("err = %v, want one saying whisper-cli wrote no timestamps", err)
 	}
@@ -327,7 +340,7 @@ func TestTranscribeFormatWithNoSpeechIsEmpty(t *testing.T) {
 	audio := filepath.Join(t.TempDir(), "a.wav")
 	os.WriteFile(audio, []byte("x"), 0644)
 
-	got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
+	got, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
 	if err != nil || got != "" {
 		t.Errorf("got %q, %v; want an empty result so the caller can say 'no speech'", got, err)
 	}
@@ -342,7 +355,7 @@ func TestATimeoutKillsWhisperCliAndItsChildren(t *testing.T) {
 	audio := filepath.Join(t.TempDir(), "a.wav")
 	os.WriteFile(audio, []byte("x"), 0o644)
 
-	client := NewClient(fixtureModelPath)
+	client := fixtureClient()
 	client.Timeout = 500 * time.Millisecond
 	start := time.Now()
 	if _, err := client.Transcribe(stt.Options{AudioPath: audio}); err == nil || !strings.Contains(err.Error(), "timed out") {
@@ -384,7 +397,7 @@ func TestAChildLeftRunningAfterASuccessfulRunIsReaped(t *testing.T) {
 	audio := filepath.Join(t.TempDir(), "a.wav")
 	os.WriteFile(audio, []byte("x"), 0o644)
 
-	text, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio})
+	text, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio})
 	if err != nil || text != "a transcript" {
 		t.Fatalf("text %q, err %v", text, err)
 	}
@@ -402,4 +415,74 @@ func TestAChildLeftRunningAfterASuccessfulRunIsReaped(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Errorf("whisper-cli's child %d is still running after the call returned", child)
+}
+
+// whisper-cli is started the way RFC 0002 section 4 has a host start a program:
+// an empty environment plus PATH, HOME, LANG and TMPDIR. A token in the host's
+// environment is not whisper-cli's business.
+func TestWhisperCliGetsTheBaseEnvironmentOnly(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-env")
+	t.Setenv("HOME", "/srv/test-home")
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	os.Unsetenv("LANG")
+	t.Setenv("API_TOKEN", "must-not-leak")
+	t.Setenv("ANTHROPIC_API_KEY", "must-not-leak-either")
+	audio := filepath.Join(tmp, "a.wav")
+	os.WriteFile(audio, []byte("x"), 0o644)
+
+	text, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"API_TOKEN=", "ANTHROPIC_API_KEY=", "LANG="} {
+		if strings.Contains(text, name) {
+			t.Errorf("whisper-cli saw %s in its environment:\n%s", name, text)
+		}
+	}
+	for _, want := range []string{"HOME=/srv/test-home", "TMPDIR=" + tmp, "PATH="} {
+		if !strings.Contains(text, want) {
+			t.Errorf("whisper-cli's environment is missing %s:\n%s", want, text)
+		}
+	}
+}
+
+// Output over the cap ends the call at once and says why. The cap is lowered
+// here so the input genuinely crosses it, and the fixture would write forever.
+func TestOutputOverTheCapEndsTheRun(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-flood")
+	old := maxOutputBytes
+	maxOutputBytes = 4096
+	defer func() { maxOutputBytes = old }()
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0o644)
+
+	// A bound on the test itself: without the cap's kill the fixture never stops.
+	client := fixtureClient()
+	client.Timeout = 20 * time.Second
+
+	start := time.Now()
+	_, err := client.Transcribe(stt.Options{AudioPath: audio})
+	if err == nil || !strings.Contains(err.Error(), "4096") || !strings.Contains(err.Error(), "output") {
+		t.Fatalf("err = %v, want one naming the output cap of 4096 bytes", err)
+	}
+	if took := time.Since(start); took > 5*time.Second {
+		t.Errorf("took %v: the run kept going after the cap instead of ending", took)
+	}
+}
+
+// An error carries whisper-cli's stderr for diagnosis, but a program that writes
+// a megabyte of it does not turn the error into a megabyte.
+func TestAFailureKeepsOnlyTheStartOfStderr(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-noisy")
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0o644)
+
+	_, err := fixtureClient().Transcribe(stt.Options{AudioPath: audio})
+	if err == nil || !strings.Contains(err.Error(), "eeee") {
+		t.Fatalf("err = %v, want it to carry the start of stderr", err)
+	}
+	if len(err.Error()) > 20000 {
+		t.Errorf("the error is %d bytes: stderr was not bounded", len(err.Error()))
+	}
 }

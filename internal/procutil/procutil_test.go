@@ -155,3 +155,79 @@ func TestReapGroupKillsWhatTheProgramLeftRunning(t *testing.T) {
 func TestReapGroupOnACommandThatNeverStartedIsHarmless(t *testing.T) {
 	ReapGroup(exec.Command("/bin/true")) // no Process yet: must not panic
 }
+
+func TestBaseEnvHasAllFourWhenAllAreSet(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin")
+	t.Setenv("HOME", "/srv/test-home")
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("TMPDIR", "/tmp/x")
+	want := "PATH=/usr/bin\nHOME=/srv/test-home\nLANG=en_US.UTF-8\nTMPDIR=/tmp/x"
+	if got := strings.Join(BaseEnv(), "\n"); got != want {
+		t.Errorf("BaseEnv() = %q, want %q", got, want)
+	}
+}
+
+// BaseEnv is the only part of this process's environment a child program sees
+// (RFC 0002 section 4): PATH, HOME, LANG and TMPDIR, the ones that are set.
+func TestBaseEnvIsOnlyTheFourNamesThatAreSet(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin:/bin")
+	t.Setenv("HOME", "/srv/test-home")
+	t.Setenv("TMPDIR", "/tmp/x")
+	os.Unsetenv("LANG")
+	t.Setenv("API_TOKEN", "must-not-leak")
+	t.Setenv("LC_ALL", "C")
+
+	got := BaseEnv()
+	want := []string{"PATH=/usr/bin:/bin", "HOME=/srv/test-home", "TMPDIR=/tmp/x"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("BaseEnv() = %q, want %q (fixed order, unset names left out, nothing else)", got, want)
+	}
+}
+
+// CappedBuffer holds output up to Max. The write that would pass it keeps what
+// fits, marks the buffer over, calls OnOver once and fails, so the process
+// writing is stopped instead of being buffered without end.
+func TestCappedBufferStopsAtItsLimit(t *testing.T) {
+	calls := 0
+	b := &CappedBuffer{Max: 10, OnOver: func() { calls++ }}
+
+	if n, err := b.Write([]byte("12345")); n != 5 || err != nil {
+		t.Fatalf("under the cap: n=%d err=%v", n, err)
+	}
+	if n, err := b.Write([]byte("67890")); n != 5 || err != nil || b.Over() {
+		t.Fatalf("exactly at the cap must be allowed: n=%d err=%v over=%v", n, err, b.Over())
+	}
+	if _, err := b.Write([]byte("x")); err == nil || !b.Over() {
+		t.Fatalf("one byte past the cap must fail: err=%v over=%v", err, b.Over())
+	}
+	if _, err := b.Write([]byte("more")); err == nil {
+		t.Error("a write after the cap succeeded")
+	}
+	if string(b.Bytes()) != "1234567890" {
+		t.Errorf("kept %q, want the first 10 bytes only", b.Bytes())
+	}
+	if calls != 1 {
+		t.Errorf("OnOver ran %d times, want once", calls)
+	}
+}
+
+func TestCappedBufferKeepsWhatFitsOfAWriteThatCrossesTheCap(t *testing.T) {
+	b := &CappedBuffer{Max: 4}
+	if n, err := b.Write([]byte("abcdefgh")); err == nil || n != 4 || string(b.Bytes()) != "abcd" {
+		t.Errorf("n=%d err=%v kept=%q, want 4 bytes kept and an error", n, err, b.Bytes())
+	}
+}
+
+// HeadBuffer keeps the first Max bytes and reads the rest without failing, so a
+// chatty program neither fills memory nor blocks on a full pipe.
+func TestHeadBufferKeepsTheStartAndDiscardsTheRest(t *testing.T) {
+	b := &HeadBuffer{Max: 6}
+	for _, chunk := range []string{"abc", "defg", "hij"} {
+		if n, err := b.Write([]byte(chunk)); n != len(chunk) || err != nil {
+			t.Fatalf("Write(%q) = %d, %v; a head buffer never fails or short-writes", chunk, n, err)
+		}
+	}
+	if string(b.Bytes()) != "abcdef" {
+		t.Errorf("kept %q, want the first 6 bytes", b.Bytes())
+	}
+}

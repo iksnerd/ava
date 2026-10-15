@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fixture whisper-cli that writes to stdout forever and survives a closed pipe
+# (it ignores SIGPIPE and keeps looping when a write fails), so only being killed
+# stops it. Used for the output cap.
+trap '' PIPE
+while :; do
+  echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 2>/dev/null
+done
