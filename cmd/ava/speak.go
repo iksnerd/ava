@@ -57,10 +57,7 @@ func newSpeakCmd() *cobra.Command {
 				return err
 			}
 			if out != "" {
-				if async {
-					return fmt.Errorf("--out cannot be combined with --async: the file must exist when the command returns")
-				}
-				if err := checkOutDir(out); err != nil {
+				if err := validateOut(out, async); err != nil {
 					return err
 				}
 				return speaker.New(serverURL).Speak(text, speaker.Options{
@@ -103,6 +100,16 @@ func newSpeakCmd() *cobra.Command {
 		})
 
 	return cmd
+}
+
+// validateOut is every check on a requested --out, shared by the CLI and the
+// MCP speak tool so the two refuse the same things. It runs before synthesis
+// so a long script is not spoken only to be thrown away.
+func validateOut(path string, async bool) error {
+	if async {
+		return fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
+	}
+	return checkOutDir(path)
 }
 
 // checkOutDir fails before synthesis when the file could not be written

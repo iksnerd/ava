@@ -62,7 +62,7 @@ func TestSpeakOutRejectsAsync(t *testing.T) {
 	defer func() { spawnDetached = orig }()
 
 	_, err := runSpeak(t, "--out", filepath.Join(t.TempDir(), "a.wav"), "--async", "hi")
-	if err == nil || !strings.Contains(err.Error(), "--async") {
+	if err == nil || !strings.Contains(err.Error(), "async") {
 		t.Fatalf("err = %v, want a --async/--out conflict", err)
 	}
 }

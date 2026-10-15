@@ -84,6 +84,7 @@ type transcribeArgs struct {
 	Language  string `json:"language,omitempty" jsonschema:"language code such as en or es; defaults to en"`
 	Model     string `json:"model,omitempty" jsonschema:"whisper model size: base (default) or tiny"`
 	BeamSize  int    `json:"beam_size,omitempty" jsonschema:"beam width for decoding; lower is faster and less accurate. Omit for whisper's default of 5"`
+	Format    string `json:"format,omitempty" jsonschema:"text (default), or srt, vtt or json for captions that carry each segment's start and end time"`
 }
 
 type announceArgs struct {
@@ -118,10 +119,7 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 			return nil, nil, err
 		}
 		if args.Out != "" {
-			if args.Async {
-				return nil, nil, fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
-			}
-			if err := checkOutDir(args.Out); err != nil {
+			if err := validateOut(args.Out, args.Async); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -174,12 +172,15 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateBeamSize(args.BeamSize); err != nil {
 			return nil, nil, err
 		}
+		if err := stt.ValidateFormat(args.Format); err != nil {
+			return nil, nil, err
+		}
 		language := args.Language
 		if language == "" {
 			language = "en"
 		}
 
-		text, err := deps.Transcribe(model, stt.Options{AudioPath: args.AudioPath, Language: language, BeamSize: args.BeamSize})
+		text, err := deps.Transcribe(model, stt.Options{AudioPath: args.AudioPath, Language: language, BeamSize: args.BeamSize, Format: args.Format})
 		if err != nil {
 			return nil, nil, err
 		}

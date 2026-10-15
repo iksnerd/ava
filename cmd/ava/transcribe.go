@@ -20,6 +20,7 @@ func newTranscribeCmd() *cobra.Command {
 		model    string
 		output   string
 		beamSize int
+		format   string
 	)
 
 	cmd := &cobra.Command{
@@ -32,6 +33,7 @@ func newTranscribeCmd() *cobra.Command {
 		Example: "  ava transcribe meeting.wav\n" +
 			"  ava transcribe --lang es clip.wav\n" +
 			"  ava transcribe --output notes.txt meeting.wav\n" +
+			"  ava transcribe --format srt --output meeting.srt meeting.wav\n" +
 			"  ava transcribe --model tiny --beam-size 1 clip.wav",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -45,6 +47,9 @@ func newTranscribeCmd() *cobra.Command {
 			if err := validateBeamSize(beamSize); err != nil {
 				return err
 			}
+			if err := stt.ValidateFormat(format); err != nil {
+				return err
+			}
 
 			transcriber, err := newTranscriber(model)
 			if err != nil {
@@ -56,6 +61,7 @@ func newTranscribeCmd() *cobra.Command {
 				OutputPath: output,
 				Language:   language,
 				BeamSize:   beamSize,
+				Format:     format,
 			})
 			if err != nil {
 				return fmt.Errorf("transcription failed: %w", err)
@@ -74,7 +80,7 @@ func newTranscribeCmd() *cobra.Command {
 				return fmt.Errorf("no speech detected in %s", args[0])
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), text)
+			fmt.Fprintln(cmd.OutOrStdout(), strings.TrimRight(text, "\n"))
 			return nil
 		},
 	}
@@ -84,8 +90,13 @@ func newTranscribeCmd() *cobra.Command {
 	flags.StringVar(&model, "model", "base", "Model size: base or tiny")
 	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
 	flags.IntVar(&beamSize, "beam-size", 0, beamSizeUsage)
+	flags.StringVar(&format, "format", "text", "Output format: "+strings.Join(stt.Formats, ", ")+". srt, vtt and json carry each segment's start and end time")
 
-	_ = cmd.MarkFlagFilename("output", "txt")
+	_ = cmd.MarkFlagFilename("output", "txt", "srt", "vtt", "json")
+	_ = cmd.RegisterFlagCompletionFunc("format",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return stt.Formats, cobra.ShellCompDirectiveNoFileComp
+		})
 	_ = cmd.RegisterFlagCompletionFunc("model",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return []string{"base", "tiny"}, cobra.ShellCompDirectiveNoFileComp

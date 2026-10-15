@@ -239,3 +239,94 @@ func TestNewClientHasATimeout(t *testing.T) {
 		t.Error("a default client has no timeout, so a hung whisper-cli blocks forever")
 	}
 }
+
+// A caption format asks whisper-cli for its JSON, which carries the segment
+// times, and renders the captions from that. Plain text keeps -nt and the
+// stdout path it always had.
+func TestTranscribeFormatsSegmentsAsCaptions(t *testing.T) {
+	for format, want := range map[string]string{
+		"srt": "1\n00:00:00,000 --> 00:00:02,500\nOnce upon a time.\n\n2\n00:00:02,500 --> 00:00:04,000\nThere was a lamp.\n",
+		"vtt": "WEBVTT\n\n00:00:00.000 --> 00:00:02.500\nOnce upon a time.\n\n00:00:02.500 --> 00:00:04.000\nThere was a lamp.\n",
+	} {
+		t.Run(format, func(t *testing.T) {
+			testutil.PrependPath(t, "testdata/bin")
+			dir := t.TempDir()
+			audio := filepath.Join(dir, "a.wav")
+			os.WriteFile(audio, []byte("fixture audio"), 0644)
+			logPath := filepath.Join(dir, "whisper.log")
+			t.Setenv("WHISPER_LOG", logPath)
+
+			got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: format})
+			if err != nil {
+				t.Fatalf("Transcribe(%s): %v", format, err)
+			}
+			if got != want {
+				t.Errorf("%s =\n%q\nwant\n%q", format, got, want)
+			}
+			log, _ := os.ReadFile(logPath)
+			if !strings.Contains(string(log), "oj=1") {
+				t.Errorf("whisper-cli was not asked for JSON: %q", log)
+			}
+		})
+	}
+}
+
+func TestTranscribeFormatJSONIsMillisecondOffsets(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0644)
+
+	got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"start_ms":0,"end_ms":2500,"text":"Once upon a time."},{"start_ms":2500,"end_ms":4000,"text":"There was a lamp."}]`
+	if strings.TrimSpace(got) != want {
+		t.Errorf("json = %s, want %s", got, want)
+	}
+}
+
+func TestTranscribeTextFormatStillUsesNoTimestamps(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+	dir := t.TempDir()
+	audio := filepath.Join(dir, "a.wav")
+	os.WriteFile(audio, []byte("x"), 0644)
+	logPath := filepath.Join(dir, "whisper.log")
+	t.Setenv("WHISPER_LOG", logPath)
+
+	for _, format := range []string{"", "text"} {
+		if _, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: format}); err != nil {
+			t.Fatal(err)
+		}
+		log, _ := os.ReadFile(logPath)
+		if !strings.Contains(string(log), "nt=1") || strings.Contains(string(log), "oj=1") {
+			t.Errorf("format %q: log %q, want -nt and no -oj", format, log)
+		}
+	}
+}
+
+// A run that exits 0 and writes no JSON is a failure to report, not an empty
+// transcript: it would read as "no speech" and send the user to their mic.
+func TestTranscribeFormatFailsWhenWhisperWritesNoJSON(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+	t.Setenv("WHISPER_NO_JSON", "1")
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0644)
+
+	_, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
+	if err == nil || !strings.Contains(err.Error(), "timestamps") {
+		t.Fatalf("err = %v, want one saying whisper-cli wrote no timestamps", err)
+	}
+}
+
+func TestTranscribeFormatWithNoSpeechIsEmpty(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+	t.Setenv("WHISPER_FIXTURE_JSON", `{"transcription":[]}`)
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0644)
+
+	got, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio, Format: "srt"})
+	if err != nil || got != "" {
+		t.Errorf("got %q, %v; want an empty result so the caller can say 'no speech'", got, err)
+	}
+}

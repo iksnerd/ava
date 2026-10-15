@@ -2,6 +2,7 @@ package whisper
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/iksnerd/ava/pkg/stt"
+	"github.com/iksnerd/ava/pkg/stt/captions"
 )
 
 // DefaultTimeout bounds one transcription. base.en runs at roughly 16x real
@@ -51,13 +53,36 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 			"  %s", c.ModelPath, fix)
 	}
 
+	args := buildArgs(c.ModelPath, opts)
+	if !opts.WantsTimestamps() {
+		out, err := c.run(args)
+		if err != nil {
+			return "", err
+		}
+		text := strings.TrimSpace(string(out))
+		stt.WriteOutputIfRequested(opts, text)
+		return text, nil
+	}
+
+	rendered, err := c.captions(args, opts)
+	if err != nil {
+		return "", err
+	}
+	stt.WriteOutputIfRequested(opts, rendered)
+	return rendered, nil
+}
+
+// run executes whisper-cli with args under the client's timeout and returns
+// its stdout. The one place a run is started, so plain text and captions
+// cannot differ in how they time out or report a failure.
+func (c *Client) run(args []string) ([]byte, error) {
 	timeout := c.Timeout
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "whisper-cli", buildArgs(c.ModelPath, opts)...)
+	cmd := exec.CommandContext(ctx, "whisper-cli", args...)
 	// Killing whisper-cli is not enough if something it started still holds
 	// the output pipe (a wrapper script's child): Output() would wait on the
 	// pipe regardless. WaitDelay bounds that wait after the kill.
@@ -69,19 +94,76 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 
 	out, err := cmd.Output()
 	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("whisper-cli timed out after %s", timeout)
+		return nil, fmt.Errorf("whisper-cli timed out after %s", timeout)
 	}
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			return "", fmt.Errorf("whisper-cli failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+			return nil, fmt.Errorf("whisper-cli failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
 		}
-		return "", fmt.Errorf("whisper-cli failed: %w", err)
+		return nil, fmt.Errorf("whisper-cli failed: %w", err)
+	}
+	return out, nil
+}
+
+// captions runs whisper-cli for its JSON, which carries each segment's start
+// and end in milliseconds, and renders the requested format from that. An
+// empty result means no speech; a run that exits 0 and writes no JSON is an
+// error, because it would otherwise read as silence.
+func (c *Client) captions(args []string, opts stt.Options) (string, error) {
+	dir, err := os.MkdirTemp("", "ava-whisper-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp dir for whisper-cli output: %w", err)
+	}
+	defer os.RemoveAll(dir)
+	base := filepath.Join(dir, "out")
+
+	if _, err := c.run(withJSONOutput(args, base)); err != nil {
+		return "", err
+	}
+	raw, err := os.ReadFile(base + ".json")
+	if err != nil {
+		return "", fmt.Errorf("whisper-cli exited cleanly but wrote no timestamps (%s.json): %w", base, err)
+	}
+	var parsed struct {
+		Transcription []struct {
+			Offsets struct {
+				From int `json:"from"`
+				To   int `json:"to"`
+			} `json:"offsets"`
+			Text string `json:"text"`
+		} `json:"transcription"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return "", fmt.Errorf("read whisper-cli timestamps: %w", err)
+	}
+	segments := make([]captions.Segment, len(parsed.Transcription))
+	for i, s := range parsed.Transcription {
+		segments[i] = captions.Segment{StartMS: s.Offsets.From, EndMS: s.Offsets.To, Text: s.Text}
 	}
 
-	text := strings.TrimSpace(string(out))
-	stt.WriteOutputIfRequested(opts, text)
-	return text, nil
+	switch opts.Format {
+	case "srt":
+		return captions.SRT(segments), nil
+	case "vtt":
+		return captions.VTT(segments), nil
+	default:
+		return captions.JSON(segments)
+	}
+}
+
+// withJSONOutput swaps -nt (no timestamps on stdout) for -oj -of base, which
+// makes whisper-cli write base.json with the timed segments instead.
+func withJSONOutput(args []string, base string) []string {
+	out := make([]string, 0, len(args)+2)
+	for _, a := range args {
+		if a == "-nt" {
+			out = append(out, "-oj", "-of", base)
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // buildArgs is whisper-cli's argv. Optional decoding flags are only passed

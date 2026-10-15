@@ -1,4 +1,17 @@
 #!/bin/sh
-# Fixture "whisper-cli" for checkDependencies tests: same as the sox fixture,
-# only its presence on PATH is checked.
+# Fixture "whisper-cli" for the CLI tests. It prints nothing, like a run over
+# silence or an undecodable file, and with -oj -of it writes the JSON a real
+# run would, so a caption format can be checked end to end.
+of=""
+oj=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -oj) oj=1; shift ;;
+    -of) of="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+if [ -n "$oj" ]; then
+  printf '%s' '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello there."}]}' > "$of.json"
+fi
 exit 0

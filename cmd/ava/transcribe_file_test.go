@@ -54,3 +54,55 @@ func TestTranscribeReportsNoSpeechForARealWav(t *testing.T) {
 		t.Errorf("err = %v, want `no speech detected` for a valid but silent WAV", err)
 	}
 }
+
+// transcribeWithFormat runs `transcribe` over a valid WAV with the CLI
+// fixture whisper-cli, which writes one timed segment when asked for JSON.
+func transcribeWithFormat(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	model := filepath.Join(home, modelDirRel, baseModel)
+	os.MkdirAll(filepath.Dir(model), 0755)
+	os.WriteFile(model, []byte("placeholder"), 0644)
+	testutil.PrependPath(t, "testdata/bin")
+
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	os.WriteFile(clip, append([]byte("RIFF\x00\x00\x00\x00WAVE"), make([]byte, 32)...), 0644)
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs(append([]string{"transcribe"}, append(args, clip)...))
+	err := root.Execute()
+	return out.String(), err
+}
+
+func TestTranscribeFormatSRTPrintsTimedCaptions(t *testing.T) {
+	out, err := transcribeWithFormat(t, "--format", "srt")
+	if err != nil {
+		t.Fatalf("transcribe --format srt: %v", err)
+	}
+	want := "1\n00:00:00,000 --> 00:00:01,500\nHello there.\n"
+	if strings.TrimSpace(out) != strings.TrimSpace(want) {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
+func TestTranscribeFormatWritesTheCaptionsToOutput(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "clip.vtt")
+	if _, err := transcribeWithFormat(t, "--format", "vtt", "--output", file); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(file)
+	if !strings.HasPrefix(string(got), "WEBVTT\n") || !strings.Contains(string(got), "00:00:00.000 --> 00:00:01.500") {
+		t.Errorf("--output file = %q, want the WebVTT captions", got)
+	}
+}
+
+func TestTranscribeRejectsAnUnknownFormat(t *testing.T) {
+	_, err := transcribeWithFormat(t, "--format", "docx")
+	if err == nil || !strings.Contains(err.Error(), "srt") {
+		t.Errorf("err = %v, want one that lists the formats", err)
+	}
+}

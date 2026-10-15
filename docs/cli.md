@@ -68,9 +68,14 @@ ava voices     # ids, accents, and which one is current
 ava transcribe meeting.wav
 ava transcribe --lang es clip.wav
 ava transcribe --output notes.txt meeting.wav
+ava transcribe --format srt --output meeting.srt meeting.wav
 ```
 
 Takes a WAV file. Same `--model`, `--lang` and `--beam-size` as dictation.
+
+`--format` is `text` (the default), or `srt`, `vtt` or `json` for captions that
+carry each segment's start and end time. `json` is an array of `start_ms`,
+`end_ms` and `text`.
 
 ## Narrate an accessibility tree
 

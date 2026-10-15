@@ -141,7 +141,7 @@ request does.
 | `-m` | the model path | `base.en` by default, `tiny.en` with `--model tiny` |
 | `-f` | the audio file | 16kHz mono WAV, which `internal/audio` guarantees |
 | `-t` | `8` | Threads. The binary defaults to 4 |
-| `-nt` | — | No timestamps, so stdout *is* the transcript |
+| `-nt` | — | No timestamps, so stdout *is* the transcript. With `--format srt\|vtt\|json` it is replaced by `-oj -of <temp>`, and the captions are rendered from the JSON |
 | `-sns` | — | Suppress non-speech tokens `(coughs)`, `[music]` |
 | `-l` | `--lang` | Language code |
 | `--prompt` | the context file | Vocabulary hints — see below |

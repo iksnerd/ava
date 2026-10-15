@@ -16,6 +16,7 @@ package stt
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Options are the parameters common to every engine's one-shot
@@ -28,6 +29,34 @@ type Options struct {
 	// BeamSize is whisper.cpp's beam width. Zero leaves whisper-cli's own
 	// default (5) in place; lowering it trades accuracy for speed.
 	BeamSize int
+	// Format is how the result is rendered: "" or "text" for the plain
+	// transcript, or a caption format ("srt", "vtt", "json") that carries each
+	// segment's start and end time. See ValidateFormat.
+	Format string
+}
+
+// Formats are the values Options.Format takes. "text" is the default, so
+// every existing caller keeps getting the plain transcript.
+var Formats = []string{"text", "srt", "vtt", "json"}
+
+// ValidateFormat rejects a format no engine renders. The CLI and the MCP tool
+// both call it, so the two cannot disagree about what is accepted.
+func ValidateFormat(format string) error {
+	if format == "" {
+		return nil
+	}
+	for _, f := range Formats {
+		if f == format {
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown format %q (choose one of %s)", format, strings.Join(Formats, ", "))
+}
+
+// WantsTimestamps reports whether the format needs segment times, which
+// plain text does not.
+func (o Options) WantsTimestamps() bool {
+	return o.Format != "" && o.Format != "text"
 }
 
 // Client is satisfied by any one-shot transcription engine client

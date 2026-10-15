@@ -34,7 +34,7 @@ Pass `--server-url` if `mlx-engine` isn't on the default
 | `speak` | `text`, `voice?`, `speed?`, `async?`, `out?` | Speaks through Kokoro, falling back to macOS `say` when the server is down. With `out` it saves a WAV to that path instead, with no mute and no `say` fallback |
 | `stop_speaking` | — | Cancels speech in flight, including another session's hook speech |
 | `list_voices` | — | The available Kokoro voices and their accent/gender |
-| `transcribe` | `audio_path`, `language?`, `model?`, `beam_size?` | Transcribes a 16kHz mono WAV on-device |
+| `transcribe` | `audio_path`, `language?`, `model?`, `beam_size?`, `format?` | Transcribes a 16kHz mono WAV on-device; `format` is `text`, or `srt`, `vtt` or `json` for timed captions |
 | `speak_accessibility_tree` | `snapshot`, `mode?`, `speak?`, `voice?`, `speed?` | Renders a Chrome accessibility tree as screen-reader announcements and speaks them |
 
 Every tool goes through the same protocol `scripts/speak.sh` established, so

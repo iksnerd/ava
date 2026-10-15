@@ -8,6 +8,9 @@ prompt=""
 audio=""
 model=""
 beam=""
+nt=""
+oj=""
+of=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -16,6 +19,9 @@ while [ $# -gt 0 ]; do
     -f) audio="$2"; shift 2 ;;
     -m) model="$2"; shift 2 ;;
     -bs) beam="$2"; shift 2 ;;
+    -nt) nt=1; shift ;;
+    -oj) oj=1; shift ;;
+    -of) of="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -27,8 +33,18 @@ if [ -n "$WHISPER_LOG" ]; then
     echo "lang=$lang"
     echo "prompt=$prompt"
     echo "beam=$beam"
+    echo "nt=$nt"
+    echo "oj=$oj"
   } > "$WHISPER_LOG"
 fi
 
 echo "fixture whisper-cli: verbose model-load log" >&2
+
+# With -oj the real binary writes <of>.json beside the output name it was given.
+# WHISPER_FIXTURE_JSON overrides the body; WHISPER_NO_JSON simulates a run that
+# exits 0 and writes nothing.
+if [ -n "$oj" ] && [ -z "$WHISPER_NO_JSON" ]; then
+  default='{"transcription":[{"offsets":{"from":0,"to":2500},"text":" Once upon a time."},{"offsets":{"from":2500,"to":4000},"text":" There was a lamp."}]}'
+  printf '%s' "${WHISPER_FIXTURE_JSON:-$default}" > "$of.json"
+fi
 echo "${WHISPER_FIXTURE_TEXT:-fixture transcription}"

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -98,5 +100,35 @@ func TestMcpSpeakOutRejectsAsync(t *testing.T) {
 	}
 	if len(s.speakOpts) != 0 {
 		t.Errorf("spoke with out and async: %+v", s.speakOpts)
+	}
+}
+
+// transcribe's format is reachable from the MCP tool as well, with the same
+// validation as the CLI.
+func TestMcpTranscribePassesTheFormat(t *testing.T) {
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	os.WriteFile(clip, []byte("RIFF"), 0644)
+	var got stt.Options
+	s := &spy{transcribe: func(_ string, o stt.Options) (string, error) { got = o; return "1\nsrt body", nil }}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "transcribe", map[string]any{"audio_path": clip, "format": "srt"})
+	if res.IsError || got.Format != "srt" {
+		t.Errorf("format = %q (error %v: %s), want srt", got.Format, res.IsError, resultText(t, res))
+	}
+}
+
+func TestMcpTranscribeRejectsAnUnknownFormat(t *testing.T) {
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	os.WriteFile(clip, []byte("RIFF"), 0644)
+	s := &spy{transcribe: func(string, stt.Options) (string, error) {
+		t.Error("transcribed with an unknown format")
+		return "", nil
+	}}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "transcribe", map[string]any{"audio_path": clip, "format": "docx"})
+	if !res.IsError {
+		t.Errorf("an unknown format succeeded: %s", resultText(t, res))
 	}
 }
