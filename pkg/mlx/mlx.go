@@ -100,16 +100,58 @@ func (c *Client) Speak(opts SpeakOptions) ([]byte, error) {
 // cheap and won't keep an idle engine pinned open.
 const healthTimeout = 2 * time.Second
 
-// Healthy reports whether the mlx-engine server is up and finished its TTS
-// warmup. False covers both "not running" and "still warming up" — callers
-// only need to know whether /speak is worth attempting.
-func (c *Client) Healthy() bool {
+// State is what a /health check found.
+type State int
+
+const (
+	// Down covers both "not running" and "still warming up": nothing worth
+	// sending /speak to yet.
+	Down State = iota
+	// Stale is an engine that answers but does not speak this client's
+	// protocol, typically one left running from before an upgrade. Starting
+	// another would fail to bind, and speaking to it would fail in ways that
+	// look like it being down, so it is reported as its own case.
+	Stale
+	// Ready is an engine that speaks this protocol and finished its warmup.
+	Ready
+)
+
+func (s State) String() string {
+	switch s {
+	case Stale:
+		return "stale"
+	case Ready:
+		return "ready"
+	default:
+		return "down"
+	}
+}
+
+// Check asks /health who is answering. The engine reports its protocol name
+// and version there (internal/protocol, engine_protocol); anything else with
+// a 200, including an older engine that reports none, is Stale.
+func (c *Client) Check() State {
 	client := &http.Client{Timeout: healthTimeout}
 	res, err := client.Get(c.ServerURL + "/health")
 	if err != nil {
-		return false
+		return Down
 	}
 	defer res.Body.Close()
-	_, _ = io.Copy(io.Discard, res.Body)
-	return res.StatusCode == http.StatusOK
+	body, _ := io.ReadAll(io.LimitReader(res.Body, 64<<10))
+	if res.StatusCode != http.StatusOK {
+		return Down
+	}
+	var h struct {
+		Protocol string `json:"protocol"`
+	}
+	if json.Unmarshal(body, &h) != nil || h.Protocol != protocol.EngineProtocol {
+		return Stale
+	}
+	return Ready
+}
+
+// Healthy reports whether /speak is worth attempting: an engine that speaks
+// this protocol and finished its TTS warmup.
+func (c *Client) Healthy() bool {
+	return c.Check() == Ready
 }

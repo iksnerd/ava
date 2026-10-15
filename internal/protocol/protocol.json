@@ -32,6 +32,10 @@
     "value": "http://127.0.0.1:8765",
     "doc": "Where mlx-engine binds. Whoever holds a stale copy either fails to bind or health-checks a socket nobody is listening on, and then reports the engine down while it is running."
   },
+  "engine_protocol": {
+    "value": "ava-engine/1",
+    "doc": "The name and version the engine reports in /health and the Go client requires. An engine left running from before an upgrade reports nothing or another version, and speaking to it would fail in ways that look like the engine being down. Bump the number when /speak or /health change in a way an older client or engine cannot read."
+  },
   "engine_pid_file": {
     "value": "/tmp/mlx-engine-server.pid",
     "doc": "Written by the start script, removed by the server's own idle exit. These disagreed once, so the idle exit cleaned up a file nothing created and left the real one behind."

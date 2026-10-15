@@ -192,6 +192,7 @@ Every command and flag: [`docs/cli.md`](docs/cli.md).
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | When nothing pastes, or nothing plays |
 | [`docs/tuning.md`](docs/tuning.md) | Kokoro's parameters, stress and IPA markup, whisper.cpp flags |
 | [`docs/mcp.md`](docs/mcp.md) | The five MCP tools |
+| [`docs/engine-api.md`](docs/engine-api.md) | The Kokoro server's HTTP API, for scripts that skip the CLI |
 | [`docs/monitor.md`](docs/monitor.md) | Live transcripts and loopback setup |
 | [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) | Spoken notifications and every config key |
 | [`docs/uninstall.md`](docs/uninstall.md) | Everything an install leaves on disk |

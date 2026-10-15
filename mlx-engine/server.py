@@ -171,6 +171,7 @@ async def health_check():
     # activity.
     return {
         "status": "ok",
+        "protocol": protocol.ENGINE_PROTOCOL,
         "tts_model": TTS_MODEL_PATH,
         "tts_loaded": tts_model.loaded,
     }

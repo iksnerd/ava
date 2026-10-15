@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/protocol"
 )
 
 // mlx-engine's port used to be spelled in five places. Four of them now derive
@@ -112,5 +114,31 @@ func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 					filepath.Join(doc...), m[1])
 			}
 		}
+	}
+}
+
+// docs/engine-api.md documents what a script may send mlx-engine directly.
+// A request field added to server.py and not to the doc is the quiet way that
+// contract goes stale, so every field of SpeakRequest and the protocol value
+// must appear in it.
+func TestEngineAPIDocNamesEveryRequestFieldAndTheProtocol(t *testing.T) {
+	server := mustRead(t, "mlx-engine", "server.py")
+	doc := mustRead(t, "docs", "engine-api.md")
+
+	cls := regexp.MustCompile(`(?s)class SpeakRequest\(BaseModel\):(.*?)\n\nclass `).FindStringSubmatch(server)
+	if cls == nil {
+		t.Fatal("server.py no longer has a SpeakRequest class — update this test with it")
+	}
+	fields := regexp.MustCompile(`(?m)^    ([a-z_]+): `).FindAllStringSubmatch(cls[1], -1)
+	if len(fields) < 4 {
+		t.Fatalf("found %d SpeakRequest fields, want at least text, voice, speed, split_pattern", len(fields))
+	}
+	for _, f := range fields {
+		if !strings.Contains(doc, "`"+f[1]+"`") {
+			t.Errorf("docs/engine-api.md does not document the /speak field `%s`", f[1])
+		}
+	}
+	if !strings.Contains(doc, protocol.EngineProtocol) {
+		t.Errorf("docs/engine-api.md does not name the protocol %q", protocol.EngineProtocol)
 	}
 }

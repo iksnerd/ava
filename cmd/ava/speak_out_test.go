@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/protocol"
 )
 
 // fakeEngine answers /health and /speak the way mlx-engine does, so the
@@ -15,7 +17,9 @@ import (
 func fakeEngine(t *testing.T, wav string) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"ok","protocol":"` + protocol.EngineProtocol + `"}`))
+	})
 	mux.HandleFunc("/speak", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "audio/wav")
 		_, _ = w.Write([]byte(wav))

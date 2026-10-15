@@ -18,6 +18,8 @@ from conftest import FAKE_SNAPSHOT
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+import protocol
+
 
 class TestHealth:
     def test_reports_the_tts_model_and_its_load_state(self, client, server):
@@ -25,11 +27,16 @@ class TestHealth:
         This used to also report a lazily-loaded 4B STT model; that half moved
         out — ava monitor runs Voxtral in its own process for streaming, and
         one-shot transcription uses whisper.cpp, which was 13x faster.
+
+        The protocol field is how a client tells this engine from one left
+        running across an upgrade: the Go client refuses an engine that does
+        not report the protocol it speaks, and the value is the generated one.
         """
         res = client.get("/health")
         assert res.status_code == 200
         assert res.json() == {
             "status": "ok",
+            "protocol": protocol.ENGINE_PROTOCOL,
             "tts_model": server.TTS_MODEL_PATH,
             "tts_loaded": True,
         }

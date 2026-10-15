@@ -17,6 +17,13 @@ ACTIVITY_DIR_ENV = "TTSCONTROL_ACTIVITY_DIR"
 # the real one behind.
 ENGINE_PID_FILE = "/tmp/mlx-engine-server.pid"
 
+# The name and version the engine reports in /health and the Go client
+# requires. An engine left running from before an upgrade reports nothing or
+# another version, and speaking to it would fail in ways that look like the
+# engine being down. Bump the number when /speak or /health change in a way
+# an older client or engine cannot read.
+ENGINE_PROTOCOL = "ava-engine/1"
+
 # Where mlx-engine binds. Whoever holds a stale copy either fails to bind or
 # health-checks a socket nobody is listening on, and then reports the engine
 # down while it is running.

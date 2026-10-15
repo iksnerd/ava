@@ -57,9 +57,15 @@ const EngineScriptEnv = enginedist.ScriptEnv
 // Engine is the TTS half of the mlx-engine client, narrowed to what
 // speaking needs (satisfied by *mlx.Client).
 type Engine interface {
-	Healthy() bool
+	Check() mlx.State
 	Speak(mlx.SpeakOptions) ([]byte, error)
 }
+
+// errStaleEngine is an engine that answers /health without speaking this
+// ava's protocol, almost always one left running across an upgrade. It is
+// not auto-restarted: another session may be mid-synthesis on it.
+var errStaleEngine = errors.New("the running mlx-engine is older than this ava; " +
+	"restart it with `ava engine stop && ava engine start`")
 
 // Options are per-call overrides. A zero value takes everything from the
 // live voice settings, which is what a caller with no opinion wants.
@@ -161,9 +167,14 @@ func (s *Speaker) speak(text string, opts Options) error {
 		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
-	s.notef("mlx-engine unavailable (%v) — speaking through macOS `say` instead, "+
-		"so this will not use your configured Kokoro voice. "+
-		"Start it with `ava engine start`.", synthErr)
+	if errors.Is(synthErr, errStaleEngine) {
+		s.notef("%v — speaking through macOS `say` instead, "+
+			"so this will not use your configured Kokoro voice.", synthErr)
+	} else {
+		s.notef("mlx-engine unavailable (%v) — speaking through macOS `say` instead, "+
+			"so this will not use your configured Kokoro voice. "+
+			"Start it with `ava engine start`.", synthErr)
+	}
 	return s.speakWithSay(text, settings, marker)
 }
 
@@ -185,14 +196,20 @@ func (s *Speaker) render(text string, opts Options) error {
 // first if it's down and the user hasn't explicitly stopped it. An error
 // here is the caller's cue to fall back to `say`.
 func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Settings) ([]byte, error) {
-	if !s.Engine.Healthy() {
+	switch s.Engine.Check() {
+	case mlx.Stale:
+		return nil, errStaleEngine
+	case mlx.Down:
 		if !settings.EngineAutoStart || s.AutoStart == nil {
 			return nil, fmt.Errorf("mlx-engine is not running")
 		}
 		if err := s.AutoStart(); err != nil {
 			return nil, fmt.Errorf("mlx-engine auto-start failed: %w", err)
 		}
-		if !s.Engine.Healthy() {
+		switch s.Engine.Check() {
+		case mlx.Stale:
+			return nil, errStaleEngine
+		case mlx.Down:
 			return nil, fmt.Errorf("mlx-engine did not come up")
 		}
 	}

@@ -52,6 +52,8 @@ ava speak --out scene1.wav "Once upon a time"   # save a WAV, play nothing
 | `--out` | Save the speech as a WAV file instead of playing it. Ignores the mute, has no `say` fallback (a down engine is an error and leaves no file), and cannot be combined with `--async` |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
 
+A script that needs more than `--out` can talk to the engine directly: see [the engine API](engine-api.md).
+
 While the menu bar app's global Mute is on, `speak` prints a notice and plays
 nothing rather than reporting success.
 

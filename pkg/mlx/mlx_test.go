@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/protocol"
 )
 
 func TestNewClientDefaultURL(t *testing.T) {
@@ -103,16 +105,16 @@ func TestSpeakServerUnreachable(t *testing.T) {
 
 // --- Healthy -----------------------------------------------------------
 
-func TestHealthyTrueOn200(t *testing.T) {
+func TestHealthyTrueWhenTheEngineReportsOurProtocol(t *testing.T) {
 	var path string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
-		w.Write([]byte(`{"status":"ok"}`))
+		w.Write([]byte(`{"status":"ok","protocol":"` + protocol.EngineProtocol + `"}`))
 	}))
 	defer srv.Close()
 
 	if !NewClient(srv.URL).Healthy() {
-		t.Error("Healthy() = false, want true for a 200")
+		t.Error("Healthy() = false, want true for an engine on our protocol")
 	}
 	if path != "/health" {
 		t.Errorf("path = %q, want /health", path)
@@ -137,5 +139,50 @@ func TestHealthyFalseOnNon200(t *testing.T) {
 
 	if NewClient(srv.URL).Healthy() {
 		t.Error("Healthy() = true, want false for a 503")
+	}
+}
+
+func healthServer(t *testing.T, status int, body string) *Client {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return NewClient(srv.URL)
+}
+
+// Check tells an engine that speaks this client's protocol from one that is
+// up but older, and both from none at all. The middle case used to read as
+// healthy, so a stale engine left running across an upgrade was spoken to.
+func TestCheckTellsReadyFromStaleFromDown(t *testing.T) {
+	for name, tc := range map[string]struct {
+		status int
+		body   string
+		want   State
+	}{
+		"matching protocol": {200, `{"status":"ok","protocol":"` + protocol.EngineProtocol + `"}`, Ready},
+		"no protocol (old)": {200, `{"status":"ok","tts_loaded":true}`, Stale},
+		"another version":   {200, `{"status":"ok","protocol":"ava-engine/0"}`, Stale},
+		"not json":          {200, `ok`, Stale},
+		"warming up":        {503, `{"status":"warming"}`, Down},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := healthServer(t, tc.status, tc.body).Check(); got != tc.want {
+				t.Errorf("Check() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	if got := NewClient("http://127.0.0.1:1").Check(); got != Down {
+		t.Errorf("Check() with nothing listening = %v, want Down", got)
+	}
+}
+
+// Healthy stays the question callers ask: is /speak worth attempting. A stale
+// engine is not.
+func TestHealthyIsFalseForAStaleEngine(t *testing.T) {
+	if healthServer(t, 200, `{"status":"ok"}`).Healthy() {
+		t.Error("Healthy() = true for an engine that reports no protocol")
 	}
 }

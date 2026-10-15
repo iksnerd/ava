@@ -15,12 +15,24 @@ import (
 // stubEngine stands in for the mlx-engine HTTP client.
 type stubEngine struct {
 	healthy bool
-	audio   []byte
-	err     error
-	calls   []mlx.SpeakOptions
+	// stale is an engine that answers /health but is not on our protocol.
+	stale bool
+	audio []byte
+	err   error
+	calls []mlx.SpeakOptions
 }
 
 func (e *stubEngine) Healthy() bool { return e.healthy }
+
+func (e *stubEngine) Check() mlx.State {
+	switch {
+	case e.stale:
+		return mlx.Stale
+	case e.healthy:
+		return mlx.Ready
+	}
+	return mlx.Down
+}
 
 func (e *stubEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
 	e.calls = append(e.calls, opts)
@@ -250,7 +262,7 @@ type stoppingEngine struct {
 	speaker *Speaker
 }
 
-func (e *stoppingEngine) Healthy() bool { return true }
+func (e *stoppingEngine) Check() mlx.State { return mlx.Ready }
 
 func (e *stoppingEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
 	entries, _ := os.ReadDir(e.speaker.ActivityDir)
@@ -460,5 +472,47 @@ func TestOutPassesVoiceAndSpeedToTheEngine(t *testing.T) {
 	}
 	if got := engine.calls[0]; got.Voice != "bf_emma" || got.Speed != 0.9 {
 		t.Errorf("engine got voice %q speed %v, want bf_emma 0.9", got.Voice, got.Speed)
+	}
+}
+
+// An engine left running across an upgrade answers /health, so "not running"
+// and an auto-start would both be wrong: the start would fail to bind. Say
+// what is wrong and how to fix it, and still speak, through `say`. It must not
+// restart the engine itself, which another session may be mid-synthesis on.
+func TestStaleEngineFallsBackToSayWithARestartNotice(t *testing.T) {
+	engine := &stubEngine{stale: true, audio: []byte("wav")}
+	s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
+	var notice strings.Builder
+	s.Notice = &notice
+	started := false
+	s.AutoStart = func() error { started = true; return nil }
+
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatalf("Speak() error = %v", err)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("sent /speak to a stale engine %d times", len(engine.calls))
+	}
+	if started {
+		t.Error("auto-started over a running (stale) engine; it cannot bind and may kill another session's speech")
+	}
+	if rec.saidText != "hello" {
+		t.Errorf("said %q, want the say fallback", rec.saidText)
+	}
+	for _, want := range []string{"older", "ava engine stop", "ava engine start"} {
+		if !strings.Contains(notice.String(), want) {
+			t.Errorf("notice %q is missing %q", notice.String(), want)
+		}
+	}
+}
+
+// --out has no say fallback, so a stale engine is an error that says what to do.
+func TestOutNamesAStaleEngine(t *testing.T) {
+	engine := &stubEngine{stale: true}
+	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
+
+	err := s.Speak("hello", Options{Out: filepath.Join(t.TempDir(), "a.wav")})
+	if err == nil || !strings.Contains(err.Error(), "ava engine stop") {
+		t.Fatalf("err = %v, want one that says to restart the engine", err)
 	}
 }
