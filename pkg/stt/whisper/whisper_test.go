@@ -3,7 +3,9 @@ package whisper
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -329,4 +331,75 @@ func TestTranscribeFormatWithNoSpeechIsEmpty(t *testing.T) {
 	if err != nil || got != "" {
 		t.Errorf("got %q, %v; want an empty result so the caller can say 'no speech'", got, err)
 	}
+}
+
+// A whisper-cli that starts children and hangs: on a timeout the children must
+// go with it, not be left running after the error is reported.
+func TestATimeoutKillsWhisperCliAndItsChildren(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-grandchild")
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	t.Setenv("WHISPER_CHILD_PIDFILE", pidFile)
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0o644)
+
+	client := NewClient(fixtureModelPath)
+	client.Timeout = 500 * time.Millisecond
+	start := time.Now()
+	if _, err := client.Transcribe(stt.Options{AudioPath: audio}); err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("err = %v, want a timeout", err)
+	}
+	// Killing the group closes the output pipe at once. Killing only the
+	// program leaves the child holding it, and Output() waits out WaitDelay (2s).
+	if took := time.Since(start); took > 1500*time.Millisecond {
+		t.Errorf("the timeout took %v to report: the child was still holding the output pipe", took)
+	}
+
+	var child int
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && child == 0 {
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			child, _ = strconv.Atoi(strings.TrimSpace(string(raw)))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if child == 0 {
+		t.Fatal("the fixture never wrote its child's pid")
+	}
+	defer syscall.Kill(child, syscall.SIGKILL)
+	for time.Now().Before(deadline.Add(2 * time.Second)) {
+		if syscall.Kill(child, 0) != nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Errorf("whisper-cli's child %d is still running after the timeout", child)
+}
+
+// A whisper-cli that finishes and leaves a child running: the call succeeds,
+// and the child does not outlive it.
+func TestAChildLeftRunningAfterASuccessfulRunIsReaped(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-straggler")
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	t.Setenv("WHISPER_CHILD_PIDFILE", pidFile)
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	os.WriteFile(audio, []byte("x"), 0o644)
+
+	text, err := NewClient(fixtureModelPath).Transcribe(stt.Options{AudioPath: audio})
+	if err != nil || text != "a transcript" {
+		t.Fatalf("text %q, err %v", text, err)
+	}
+	raw, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	defer syscall.Kill(child, syscall.SIGKILL)
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if syscall.Kill(child, 0) != nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Errorf("whisper-cli's child %d is still running after the call returned", child)
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iksnerd/ava/internal/procutil"
 	"github.com/iksnerd/ava/pkg/stt"
 	"github.com/iksnerd/ava/pkg/stt/captions"
 )
@@ -87,12 +88,17 @@ func (c *Client) run(args []string) ([]byte, error) {
 	// the output pipe (a wrapper script's child): Output() would wait on the
 	// pipe regardless. WaitDelay bounds that wait after the kill.
 	cmd.WaitDelay = 2 * time.Second
+	// ... and whisper-cli's own children: a timeout kills the whole process
+	// group, not only the program, and nothing it started is left running.
+	procutil.InOwnGroup(cmd)
+	procutil.KillGroupOnCancel(cmd)
 	// cmd.Output() leaves Stderr nil, so it buffers the child's stderr
 	// (whisper-cli's verbose model-load/timing logs) into ExitError.Stderr
 	// instead of printing it — silencing it on success, and giving a real
 	// diagnostic instead of a bare "exit status 1" on failure.
 
 	out, err := cmd.Output()
+	procutil.ReapGroup(cmd)
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("whisper-cli timed out after %s", timeout)
 	}

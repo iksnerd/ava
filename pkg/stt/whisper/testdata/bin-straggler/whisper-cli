@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fixture whisper-cli that finishes normally but leaves a child running, for the
+# test that whatever it started is reaped. The child's pid goes to
+# $WHISPER_CHILD_PIDFILE.
+sleep 30 >/dev/null 2>&1 &
+echo $! > "$WHISPER_CHILD_PIDFILE"
+echo "a transcript"
