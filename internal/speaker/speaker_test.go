@@ -1,6 +1,7 @@
 package speaker
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -24,12 +25,18 @@ type stubEngine struct {
 	// timed is what SpeakTimed returns; timedCalls records what it was asked.
 	timed      mlx.TimedSpeech
 	timedCalls []mlx.SpeakOptions
+	// timedFor, when set, answers SpeakTimed per text instead of timed, and
+	// may fail for one line of a batch.
+	timedFor func(text string) (mlx.TimedSpeech, error)
 }
 
 func (e *stubEngine) Healthy() bool { return e.healthy }
 
 func (e *stubEngine) SpeakTimed(opts mlx.SpeakOptions) (mlx.TimedSpeech, error) {
 	e.timedCalls = append(e.timedCalls, opts)
+	if e.timedFor != nil {
+		return e.timedFor(opts.Text)
+	}
 	return e.timed, e.err
 }
 
@@ -609,5 +616,148 @@ func TestSplitPatternNamesPresetsAndRejectsOthers(t *testing.T) {
 	}
 	if _, err := SplitPattern("paragraph"); err == nil || !strings.Contains(err.Error(), "sentence") {
 		t.Errorf("err = %v, want one listing line and sentence", err)
+	}
+}
+
+// --- batch (OutDir) ------------------------------------------------------
+
+// scene answers a line with audio named after it and one segment whose length
+// is the line's length in ms, so a test can tell the lines apart.
+func scene(text string) (mlx.TimedSpeech, error) {
+	return mlx.TimedSpeech{
+		Audio:    []byte("WAV:" + text),
+		Segments: []captions.Segment{{Text: text, StartMS: 0, EndMS: len(text) * 100}},
+	}, nil
+}
+
+type manifestEntry struct {
+	Line       int                `json:"line"`
+	File       string             `json:"file"`
+	Text       string             `json:"text"`
+	DurationMS int                `json:"duration_ms"`
+	Segments   []captions.Segment `json:"segments"`
+}
+
+func readManifest(t *testing.T, dir string) []manifestEntry {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var m []manifestEntry
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("manifest is not the documented JSON: %v\n%s", err, raw)
+	}
+	return m
+}
+
+// One WAV per non-blank line, numbered in order, and a manifest of what each
+// holds. Blank lines are skipped but the manifest keeps each line's number in
+// the script, so a scene can be traced back to where it was written.
+func TestBatchWritesOneWavPerLineAndAManifest(t *testing.T) {
+	engine := &stubEngine{healthy: true, timedFor: scene}
+	s, rec := newTestSpeaker(t, engine, settingsWith(func(s *voiceconfig.Settings) { s.Muted = true }))
+	dir := filepath.Join(t.TempDir(), "scenes")
+
+	if err := s.Speak("Once upon a time.\n\n  The end.  \r\n", Options{OutDir: dir, SplitPattern: "SPLIT"}); err != nil {
+		t.Fatalf("Speak(OutDir) error = %v", err)
+	}
+
+	for file, want := range map[string]string{"001.wav": "WAV:Once upon a time.", "002.wav": "WAV:The end."} {
+		if got, _ := os.ReadFile(filepath.Join(dir, file)); string(got) != want {
+			t.Errorf("%s = %q, want %q", file, got, want)
+		}
+	}
+	m := readManifest(t, dir)
+	if len(m) != 2 {
+		t.Fatalf("manifest has %d entries, want 2: %+v", len(m), m)
+	}
+	if m[0].Line != 1 || m[0].File != "001.wav" || m[0].Text != "Once upon a time." || m[0].DurationMS != 1700 {
+		t.Errorf("entry 1 = %+v", m[0])
+	}
+	if m[1].Line != 3 || m[1].File != "002.wav" || m[1].Text != "The end." || m[1].DurationMS != 800 {
+		t.Errorf("entry 2 = %+v, want it to remember it was line 3 of the script", m[1])
+	}
+	if len(m[0].Segments) != 1 || m[0].Segments[0].Text != "Once upon a time." {
+		t.Errorf("entry 1 segments = %+v", m[0].Segments)
+	}
+	if engine.timedCalls[0].SplitPattern != "SPLIT" {
+		t.Error("the split pattern was not passed to the engine")
+	}
+	if len(rec.played) != 0 || rec.saidText != "" || hasMarker(s.ActivityDir) {
+		t.Error("batch made a sound or left a marker; it only writes files")
+	}
+}
+
+// 1000 lines must still sort: the width grows past three digits.
+func TestBatchNumbersWithAtLeastThreeDigits(t *testing.T) {
+	if got := batchName(1, 9); got != "001.wav" {
+		t.Errorf("batchName(1, 9) = %q", got)
+	}
+	if got := batchName(7, 12345); got != "00007.wav" {
+		t.Errorf("batchName(7, 12345) = %q, want a width that fits every number", got)
+	}
+}
+
+// A failure on line 2 writes nothing and says which line: half a scene set
+// beside a manifest that is not there is worse than none.
+func TestBatchWritesNothingWhenALineFails(t *testing.T) {
+	engine := &stubEngine{healthy: true, timedFor: func(text string) (mlx.TimedSpeech, error) {
+		if text == "bad" {
+			return mlx.TimedSpeech{}, errors.New("boom")
+		}
+		return scene(text)
+	}}
+	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
+	dir := filepath.Join(t.TempDir(), "scenes")
+
+	err := s.Speak("good\nbad\nalso good", Options{OutDir: dir})
+	if err == nil || !strings.Contains(err.Error(), "line 2") {
+		t.Fatalf("err = %v, want it to name line 2", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("%d files written after a failure", len(entries))
+	}
+}
+
+func TestBatchWithAnEngineThatIsDownOrStaleWritesNothing(t *testing.T) {
+	for name, engine := range map[string]*stubEngine{
+		"down":  {healthy: false},
+		"stale": {stale: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
+			dir := filepath.Join(t.TempDir(), "scenes")
+
+			if err := s.Speak("one\ntwo", Options{OutDir: dir}); err == nil {
+				t.Fatal("Speak succeeded")
+			}
+			if _, err := os.Stat(dir); !os.IsNotExist(err) {
+				t.Errorf("the directory exists after a failed batch: %v", err)
+			}
+			if rec.saidText != "" {
+				t.Error("fell back to say")
+			}
+		})
+	}
+}
+
+func TestBatchOfNothingIsAnError(t *testing.T) {
+	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, timedFor: scene}, voiceconfig.Defaults())
+	err := s.Speak(" \n\n  ", Options{OutDir: filepath.Join(t.TempDir(), "x")})
+	if err == nil || !strings.Contains(err.Error(), "nothing to speak") {
+		t.Errorf("err = %v, want nothing to speak", err)
+	}
+}
+
+func TestBatchAndSingleFileAreExclusive(t *testing.T) {
+	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, timedFor: scene}, voiceconfig.Defaults())
+	for _, opts := range []Options{
+		{OutDir: t.TempDir(), Out: "a.wav"},
+		{OutDir: t.TempDir(), Timings: "a.json"},
+	} {
+		if err := s.Speak("x", opts); err == nil {
+			t.Errorf("Speak(%+v) succeeded; a batch writes its own files", opts)
+		}
 	}
 }

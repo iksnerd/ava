@@ -43,6 +43,7 @@ ava speak --voice bf_emma --speed 0.9 "slower, british"
 ava speak --async "don't wait for playback"
 ava speak --out scene1.wav "Once upon a time"   # save a WAV, play nothing
 ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt
+ava speak --out-dir scenes < script.txt        # a WAV per line, plus a manifest
 ```
 
 | Flag | Does |
@@ -52,10 +53,13 @@ ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt
 | `--async` | Return as soon as playback starts |
 | `--out` | Save the speech as a WAV file instead of playing it. Ignores the mute, has no `say` fallback (a down engine is an error and leaves no file), and cannot be combined with `--async` |
 | `--timings` | With `--out`, also write where each segment of the text sits in the audio, as JSON: `[{"start_ms": 0, "end_ms": 2000, "text": "…"}]`. Both files come from one synthesis, so the times are exact |
-| `--split` | With `--out`, how `--timings` segments are cut: `line` (the default) or `sentence` |
+| `--split` | With `--out` or `--out-dir`, how segments are cut: `line` (the default) or `sentence` |
+| `--out-dir` | Speak each non-blank line of the text into its own WAV in this directory, numbered `001.wav`, `002.wav`, and write `manifest.json` last. Cannot be combined with `--out`, `--timings` or `--async` |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
 
 A script that needs more than `--out` can talk to the engine directly: see [the engine API](engine-api.md).
+
+`--out-dir` reads the script the way `speak` always does, from stdin or the arguments, and does not take a file name (`ava speak lines.txt` would say the words "lines.txt"), so use `< script.txt`. The manifest is a list of `{"line", "file", "text", "duration_ms", "segments"}`, where `line` is the line's number in the script with blank lines counted and `segments` are the caption times within that file. Everything is rendered before anything is written, so a failing line writes no files and the error names it. Files with the same names are overwritten, so regenerating a script replaces the old scenes.
 
 While the menu bar app's global Mute is on, `speak` prints a notice and plays
 nothing rather than reporting success.

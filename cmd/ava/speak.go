@@ -30,6 +30,7 @@ func newSpeakCmd() *cobra.Command {
 		out       string
 		timings   string
 		split     string
+		outDir    string
 		serverURL string
 	)
 
@@ -44,12 +45,16 @@ func newSpeakCmd() *cobra.Command {
 			"With --out the audio is saved as a WAV instead of played: the mute does\n" +
 			"not apply, and there is no macOS `say` fallback, so a down engine is an\n" +
 			"error rather than a file in a different voice. --timings also writes\n" +
-			"where each segment of the text sits in the audio, for captions.",
+			"where each segment of the text sits in the audio, for captions.\n\n" +
+			"With --out-dir each non-blank line becomes its own WAV (001.wav, 002.wav,\n" +
+			"...) with a manifest.json of their durations. Existing files of the same\n" +
+			"names are overwritten, and nothing is written if any line fails.",
 		Example: "  ava speak \"build finished\"\n" +
 			"  git log -1 --format=%s | ava speak\n" +
 			"  ava speak --voice bf_emma --speed 0.9 \"slower, british\"\n" +
 			"  ava speak --out scene1.wav \"Once upon a time\"\n" +
-			"  ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt",
+			"  ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt\n" +
+			"  ava speak --out-dir scenes < script.txt",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -60,11 +65,11 @@ func newSpeakCmd() *cobra.Command {
 			if err := validateVoice(voice); err != nil {
 				return err
 			}
-			file, err := fileOutput(out, timings, split, async)
+			file, err := fileArgs{out, timings, split, outDir, async}.options()
 			if err != nil {
 				return err
 			}
-			if file.Out != "" {
+			if toFiles(file) {
 				file.Voice, file.Speed = voice, speed
 				return speaker.New(serverURL).Speak(text, file)
 			}
@@ -87,11 +92,13 @@ func newSpeakCmd() *cobra.Command {
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
 	flags.StringVar(&out, "out", "", "Save the speech to this WAV file instead of playing it")
 	flags.StringVar(&timings, "timings", "", "With --out, also write where each segment of the text sits in the audio, as JSON (start_ms, end_ms, text)")
-	flags.StringVar(&split, "split", "", "With --out, how --timings segments are cut: line (default) or sentence")
+	flags.StringVar(&outDir, "out-dir", "", "Speak each line of the text into its own WAV in this directory, with a manifest.json of durations and segments")
+	flags.StringVar(&split, "split", "", "With --out or --out-dir, how segments are cut: line (default) or sentence")
 	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
 
 	_ = cmd.MarkFlagFilename("out", "wav")
 	_ = cmd.MarkFlagFilename("timings", "json")
+	_ = cmd.MarkFlagDirname("out-dir")
 	_ = cmd.RegisterFlagCompletionFunc("split",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return []string{"line", "sentence"}, cobra.ShellCompDirectiveNoFileComp
@@ -111,36 +118,54 @@ func newSpeakCmd() *cobra.Command {
 	return cmd
 }
 
-// fileOutput validates the file-output arguments and returns them as the
-// speaker options they set: a WAV (out), the segment times beside it
-// (timings) and how fine the segments are (split). The CLI and the MCP speak
-// tool both call it, so the two refuse the same things, and it runs before
+// fileArgs are the arguments that send speech to files instead of the
+// speakers. The CLI flags and the MCP tool's parameters both fill one, so the
+// two refuse the same things.
+type fileArgs struct {
+	out, timings, split, outDir string
+	async                       bool
+}
+
+// options validates the arguments and returns the speaker options they set:
+// a WAV (out), the segment times beside it (timings), how fine the segments
+// are (split), or a directory of WAVs, one per line (outDir). It runs before
 // synthesis so a long script is not spoken only to be thrown away. Nothing set
 // returns the zero value.
-func fileOutput(out, timings, split string, async bool) (speaker.Options, error) {
-	if out == "" {
-		if timings != "" || split != "" {
-			return speaker.Options{}, fmt.Errorf("timings and split go with a WAV: pass --out (the out parameter) as well")
-		}
-		return speaker.Options{}, nil
-	}
-	if async {
-		return speaker.Options{}, fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
-	}
-	pattern, err := speaker.SplitPattern(split)
+func (a fileArgs) options() (speaker.Options, error) {
+	pattern, err := speaker.SplitPattern(a.split)
 	if err != nil {
 		return speaker.Options{}, err
 	}
-	for _, path := range []string{out, timings} {
-		if path == "" {
-			continue
+	switch {
+	case a.outDir != "":
+		if a.out != "" || a.timings != "" {
+			return speaker.Options{}, fmt.Errorf("--out-dir writes its own files and a manifest: do not pass --out or --timings with it")
 		}
-		if err := checkOutDir(path); err != nil {
-			return speaker.Options{}, err
+		if a.async {
+			return speaker.Options{}, fmt.Errorf("out_dir cannot be combined with async: the files must exist when the call returns")
 		}
+		return speaker.Options{OutDir: a.outDir, SplitPattern: pattern}, nil
+	case a.out != "":
+		if a.async {
+			return speaker.Options{}, fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
+		}
+		for _, path := range []string{a.out, a.timings} {
+			if path == "" {
+				continue
+			}
+			if err := checkOutDir(path); err != nil {
+				return speaker.Options{}, err
+			}
+		}
+		return speaker.Options{Out: a.out, Timings: a.timings, SplitPattern: pattern}, nil
+	case a.timings != "" || a.split != "":
+		return speaker.Options{}, fmt.Errorf("timings and split go with a WAV: pass --out or --out-dir (the out or out_dir parameter) as well")
 	}
-	return speaker.Options{Out: out, Timings: timings, SplitPattern: pattern}, nil
+	return speaker.Options{}, nil
 }
+
+// toFiles reports whether the options send speech to files.
+func toFiles(o speaker.Options) bool { return o.Out != "" || o.OutDir != "" }
 
 // checkOutDir fails before synthesis when the file could not be written
 // anyway, so a long script is not synthesized only to be thrown away.

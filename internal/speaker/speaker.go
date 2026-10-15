@@ -91,6 +91,9 @@ type Options struct {
 	// are; see SplitPattern for the named presets. Empty keeps the engine's
 	// default, a segment per line.
 	SplitPattern string
+	// OutDir speaks each non-blank line of the text into its own WAV in this
+	// directory, with a manifest. See renderBatch. It excludes Out and Timings.
+	OutDir string
 }
 
 // sentenceSplit breaks after sentence-ending punctuation, so each segment of
@@ -157,6 +160,9 @@ func (s *Speaker) notef(format string, args ...any) {
 // opts.Async). A muted machine is not an error: it returns nil having done
 // nothing, so no caller has to special-case silence.
 func (s *Speaker) Speak(text string, opts Options) error {
+	if opts.OutDir != "" {
+		return s.renderBatch(text, opts)
+	}
 	if opts.Timings != "" && opts.Out == "" {
 		return errors.New("timings are written beside a WAV: pass out as well")
 	}

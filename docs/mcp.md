@@ -31,7 +31,7 @@ Pass `--server-url` if `mlx-engine` isn't on the default
 
 | Tool | Arguments | What it does |
 |---|---|---|
-| `speak` | `text`, `voice?`, `speed?`, `async?`, `out?`, `timings?`, `split?` | Speaks through Kokoro, falling back to macOS `say` when the server is down. With `out` it saves a WAV to that path instead, with no mute and no `say` fallback; `timings` also writes each segment's start and end as JSON, cut by `split` (`line` or `sentence`) |
+| `speak` | `text`, `voice?`, `speed?`, `async?`, `out?`, `timings?`, `split?`, `out_dir?` | Speaks through Kokoro, falling back to macOS `say` when the server is down. With `out` it saves a WAV to that path instead, with no mute and no `say` fallback; `timings` also writes each segment's start and end as JSON, cut by `split` (`line` or `sentence`). With `out_dir` each non-blank line becomes its own WAV in that directory, with a `manifest.json` |
 | `stop_speaking` | — | Cancels speech in flight, including another session's hook speech |
 | `list_voices` | — | The available Kokoro voices and their accent/gender |
 | `transcribe` | `audio_path`, `language?`, `model?`, `beam_size?`, `format?` | Transcribes a 16kHz mono WAV on-device; `format` is `text`, or `srt`, `vtt` or `json` for timed captions |

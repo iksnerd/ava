@@ -78,7 +78,8 @@ type speakArgs struct {
 	Async   bool    `json:"async,omitempty" jsonschema:"return immediately instead of waiting for playback to finish"`
 	Out     string  `json:"out,omitempty" jsonschema:"save the speech to this WAV file path instead of playing it; ignores the mute, has no macOS say fallback, and cannot be combined with async"`
 	Timings string  `json:"timings,omitempty" jsonschema:"with out, also write where each segment of the text sits in the audio to this JSON file path (start_ms, end_ms, text)"`
-	Split   string  `json:"split,omitempty" jsonschema:"with out, how timings segments are cut: line (default) or sentence"`
+	Split   string  `json:"split,omitempty" jsonschema:"with out or out_dir, how segments are cut: line (default) or sentence"`
+	OutDir  string  `json:"out_dir,omitempty" jsonschema:"speak each non-blank line of text into its own WAV in this directory (001.wav, 002.wav, ...) with a manifest.json of durations and segments; excludes out and timings and cannot be combined with async"`
 }
 
 type transcribeArgs struct {
@@ -120,13 +121,16 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateVoice(args.Voice); err != nil {
 			return nil, nil, err
 		}
-		file, err := fileOutput(args.Out, args.Timings, args.Split, args.Async)
+		file, err := fileArgs{args.Out, args.Timings, args.Split, args.OutDir, args.Async}.options()
 		if err != nil {
 			return nil, nil, err
 		}
 		file.Voice, file.Speed, file.Async = args.Voice, args.Speed, args.Async
 		if err := deps.Speak(args.Text, file); err != nil {
 			return nil, nil, err
+		}
+		if file.OutDir != "" {
+			return textResult("wrote one WAV per line to %s, with %s listing them", file.OutDir, speaker.ManifestName), nil, nil
 		}
 		if file.Out != "" {
 			return textResult("wrote %d characters of speech to %s", len(args.Text), file.Out), nil, nil

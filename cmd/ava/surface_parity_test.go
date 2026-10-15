@@ -156,3 +156,29 @@ func TestMcpSpeakTimingsNeedsOut(t *testing.T) {
 		t.Errorf("timings without out: error=%v, spoke %d times", res.IsError, len(s.speakOpts))
 	}
 }
+
+func TestMcpSpeakPassesOutDir(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "one\ntwo", "out_dir": "/tmp/scenes", "split": "sentence"})
+	if res.IsError {
+		t.Fatalf("speak with out_dir failed: %s", resultText(t, res))
+	}
+	if o := s.speakOpts[0]; o.OutDir != "/tmp/scenes" || o.SplitPattern == "" || o.Out != "" {
+		t.Errorf("opts = %+v, want OutDir and the sentence pattern", o)
+	}
+	if !strings.Contains(resultText(t, res), "/tmp/scenes") {
+		t.Errorf("result = %q, want it to name the directory", resultText(t, res))
+	}
+}
+
+func TestMcpSpeakOutDirExcludesOut(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "hi", "out_dir": "/tmp/scenes", "out": "/tmp/a.wav"})
+	if !res.IsError || len(s.speakOpts) != 0 {
+		t.Errorf("out_dir with out: error=%v, spoke %d times", res.IsError, len(s.speakOpts))
+	}
+}

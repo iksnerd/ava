@@ -137,3 +137,68 @@ func TestSpeakRejectsAnUnknownSplit(t *testing.T) {
 		t.Errorf("err = %v, want one listing the splits", err)
 	}
 }
+
+func runSpeakWithStdin(t *testing.T, stdin string, args ...string) (string, error) {
+	t.Helper()
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetIn(strings.NewReader(stdin))
+	root.SetArgs(append([]string{"speak"}, args...))
+	err := root.Execute()
+	return out.String(), err
+}
+
+// --out-dir reads the script the way speak always does, from stdin, and
+// writes a WAV per line with a manifest. A file argument would be spoken as
+// the words "lines.txt", so there is none.
+func TestSpeakOutDirWritesOneWavPerLineAndAManifest(t *testing.T) {
+	srv := fakeEngine(t, "RIFFscene")
+	dir := filepath.Join(t.TempDir(), "scenes")
+
+	if _, err := runSpeakWithStdin(t, "Once upon a time.\n\nThe end.\n", "--server-url", srv.URL, "--out-dir", dir); err != nil {
+		t.Fatalf("speak --out-dir: %v", err)
+	}
+	for _, f := range []string{"001.wav", "002.wav"} {
+		if got, err := os.ReadFile(filepath.Join(dir, f)); err != nil || string(got) != "RIFFscene" {
+			t.Errorf("%s = %q, %v", f, got, err)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("no manifest: %v", err)
+	}
+	var m []struct {
+		Line       int    `json:"line"`
+		File       string `json:"file"`
+		DurationMS int    `json:"duration_ms"`
+	}
+	if err := json.Unmarshal(raw, &m); err != nil || len(m) != 2 || m[1].Line != 3 || m[1].File != "002.wav" || m[1].DurationMS != 2000 {
+		t.Errorf("manifest = %s (%v)", raw, err)
+	}
+}
+
+func TestSpeakOutDirExcludesTheSingleFileFlags(t *testing.T) {
+	dir := t.TempDir()
+	for name, args := range map[string][]string{
+		"out":     {"--out", filepath.Join(dir, "a.wav")},
+		"timings": {"--timings", filepath.Join(dir, "a.json")},
+		"async":   {"--async"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := runSpeakWithStdin(t, "hi\n", append([]string{"--out-dir", filepath.Join(dir, "d")}, args...)...)
+			if err == nil || strings.Contains(err.Error(), "unknown flag") || !strings.Contains(err.Error(), name) {
+				t.Errorf("--out-dir with %s: err = %v, want a refusal that names %s", name, err, name)
+			}
+		})
+	}
+}
+
+func TestSpeakOutDirOfAnEmptyScriptIsAnError(t *testing.T) {
+	srv := fakeEngine(t, "RIFF")
+	_, err := runSpeakWithStdin(t, "  \n", "--server-url", srv.URL, "--out-dir", t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "nothing to speak") {
+		t.Errorf("err = %v, want nothing to speak", err)
+	}
+}
