@@ -63,10 +63,11 @@ type Engine interface {
 	SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error)
 }
 
-// errStaleEngine is an engine that answers /health without speaking this
-// ava's protocol, almost always one left running across an upgrade. It is
-// not auto-restarted: another session may be mid-synthesis on it.
-var errStaleEngine = errors.New("the running mlx-engine is older than this ava; " +
+// ErrStaleEngine (match it with errors.Is) is an engine that answers /health
+// without speaking this ava's protocol, almost always one left running across
+// an upgrade. It is not auto-restarted: another session may be mid-synthesis
+// on it.
+var ErrStaleEngine = errors.New("the running mlx-engine is older than this ava; " +
 	"restart it with `ava engine stop && ava engine start`")
 
 // Options are per-call overrides. A zero value takes everything from the
@@ -210,9 +211,9 @@ func (s *Speaker) speak(text string, opts Options) error {
 		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
-	var limited *errStartLimited
+	var limited *StartLimitedError
 	switch {
-	case errors.Is(synthErr, errStaleEngine):
+	case errors.Is(synthErr, ErrStaleEngine):
 		s.notef("%v — speaking through macOS `say` instead, "+
 			"so this will not use your configured Kokoro voice.", synthErr)
 	case errors.As(synthErr, &limited):
@@ -282,11 +283,11 @@ func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Set
 
 // ready is nil once there is an engine on our protocol to talk to, starting
 // one if it is down and the user has not stopped it on purpose. A stale
-// engine is not started over; see errStaleEngine.
+// engine is not started over; see ErrStaleEngine.
 func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	switch s.Engine.Check() {
 	case mlx.Stale:
-		return errStaleEngine
+		return ErrStaleEngine
 	case mlx.Ready:
 		s.StartGuard.Succeeded() // up, however it got there: earlier failures no longer count
 		return nil
@@ -296,7 +297,7 @@ func (s *Speaker) ready(settings voiceconfig.Settings) error {
 		return fmt.Errorf("mlx-engine is not running")
 	}
 	if until, blocked := s.StartGuard.Blocked(); blocked {
-		return &errStartLimited{until: until, max: s.StartGuard.Max}
+		return &StartLimitedError{Until: until, Max: s.StartGuard.Max}
 	}
 	if err := s.AutoStart(); err != nil {
 		s.StartGuard.Failed()
@@ -304,7 +305,7 @@ func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	}
 	switch s.Engine.Check() {
 	case mlx.Stale:
-		return errStaleEngine
+		return ErrStaleEngine
 	case mlx.Down:
 		s.StartGuard.Failed()
 		return fmt.Errorf("mlx-engine did not come up")
@@ -313,17 +314,19 @@ func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	return nil
 }
 
-// errStartLimited is an engine that has failed to start too often to try again
-// for now (RFC 0004 section 6, restart intensity). Retrying costs a `uv sync`
+// StartLimitedError (match it with errors.As) is an engine that has failed to
+// start too often to try again for now (RFC 0004 section 6, restart intensity). Retrying costs a `uv sync`
 // and up to two minutes of waiting on every speak, hooks included.
-type errStartLimited struct {
-	until time.Time
-	max   int
+type StartLimitedError struct {
+	// Until is when the oldest counted failure ages out and a start is tried again.
+	Until time.Time
+	// Max is how many failures inside the window cause the limit.
+	Max int
 }
 
-func (e *errStartLimited) Error() string {
+func (e *StartLimitedError) Error() string {
 	return fmt.Sprintf("mlx-engine failed to start %d times in a row; not trying again until %s",
-		e.max, e.until.Format("15:04"))
+		e.Max, e.Until.Format("15:04"))
 }
 
 // request is what the engine is asked for: the caller's voice and speed, or
