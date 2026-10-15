@@ -3,6 +3,19 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [0.9.0] — 2026-10-15
+
+Hardening that makes `ava` safe to embed, plus a break for anyone importing its packages. No command or flag changes.
+
+### Changed
+- **`Speak` and the engine client take a `context.Context`.** `speaker.Speak`, the `speaker.Engine` interface (`Check`, `Speak`, `SpeakTimed`) and the `pkg/mlx` client methods now take it first. Ending it abandons the speak: the synthesis request is aborted, a wait for the playback lock ends, the player is killed and its marker files removed, and the error wraps `ctx.Err()`. A cancelled speak never falls back to `say`, never starts the engine, and does not count as a failed start. A batch (`--out-dir`) stops waiting for an engine that is starting. Speech handed off with `--async` does not follow the caller's context, because an MCP request ends the moment it returns; stop that with `ava stop` as before.
+- **`whisper-cli` starts with a clean environment.** Only `PATH`, `HOME`, `LANG` and `TMPDIR`, those that are set, reach it, so a token or key in your shell does not. A whisper.cpp variable you set in your shell is no longer passed on.
+- **`whisper-cli` output is capped.** Stdout is read up to 32 MiB and the run is stopped past that, with an error that names the cap. Stderr keeps its first 16 KiB for the error message.
+
+### Added
+- **`speaker.ErrStaleEngine` and `*speaker.StartLimitedError`** are exported, so a caller can tell an engine left over from an older `ava` and an engine that has failed to start too often from other failures with `errors.Is` and `errors.As`.
+- **A test holds the dependency direction.** `internal/archtest` checks the import graph against written rules: `pkg/` does not reach the CLI or MCP framework or the macOS-only subsystems, only `cmd/` imports `cmd/`, and `internal/a11y` does no I/O.
+
 ## [0.8.1] — 2026-10-15
 
 Three reliability fixes found by reading ava against the drenskiCorp plugin protocol RFCs. None changes a command or a flag.
