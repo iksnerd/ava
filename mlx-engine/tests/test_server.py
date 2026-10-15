@@ -143,6 +143,82 @@ class TestSpeakFailureModes:
         assert res.content == b"RIFFfake"
 
 
+def _fake_chunks(server, chunks, rate=1000):
+    """Stand in for Kokoro's pipeline: (text, audio) pieces as it yields them,
+    audio shaped (1, samples) like the real thing."""
+    server.tts_model.instance = "loaded"
+    server._timed_chunks = lambda req: (rate, [(text, [samples]) for text, samples in chunks])
+
+
+class TestSpeakTimed:
+    def test_returns_each_chunks_text_and_cumulative_times(self, client, server):
+        """Times are cumulative sample counts over the sample rate, so they are
+        exact and cannot drift: 1500 samples at 1 kHz is 1.5 s."""
+        _fake_chunks(server, [(" Once upon a time. ", [0.1] * 1500), ("The end.", [0.2] * 500)])
+        res = client.post("/speak/timed", json={"text": "x"})
+        assert res.status_code == 200
+        assert res.json()["segments"] == [
+            {"text": "Once upon a time.", "start_ms": 0, "end_ms": 1500},
+            {"text": "The end.", "start_ms": 1500, "end_ms": 2000},
+        ]
+
+    def test_audio_is_one_wav_of_all_the_chunks(self, client, server):
+        import base64
+        import io
+        import wave
+
+        _fake_chunks(server, [("a", [0.5] * 1500), ("b", [-0.5] * 500)])
+        body = client.post("/speak/timed", json={"text": "x"}).json()
+        with wave.open(io.BytesIO(base64.b64decode(body["audio"]))) as w:
+            assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 1000)
+            assert w.getnframes() == 2000
+            frames = w.readframes(2000)
+        assert frames[:2] == (16383).to_bytes(2, "little", signed=True), "0.5 is half scale"
+        assert frames[-2:] == (-16383).to_bytes(2, "little", signed=True)
+
+    def test_passes_the_request_to_the_pipeline(self, client, server):
+        seen = []
+        server.tts_model.instance = "loaded"
+
+        def chunks(req):
+            seen.append(req)
+            return 1000, [("a", [[0.0] * 10])]
+
+        server._timed_chunks = chunks
+        client.post(
+            "/speak/timed",
+            json={"text": "hi", "voice": "bf_emma", "speed": 0.9, "split_pattern": "x"},
+        )
+        assert (seen[0].voice, seen[0].speed, seen[0].split_pattern) == ("bf_emma", 0.9, "x")
+
+    def test_blank_text_is_a_400_like_speak(self, client, server):
+        _fake_chunks(server, [("a", [0.0] * 10)])
+        assert client.post("/speak/timed", json={"text": "  "}).status_code == 400
+
+    def test_a_synthesis_failure_is_a_500_with_the_reason(self, client, server):
+        server.tts_model.instance = "loaded"
+
+        def boom(req):
+            raise RuntimeError("out of memory")
+
+        server._timed_chunks = boom
+        res = client.post("/speak/timed", json={"text": "hi"})
+        assert res.status_code == 500
+        assert "out of memory" in res.json()["detail"]
+
+    def test_no_audio_is_an_error_not_an_empty_200(self, client, server):
+        _fake_chunks(server, [])
+        res = client.post("/speak/timed", json={"text": "hi"})
+        assert res.status_code == 500
+        assert "no audio" in res.json()["detail"].lower()
+
+    def test_counts_as_activity_for_the_idle_timer(self, client, server):
+        _fake_chunks(server, [("a", [0.0] * 10)])
+        server.last_request_time = 0.0
+        client.post("/speak/timed", json={"text": "hi"})
+        assert server.last_request_time > 0.0
+
+
 class TestLazyModel:
     def test_loads_once_and_caches(self, server, recording_stub):
         loader = recording_stub(result="model-object")

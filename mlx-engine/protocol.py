@@ -22,7 +22,7 @@ ENGINE_PID_FILE = "/tmp/mlx-engine-server.pid"
 # another version, and speaking to it would fail in ways that look like the
 # engine being down. Bump the number when /speak or /health change in a way
 # an older client or engine cannot read.
-ENGINE_PROTOCOL = "ava-engine/1"
+ENGINE_PROTOCOL = "ava-engine/2"
 
 # Where mlx-engine binds. Whoever holds a stale copy either fails to bind or
 # health-checks a socket nobody is listening on, and then reports the engine

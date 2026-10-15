@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/iksnerd/ava/internal/protocol"
+	"github.com/iksnerd/ava/pkg/stt/captions"
 )
 
 func TestNewClientDefaultURL(t *testing.T) {
@@ -184,5 +185,76 @@ func TestCheckTellsReadyFromStaleFromDown(t *testing.T) {
 func TestHealthyIsFalseForAStaleEngine(t *testing.T) {
 	if healthServer(t, 200, `{"status":"ok"}`).Healthy() {
 		t.Error("Healthy() = true for an engine that reports no protocol")
+	}
+}
+
+// --- SpeakTimed ----------------------------------------------------------
+
+func jsonResponder(body string) func(w http.ResponseWriter) {
+	return func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}
+}
+
+func TestSpeakTimedDecodesTheAudioAndTheSegments(t *testing.T) {
+	// "RIFFwav" base64-encoded.
+	h := &speakRecorder{respond: jsonResponder(`{"sample_rate":24000,"audio":"UklGRndhdg==",` +
+		`"segments":[{"text":"Once upon a time.","start_ms":0,"end_ms":1500},{"text":"The end.","start_ms":1500,"end_ms":2000}]}`)}
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	got, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x", Voice: "bf_emma", Speed: 0.9, SplitPattern: `(?<=[.!?])\s+`})
+	if err != nil {
+		t.Fatalf("SpeakTimed() error = %v", err)
+	}
+	if string(got.Audio) != "RIFFwav" {
+		t.Errorf("audio = %q, want RIFFwav", got.Audio)
+	}
+	want := []captions.Segment{{Text: "Once upon a time.", StartMS: 0, EndMS: 1500}, {Text: "The end.", StartMS: 1500, EndMS: 2000}}
+	if len(got.Segments) != 2 || got.Segments[0] != want[0] || got.Segments[1] != want[1] {
+		t.Errorf("segments = %+v, want %+v", got.Segments, want)
+	}
+	if h.lastPath != "/speak/timed" {
+		t.Errorf("path = %q, want /speak/timed", h.lastPath)
+	}
+	if h.lastBody["split_pattern"] != `(?<=[.!?])\s+` || h.lastBody["voice"] != "bf_emma" {
+		t.Errorf("body = %v, want the voice and split pattern sent", h.lastBody)
+	}
+}
+
+// split_pattern is only sent when set, so plain /speak keeps its request body.
+func TestSpeakOmitsSplitPatternWhenUnset(t *testing.T) {
+	h := &speakRecorder{respond: wavResponder([]byte("wav"))}
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	if _, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, present := h.lastBody["split_pattern"]; present {
+		t.Errorf("body = %v, want no split_pattern when unset", h.lastBody)
+	}
+}
+
+func TestSpeakTimedReportsAServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"detail":"out of memory"}`))
+	}))
+	defer srv.Close()
+
+	_, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"})
+	if err == nil || !strings.Contains(err.Error(), "500") || !strings.Contains(err.Error(), "out of memory") {
+		t.Errorf("err = %v, want the status and the reason", err)
+	}
+}
+
+func TestSpeakTimedRejectsABodyThatIsNotTheContract(t *testing.T) {
+	srv := httptest.NewServer(&speakRecorder{respond: jsonResponder(`not json`)})
+	defer srv.Close()
+
+	if _, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"}); err == nil {
+		t.Error("SpeakTimed accepted a body that is not JSON")
 	}
 }

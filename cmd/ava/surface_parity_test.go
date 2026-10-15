@@ -132,3 +132,27 @@ func TestMcpTranscribeRejectsAnUnknownFormat(t *testing.T) {
 		t.Errorf("an unknown format succeeded: %s", resultText(t, res))
 	}
 }
+
+func TestMcpSpeakPassesTimingsAndSplit(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "hi", "out": "/tmp/a.wav", "timings": "/tmp/a.json", "split": "sentence"})
+	if res.IsError {
+		t.Fatalf("speak failed: %s", resultText(t, res))
+	}
+	o := s.speakOpts[0]
+	if o.Timings != "/tmp/a.json" || o.SplitPattern == "" {
+		t.Errorf("opts = %+v, want the timings path and the sentence pattern", o)
+	}
+}
+
+func TestMcpSpeakTimingsNeedsOut(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "hi", "timings": "/tmp/a.json"})
+	if !res.IsError || len(s.speakOpts) != 0 {
+		t.Errorf("timings without out: error=%v, spoke %d times", res.IsError, len(s.speakOpts))
+	}
+}

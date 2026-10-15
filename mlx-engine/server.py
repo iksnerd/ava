@@ -1,11 +1,15 @@
+import array
 import asyncio
+import base64
 import contextlib
 import functools
+import io
 import os
 import sys
 import tempfile
 import threading
 import time
+import wave
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -186,8 +190,9 @@ async def health_check():
 synthesis_lock = threading.Lock()
 
 
-@app.post("/speak")
-def speak(req: SpeakRequest):
+def _serve(req: SpeakRequest, synthesize) -> Response:
+    """What every synthesis endpoint does the same way: count as activity for
+    the idle timer, refuse blank text, and run one synthesis at a time."""
     global last_request_time
     last_request_time = time.time()
 
@@ -195,7 +200,17 @@ def speak(req: SpeakRequest):
         raise HTTPException(status_code=400, detail="text must not be empty.")
 
     with synthesis_lock:
-        return _synthesize(req)
+        return synthesize(req)
+
+
+@app.post("/speak")
+def speak(req: SpeakRequest):
+    return _serve(req, _synthesize)
+
+
+@app.post("/speak/timed")
+def speak_timed(req: SpeakRequest):
+    return _serve(req, _synthesize_timed)
 
 
 def _synthesize(req: SpeakRequest) -> Response:
@@ -243,6 +258,85 @@ def _synthesize(req: SpeakRequest) -> Response:
             audio_bytes = f.read()
 
     return Response(content=audio_bytes, media_type="audio/wav")
+
+
+def _timed_chunks(req: SpeakRequest):
+    """Kokoro's chunks as (text, audio) pairs, with the sample rate.
+
+    mlx_audio's generate() drops each chunk's text on its way out, keeping only
+    the audio, so this asks the pipeline under it directly, the way generate()
+    does (a fresh voice table, the same split). That is mlx_audio's internal
+    API: the version is pinned in uv.lock, and the engine tests fake this one
+    function so a bump shows up as a failing real run, not a silent change.
+    Audio is shaped (1, samples).
+    """
+    model = tts_model.get()
+    pipeline = model._get_pipeline(req.voice[:1] or "a")
+    pipeline.voices = {}
+    chunks = pipeline(
+        req.text,
+        voice=voice_files(req.voice),
+        speed=req.speed,
+        split_pattern=req.split_pattern or r"\n+",
+    )
+    return model.config.sample_rate, ((text, audio) for text, _phonemes, audio in chunks)
+
+
+def _pcm16(samples) -> bytes:
+    """Float samples in [-1, 1] as little-endian 16-bit PCM."""
+    pcm = array.array("h", (int(max(-1.0, min(1.0, x)) * 32767) for x in samples))
+    if sys.byteorder == "big":
+        pcm.byteswap()
+    return pcm.tobytes()
+
+
+def _synthesize_timed(req: SpeakRequest) -> dict:
+    """One WAV of the whole text, and where each of Kokoro's chunks sits in it.
+
+    A chunk is one piece of split_pattern (a line by default), so a caller who
+    wants captions per sentence asks for a sentence pattern. Times are
+    cumulative sample counts over the sample rate, so they are exact and do not
+    drift across a long text.
+    """
+    segments = []
+    pcm = bytearray()
+    total = 0
+    try:
+        rate, chunks = _timed_chunks(req)
+        for text, audio in chunks:
+            if audio is None:
+                continue
+            row = audio[0]
+            samples = row.tolist() if hasattr(row, "tolist") else list(row)
+            if not samples:
+                continue
+            start = total
+            total += len(samples)
+            pcm += _pcm16(samples)
+            segments.append(
+                {
+                    "text": text.strip(),
+                    "start_ms": round(start * 1000 / rate),
+                    "end_ms": round(total * 1000 / rate),
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Speech generation failed: {e}") from e
+
+    if not segments:
+        raise HTTPException(status_code=500, detail="Speech generation produced no audio.")
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(pcm))
+    return {
+        "sample_rate": rate,
+        "segments": segments,
+        "audio": base64.b64encode(buf.getvalue()).decode("ascii"),
+    }
 
 
 def tts_model_cached() -> bool:

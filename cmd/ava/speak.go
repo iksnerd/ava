@@ -28,6 +28,8 @@ func newSpeakCmd() *cobra.Command {
 		speed     float64
 		async     bool
 		out       string
+		timings   string
+		split     string
 		serverURL string
 	)
 
@@ -41,11 +43,13 @@ func newSpeakCmd() *cobra.Command {
 			"Mute is on, which it warns about rather than pretending to speak.\n\n" +
 			"With --out the audio is saved as a WAV instead of played: the mute does\n" +
 			"not apply, and there is no macOS `say` fallback, so a down engine is an\n" +
-			"error rather than a file in a different voice.",
+			"error rather than a file in a different voice. --timings also writes\n" +
+			"where each segment of the text sits in the audio, for captions.",
 		Example: "  ava speak \"build finished\"\n" +
 			"  git log -1 --format=%s | ava speak\n" +
 			"  ava speak --voice bf_emma --speed 0.9 \"slower, british\"\n" +
-			"  ava speak --out scene1.wav \"Once upon a time\"",
+			"  ava speak --out scene1.wav \"Once upon a time\"\n" +
+			"  ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,15 +60,13 @@ func newSpeakCmd() *cobra.Command {
 			if err := validateVoice(voice); err != nil {
 				return err
 			}
-			if out != "" {
-				if err := validateOut(out, async); err != nil {
-					return err
-				}
-				return speaker.New(serverURL).Speak(text, speaker.Options{
-					Voice: voice,
-					Speed: speed,
-					Out:   out,
-				})
+			file, err := fileOutput(out, timings, split, async)
+			if err != nil {
+				return err
+			}
+			if file.Out != "" {
+				file.Voice, file.Speed = voice, speed
+				return speaker.New(serverURL).Speak(text, file)
 			}
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
@@ -84,9 +86,16 @@ func newSpeakCmd() *cobra.Command {
 	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
 	flags.StringVar(&out, "out", "", "Save the speech to this WAV file instead of playing it")
+	flags.StringVar(&timings, "timings", "", "With --out, also write where each segment of the text sits in the audio, as JSON (start_ms, end_ms, text)")
+	flags.StringVar(&split, "split", "", "With --out, how --timings segments are cut: line (default) or sentence")
 	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
 
 	_ = cmd.MarkFlagFilename("out", "wav")
+	_ = cmd.MarkFlagFilename("timings", "json")
+	_ = cmd.RegisterFlagCompletionFunc("split",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return []string{"line", "sentence"}, cobra.ShellCompDirectiveNoFileComp
+		})
 
 	// Shell completion for --voice: the ids are a closed set this binary
 	// already knows, so there is no reason to make anyone look them up.
@@ -102,14 +111,35 @@ func newSpeakCmd() *cobra.Command {
 	return cmd
 }
 
-// validateOut is every check on a requested --out, shared by the CLI and the
-// MCP speak tool so the two refuse the same things. It runs before synthesis
-// so a long script is not spoken only to be thrown away.
-func validateOut(path string, async bool) error {
-	if async {
-		return fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
+// fileOutput validates the file-output arguments and returns them as the
+// speaker options they set: a WAV (out), the segment times beside it
+// (timings) and how fine the segments are (split). The CLI and the MCP speak
+// tool both call it, so the two refuse the same things, and it runs before
+// synthesis so a long script is not spoken only to be thrown away. Nothing set
+// returns the zero value.
+func fileOutput(out, timings, split string, async bool) (speaker.Options, error) {
+	if out == "" {
+		if timings != "" || split != "" {
+			return speaker.Options{}, fmt.Errorf("timings and split go with a WAV: pass --out (the out parameter) as well")
+		}
+		return speaker.Options{}, nil
 	}
-	return checkOutDir(path)
+	if async {
+		return speaker.Options{}, fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
+	}
+	pattern, err := speaker.SplitPattern(split)
+	if err != nil {
+		return speaker.Options{}, err
+	}
+	for _, path := range []string{out, timings} {
+		if path == "" {
+			continue
+		}
+		if err := checkOutDir(path); err != nil {
+			return speaker.Options{}, err
+		}
+	}
+	return speaker.Options{Out: out, Timings: timings, SplitPattern: pattern}, nil
 }
 
 // checkOutDir fails before synthesis when the file could not be written

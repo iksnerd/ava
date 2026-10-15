@@ -10,6 +10,7 @@ import (
 	"github.com/iksnerd/ava/internal/enginedist"
 	"github.com/iksnerd/ava/internal/voiceconfig"
 	"github.com/iksnerd/ava/pkg/mlx"
+	"github.com/iksnerd/ava/pkg/stt/captions"
 )
 
 // stubEngine stands in for the mlx-engine HTTP client.
@@ -20,9 +21,17 @@ type stubEngine struct {
 	audio []byte
 	err   error
 	calls []mlx.SpeakOptions
+	// timed is what SpeakTimed returns; timedCalls records what it was asked.
+	timed      mlx.TimedSpeech
+	timedCalls []mlx.SpeakOptions
 }
 
 func (e *stubEngine) Healthy() bool { return e.healthy }
+
+func (e *stubEngine) SpeakTimed(opts mlx.SpeakOptions) (mlx.TimedSpeech, error) {
+	e.timedCalls = append(e.timedCalls, opts)
+	return e.timed, e.err
+}
 
 func (e *stubEngine) Check() mlx.State {
 	switch {
@@ -263,6 +272,10 @@ type stoppingEngine struct {
 }
 
 func (e *stoppingEngine) Check() mlx.State { return mlx.Ready }
+
+func (e *stoppingEngine) SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error) {
+	return mlx.TimedSpeech{}, nil
+}
 
 func (e *stoppingEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
 	entries, _ := os.ReadDir(e.speaker.ActivityDir)
@@ -514,5 +527,87 @@ func TestOutNamesAStaleEngine(t *testing.T) {
 	err := s.Speak("hello", Options{Out: filepath.Join(t.TempDir(), "a.wav")})
 	if err == nil || !strings.Contains(err.Error(), "ava engine stop") {
 		t.Fatalf("err = %v, want one that says to restart the engine", err)
+	}
+}
+
+// --timings writes where each chunk of the text sits in the audio, beside the
+// WAV, from the same synthesis. It uses the engine's timed endpoint, so the
+// times are exact and the audio is the one they describe.
+func TestTimingsWritesTheWavAndTheSegmentsFromOneSynthesis(t *testing.T) {
+	engine := &stubEngine{healthy: true, timed: mlx.TimedSpeech{
+		Audio: []byte("RIFFtimed"),
+		Segments: []captions.Segment{
+			{Text: "Once upon a time.", StartMS: 0, EndMS: 1500},
+			{Text: "The end.", StartMS: 1500, EndMS: 2000},
+		},
+	}}
+	s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
+	dir := t.TempDir()
+	out, timings := filepath.Join(dir, "a.wav"), filepath.Join(dir, "a.json")
+
+	if err := s.Speak("x", Options{Out: out, Timings: timings, SplitPattern: "SPLIT"}); err != nil {
+		t.Fatalf("Speak() error = %v", err)
+	}
+	if wav, _ := os.ReadFile(out); string(wav) != "RIFFtimed" {
+		t.Errorf("wav = %q, want the timed synthesis's audio", wav)
+	}
+	want := `[{"start_ms":0,"end_ms":1500,"text":"Once upon a time."},{"start_ms":1500,"end_ms":2000,"text":"The end."}]`
+	if got, _ := os.ReadFile(timings); strings.TrimSpace(string(got)) != want {
+		t.Errorf("timings = %s, want %s", got, want)
+	}
+	if len(engine.calls) != 0 || len(engine.timedCalls) != 1 || engine.timedCalls[0].SplitPattern != "SPLIT" {
+		t.Errorf("engine calls = %v / timed = %v, want one timed call carrying the split pattern", engine.calls, engine.timedCalls)
+	}
+	if len(rec.played) != 0 || rec.saidText != "" {
+		t.Errorf("played %v / said %q; --timings must not make a sound", rec.played, rec.saidText)
+	}
+}
+
+func TestTimingsNeedsOut(t *testing.T) {
+	engine := &stubEngine{healthy: true}
+	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
+
+	err := s.Speak("x", Options{Timings: filepath.Join(t.TempDir(), "a.json")})
+	if err == nil || !strings.Contains(err.Error(), "out") {
+		t.Errorf("err = %v, want one saying timings go with out", err)
+	}
+	if len(engine.timedCalls) != 0 {
+		t.Error("synthesized before refusing")
+	}
+}
+
+// A render that fails leaves neither file: a timings file with no WAV beside
+// it is a script's worst surprise.
+func TestTimingsLeavesNothingWhenTheEngineFails(t *testing.T) {
+	for name, engine := range map[string]*stubEngine{
+		"down":  {healthy: false},
+		"stale": {stale: true},
+		"error": {healthy: true, err: errors.New("boom")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
+			dir := t.TempDir()
+			out, timings := filepath.Join(dir, "a.wav"), filepath.Join(dir, "a.json")
+
+			if err := s.Speak("x", Options{Out: out, Timings: timings}); err == nil {
+				t.Fatal("Speak succeeded")
+			}
+			for _, f := range []string{out, timings} {
+				if _, err := os.Stat(f); !os.IsNotExist(err) {
+					t.Errorf("%s exists after a failed render", f)
+				}
+			}
+		})
+	}
+}
+
+func TestSplitPatternNamesPresetsAndRejectsOthers(t *testing.T) {
+	for name, want := range map[string]string{"": "", "line": "", "sentence": `(?<=[.!?])\s+`} {
+		if got, err := SplitPattern(name); err != nil || got != want {
+			t.Errorf("SplitPattern(%q) = %q, %v; want %q", name, got, err, want)
+		}
+	}
+	if _, err := SplitPattern("paragraph"); err == nil || !strings.Contains(err.Error(), "sentence") {
+		t.Errorf("err = %v, want one listing line and sentence", err)
 	}
 }

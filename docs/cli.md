@@ -42,6 +42,7 @@ git log -1 --format=%s | ava speak     # no arguments: reads stdin
 ava speak --voice bf_emma --speed 0.9 "slower, british"
 ava speak --async "don't wait for playback"
 ava speak --out scene1.wav "Once upon a time"   # save a WAV, play nothing
+ava speak --out scene1.wav --timings scene1.json --split sentence < script.txt
 ```
 
 | Flag | Does |
@@ -50,6 +51,8 @@ ava speak --out scene1.wav "Once upon a time"   # save a WAV, play nothing
 | `--speed` | Rate multiplier, overriding the configured one |
 | `--async` | Return as soon as playback starts |
 | `--out` | Save the speech as a WAV file instead of playing it. Ignores the mute, has no `say` fallback (a down engine is an error and leaves no file), and cannot be combined with `--async` |
+| `--timings` | With `--out`, also write where each segment of the text sits in the audio, as JSON: `[{"start_ms": 0, "end_ms": 2000, "text": "…"}]`. Both files come from one synthesis, so the times are exact |
+| `--split` | With `--out`, how `--timings` segments are cut: `line` (the default) or `sentence` |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
 
 A script that needs more than `--out` can talk to the engine directly: see [the engine API](engine-api.md).

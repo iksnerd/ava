@@ -42,6 +42,7 @@ import (
 	"github.com/iksnerd/ava/internal/ttsproto"
 	"github.com/iksnerd/ava/internal/voiceconfig"
 	"github.com/iksnerd/ava/pkg/mlx"
+	"github.com/iksnerd/ava/pkg/stt/captions"
 )
 
 // playbackTimeout is long enough for a
@@ -59,6 +60,7 @@ const EngineScriptEnv = enginedist.ScriptEnv
 type Engine interface {
 	Check() mlx.State
 	Speak(mlx.SpeakOptions) ([]byte, error)
+	SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error)
 }
 
 // errStaleEngine is an engine that answers /health without speaking this
@@ -82,6 +84,30 @@ type Options struct {
 	// apply, and there is no `say` fallback: a different voice in a file a
 	// script will mux is worse than an error.
 	Out string
+	// Timings, with Out, also writes where each chunk of the text sits in the
+	// audio, as JSON, from the same synthesis. Captions need it.
+	Timings string
+	// SplitPattern is Kokoro's chunking regex and so how fine Timings' segments
+	// are; see SplitPattern for the named presets. Empty keeps the engine's
+	// default, a segment per line.
+	SplitPattern string
+}
+
+// sentenceSplit breaks after sentence-ending punctuation, so each segment of
+// a timed render is one sentence.
+const sentenceSplit = `(?<=[.!?])\s+`
+
+// SplitPattern turns a preset name into the regex the engine takes: "line"
+// (or empty) is the engine's own default, "sentence" a segment per sentence.
+// The CLI and the MCP tool both resolve their name through it.
+func SplitPattern(name string) (string, error) {
+	switch name {
+	case "", "line":
+		return "", nil
+	case "sentence":
+		return sentenceSplit, nil
+	}
+	return "", fmt.Errorf("unknown split %q (choose line or sentence)", name)
 }
 
 // Speaker performs synthesis and playback. The function fields are the
@@ -131,6 +157,9 @@ func (s *Speaker) notef(format string, args ...any) {
 // opts.Async). A muted machine is not an error: it returns nil having done
 // nothing, so no caller has to special-case silence.
 func (s *Speaker) Speak(text string, opts Options) error {
+	if opts.Timings != "" && opts.Out == "" {
+		return errors.New("timings are written beside a WAV: pass out as well")
+	}
 	if opts.Out != "" {
 		return s.render(text, opts)
 	}
@@ -178,16 +207,46 @@ func (s *Speaker) speak(text string, opts Options) error {
 	return s.speakWithSay(text, settings, marker)
 }
 
-// render synthesizes text into opts.Out. The file is only created once the
-// engine has answered, so a failure leaves nothing behind to be mistaken for
-// the narration.
+// render synthesizes text into opts.Out, and opts.Timings when asked. Files
+// are only created once the engine has answered, so a failure leaves nothing
+// behind to be mistaken for the narration, and a timings file never exists
+// without the WAV it describes.
 func (s *Speaker) render(text string, opts Options) error {
-	audio, err := s.synthesize(text, opts, s.Settings())
+	settings := s.Settings()
+	if err := s.ready(settings); err != nil {
+		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
+	}
+	req := s.request(text, opts, settings)
+
+	if opts.Timings == "" {
+		audio, err := s.Engine.Speak(req)
+		if err != nil {
+			return fmt.Errorf("cannot write %s: %w", opts.Out, err)
+		}
+		return writeFile(opts.Out, audio)
+	}
+
+	timed, err := s.Engine.SpeakTimed(req)
 	if err != nil {
 		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
 	}
-	if err := os.WriteFile(opts.Out, audio, 0644); err != nil {
-		return fmt.Errorf("write %s: %w", opts.Out, err)
+	segments, err := captions.JSON(timed.Segments)
+	if err != nil {
+		return err
+	}
+	if err := writeFile(opts.Out, timed.Audio); err != nil {
+		return err
+	}
+	if err := writeFile(opts.Timings, []byte(segments)); err != nil {
+		_ = os.Remove(opts.Out)
+		return err
+	}
+	return nil
+}
+
+func writeFile(path string, data []byte) error {
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -196,24 +255,39 @@ func (s *Speaker) render(text string, opts Options) error {
 // first if it's down and the user hasn't explicitly stopped it. An error
 // here is the caller's cue to fall back to `say`.
 func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Settings) ([]byte, error) {
+	if err := s.ready(settings); err != nil {
+		return nil, err
+	}
+	return s.Engine.Speak(s.request(text, opts, settings))
+}
+
+// ready is nil once there is an engine on our protocol to talk to, starting
+// one if it is down and the user has not stopped it on purpose. A stale
+// engine is not started over; see errStaleEngine.
+func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	switch s.Engine.Check() {
 	case mlx.Stale:
-		return nil, errStaleEngine
+		return errStaleEngine
 	case mlx.Down:
 		if !settings.EngineAutoStart || s.AutoStart == nil {
-			return nil, fmt.Errorf("mlx-engine is not running")
+			return fmt.Errorf("mlx-engine is not running")
 		}
 		if err := s.AutoStart(); err != nil {
-			return nil, fmt.Errorf("mlx-engine auto-start failed: %w", err)
+			return fmt.Errorf("mlx-engine auto-start failed: %w", err)
 		}
 		switch s.Engine.Check() {
 		case mlx.Stale:
-			return nil, errStaleEngine
+			return errStaleEngine
 		case mlx.Down:
-			return nil, fmt.Errorf("mlx-engine did not come up")
+			return fmt.Errorf("mlx-engine did not come up")
 		}
 	}
+	return nil
+}
 
+// request is what the engine is asked for: the caller's voice and speed, or
+// the configured ones.
+func (s *Speaker) request(text string, opts Options, settings voiceconfig.Settings) mlx.SpeakOptions {
 	voice := opts.Voice
 	if voice == "" {
 		voice = settings.Voice
@@ -222,7 +296,7 @@ func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Set
 	if speed == 0 {
 		speed = settings.Speed
 	}
-	return s.Engine.Speak(mlx.SpeakOptions{Text: text, Voice: voice, Speed: speed})
+	return mlx.SpeakOptions{Text: text, Voice: voice, Speed: speed, SplitPattern: opts.SplitPattern}
 }
 
 // speakWithSay is the always-available fallback. `say` has no volume flag,

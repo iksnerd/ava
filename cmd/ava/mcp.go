@@ -72,11 +72,13 @@ func newMcpCmd() *cobra.Command {
 }
 
 type speakArgs struct {
-	Text  string  `json:"text" jsonschema:"the text to speak"`
-	Voice string  `json:"voice,omitempty" jsonschema:"Kokoro voice id (see list_voices); several comma-separated ids blend as an average. Defaults to the user's configured voice."`
-	Speed float64 `json:"speed,omitempty" jsonschema:"speech rate multiplier; defaults to the user's configured speed"`
-	Async bool    `json:"async,omitempty" jsonschema:"return immediately instead of waiting for playback to finish"`
-	Out   string  `json:"out,omitempty" jsonschema:"save the speech to this WAV file path instead of playing it; ignores the mute, has no macOS say fallback, and cannot be combined with async"`
+	Text    string  `json:"text" jsonschema:"the text to speak"`
+	Voice   string  `json:"voice,omitempty" jsonschema:"Kokoro voice id (see list_voices); several comma-separated ids blend as an average. Defaults to the user's configured voice."`
+	Speed   float64 `json:"speed,omitempty" jsonschema:"speech rate multiplier; defaults to the user's configured speed"`
+	Async   bool    `json:"async,omitempty" jsonschema:"return immediately instead of waiting for playback to finish"`
+	Out     string  `json:"out,omitempty" jsonschema:"save the speech to this WAV file path instead of playing it; ignores the mute, has no macOS say fallback, and cannot be combined with async"`
+	Timings string  `json:"timings,omitempty" jsonschema:"with out, also write where each segment of the text sits in the audio to this JSON file path (start_ms, end_ms, text)"`
+	Split   string  `json:"split,omitempty" jsonschema:"with out, how timings segments are cut: line (default) or sentence"`
 }
 
 type transcribeArgs struct {
@@ -118,16 +120,16 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateVoice(args.Voice); err != nil {
 			return nil, nil, err
 		}
-		if args.Out != "" {
-			if err := validateOut(args.Out, args.Async); err != nil {
-				return nil, nil, err
-			}
-		}
-		if err := deps.Speak(args.Text, speaker.Options{Voice: args.Voice, Speed: args.Speed, Async: args.Async, Out: args.Out}); err != nil {
+		file, err := fileOutput(args.Out, args.Timings, args.Split, args.Async)
+		if err != nil {
 			return nil, nil, err
 		}
-		if args.Out != "" {
-			return textResult("wrote %d characters of speech to %s", len(args.Text), args.Out), nil, nil
+		file.Voice, file.Speed, file.Async = args.Voice, args.Speed, args.Async
+		if err := deps.Speak(args.Text, file); err != nil {
+			return nil, nil, err
+		}
+		if file.Out != "" {
+			return textResult("wrote %d characters of speech to %s", len(args.Text), file.Out), nil, nil
 		}
 		if deps.Muted() {
 			return textResult("%s", mutedNotice), nil, nil

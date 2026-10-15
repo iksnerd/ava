@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/iksnerd/ava/internal/protocol"
+	"github.com/iksnerd/ava/pkg/stt/captions"
 )
 
 // Client wraps the local mlx-engine HTTP server.
@@ -55,6 +56,18 @@ type SpeakOptions struct {
 	Text  string  `json:"text"`
 	Voice string  `json:"voice"`
 	Speed float64 `json:"speed"`
+	// SplitPattern is Kokoro's chunking regex. Unset keeps the engine's own
+	// default, which splits on newlines. It decides how fine SpeakTimed's
+	// segments are: a sentence pattern gives one segment per sentence.
+	SplitPattern string `json:"split_pattern,omitempty"`
+}
+
+// TimedSpeech is the audio of a whole text and the segments that make it up.
+type TimedSpeech struct {
+	Audio []byte
+	// Segments are the chunks of the text with where each sits in the audio,
+	// in milliseconds from the start.
+	Segments []captions.Segment
 }
 
 // Speak synthesizes text with the server's Kokoro TTS and returns the raw
@@ -62,12 +75,36 @@ type SpeakOptions struct {
 // wraps this with the mute/activity-marker/playback-lock protocol that
 // scripts/speak.sh established.
 func (c *Client) Speak(opts SpeakOptions) ([]byte, error) {
+	return c.post("/speak", opts)
+}
+
+// SpeakTimed is Speak with the time each chunk of text occupies, which is
+// what captions need. See docs/engine-api.md for the endpoint.
+func (c *Client) SpeakTimed(opts SpeakOptions) (TimedSpeech, error) {
+	body, err := c.post("/speak/timed", opts)
+	if err != nil {
+		return TimedSpeech{}, err
+	}
+	var resp struct {
+		Audio    []byte             `json:"audio"` // base64 in the JSON
+		Segments []captions.Segment `json:"segments"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return TimedSpeech{}, fmt.Errorf("unexpected /speak/timed response: %w", err)
+	}
+	return TimedSpeech{Audio: resp.Audio, Segments: resp.Segments}, nil
+}
+
+// post sends opts to a synthesis endpoint and returns the response body. The
+// one place a synthesis request is built, so /speak and /speak/timed cannot
+// differ in timeout or in how a failure reads.
+func (c *Client) post(path string, opts SpeakOptions) ([]byte, error) {
 	payload, err := json.Marshal(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode speak request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.ServerURL+"/speak", bytes.NewReader(payload))
+	req, err := http.NewRequest("POST", c.ServerURL+path, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -82,16 +119,16 @@ func (c *Client) Speak(opts SpeakOptions) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
-	audio, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returned status %d: %s", res.StatusCode, string(audio))
+		return nil, fmt.Errorf("server returned status %d: %s", res.StatusCode, string(body))
 	}
 
-	return audio, nil
+	return body, nil
 }
 
 // healthTimeout bounds the check that decides whether to talk to the server

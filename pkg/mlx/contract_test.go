@@ -119,8 +119,8 @@ func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 
 // docs/engine-api.md documents what a script may send mlx-engine directly.
 // A request field added to server.py and not to the doc is the quiet way that
-// contract goes stale, so every field of SpeakRequest and the protocol value
-// must appear in it.
+// contract goes stale, so every field of SpeakRequest, every endpoint and the
+// protocol value must appear in it.
 func TestEngineAPIDocNamesEveryRequestFieldAndTheProtocol(t *testing.T) {
 	server := mustRead(t, "mlx-engine", "server.py")
 	doc := mustRead(t, "docs", "engine-api.md")
@@ -136,6 +136,11 @@ func TestEngineAPIDocNamesEveryRequestFieldAndTheProtocol(t *testing.T) {
 	for _, f := range fields {
 		if !strings.Contains(doc, "`"+f[1]+"`") {
 			t.Errorf("docs/engine-api.md does not document the /speak field `%s`", f[1])
+		}
+	}
+	for _, r := range regexp.MustCompile(`(?m)^@app\.(?:get|post)\("(/[a-z/]+)"\)`).FindAllStringSubmatch(server, -1) {
+		if !strings.Contains(doc, "`"+r[1]+"`") && !strings.Contains(doc, " "+r[1]+"`") {
+			t.Errorf("docs/engine-api.md does not document the endpoint %s", r[1])
 		}
 	}
 	if !strings.Contains(doc, protocol.EngineProtocol) {

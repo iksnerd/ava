@@ -25,7 +25,7 @@ const (
 	// or another version, and speaking to it would fail in ways that look
 	// like the engine being down. Bump the number when /speak or /health
 	// change in a way an older client or engine cannot read.
-	EngineProtocol = "ava-engine/1"
+	EngineProtocol = "ava-engine/2"
 
 	// Where mlx-engine binds. Whoever holds a stale copy either fails to bind
 	// or health-checks a socket nobody is listening on, and then reports the
