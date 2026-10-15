@@ -49,6 +49,13 @@ func NewClient(serverURL string) *Client {
 	}
 }
 
+// maxResponseBytes caps how much of a response is read into memory. A WAV of
+// ten minutes of speech is under 30 MB (a little over 38 MB as /speak/timed's
+// base64), so this leaves room for far more than anyone speaks at once, and
+// stops a process squatting on the engine's port, or a runaway engine, from
+// filling memory. A variable so a test can lower it.
+var maxResponseBytes = 256 << 20
+
 // SpeakOptions are the knobs /speak accepts. Voice may be a comma-separated
 // pair ("af_heart,af_sky") for Kokoro's voice blending, and Text may carry
 // Kokoro's inline pronunciation markup — both are passed through untouched.
@@ -119,9 +126,13 @@ func (c *Client) post(path string, opts SpeakOptions) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, int64(maxResponseBytes)+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+	if len(body) > maxResponseBytes {
+		return nil, fmt.Errorf("server returned status %d with a response over the cap of %d bytes: "+
+			"something other than the engine may be answering on %s", res.StatusCode, maxResponseBytes, c.ServerURL)
 	}
 
 	if res.StatusCode != http.StatusOK {

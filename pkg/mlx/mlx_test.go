@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iksnerd/ava/internal/protocol"
 	"github.com/iksnerd/ava/pkg/stt/captions"
@@ -256,5 +257,82 @@ func TestSpeakTimedRejectsABodyThatIsNotTheContract(t *testing.T) {
 
 	if _, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"}); err == nil {
 		t.Error("SpeakTimed accepted a body that is not JSON")
+	}
+}
+
+// --- response size cap ---------------------------------------------------
+
+// Whatever answers on the engine's port is read into memory. The cap keeps a
+// squatter, or a runaway engine, from filling it: the limit is lowered here so
+// the input genuinely crosses it, rather than inflating a response to match the
+// real one.
+func TestAResponseOverTheCapIsRefusedAtTheBoundary(t *testing.T) {
+	old := maxResponseBytes
+	maxResponseBytes = 1024
+	defer func() { maxResponseBytes = old }()
+
+	for size, wantErr := range map[int]bool{1023: false, 1024: false, 1025: true, 5000: true} {
+		srv := httptest.NewServer(&speakRecorder{respond: wavResponder(make([]byte, size))})
+		got, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"})
+		srv.Close()
+		if wantErr {
+			if err == nil || !strings.Contains(err.Error(), "1024") {
+				t.Errorf("%d bytes: err = %v, want one naming the cap of 1024", size, err)
+			}
+			continue
+		}
+		if err != nil || len(got) != size {
+			t.Errorf("%d bytes: got %d bytes, err %v; want it read whole", size, len(got), err)
+		}
+	}
+}
+
+func TestAnErrorBodyOverTheCapIsAlsoBounded(t *testing.T) {
+	old := maxResponseBytes
+	maxResponseBytes = 100
+	defer func() { maxResponseBytes = old }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(strings.Repeat("e", 5000)))
+	}))
+	defer srv.Close()
+
+	_, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"})
+	if err == nil || len(err.Error()) > 1000 {
+		t.Errorf("err = %q (%d bytes); want a short error, not the whole body", err, len(err.Error()))
+	}
+}
+
+// A response that never ends is cut off at the cap, not read until the client's
+// own timeout (300s) or until memory runs out.
+func TestAResponseThatNeverEndsIsCutOffAtTheCap(t *testing.T) {
+	old := maxResponseBytes
+	maxResponseBytes = 64 << 10
+	defer func() { maxResponseBytes = old }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chunk := make([]byte, 16<<10)
+		for r.Context().Err() == nil {
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+			w.(http.Flusher).Flush()
+		}
+	}))
+	defer srv.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "cap") {
+			t.Errorf("err = %v, want one naming the cap", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("still reading a response that never ends: the cap does not stop the read")
 	}
 }
