@@ -196,6 +196,25 @@ Face revision and is checked against its sha256 before it is installed. An
 existing file of the right size is left alone, and one of the wrong size (an
 interrupted download) is fetched again.
 
+## Update
+
+```bash
+ava update          # install the latest release, if it is newer
+ava update --force  # reinstall, go back to an older release, or replace a build made from source
+```
+
+Finds the latest release on GitHub, downloads the archive for this Mac, checks it
+against the release's `checksums.txt`, and only then replaces the running `ava`
+(a file written beside it and renamed over it, so a failed update leaves the old
+one in place). A build made from source, which reports `dev` or a commit after a
+tag, is not replaced without `--force`. The Kokoro engine is embedded in the
+binary, so it updates with it.
+
+`--source <url>` (or `AVA_DOWNLOAD_BASE`) points at a host that serves
+`checksums.txt` and the archives under their release names, to try a build
+before it is released. Versions before the one that added `update` have to be
+installed by hand once.
+
 ## Engine server
 
 ```bash

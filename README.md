@@ -178,6 +178,7 @@ ava voices                       # the ids --voice accepts
 
 ava engine start|status|stop     # the Kokoro server
 ava mcp                          # serve the stack over MCP
+ava update                       # install the latest release
 ava a11y snapshot.txt            # narrate an accessibility tree
 ```
 
