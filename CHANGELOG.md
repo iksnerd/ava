@@ -3,7 +3,9 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.10.0] — 2026-10-16
+
+A new command, `ava update`. No existing command or flag changes.
 
 ### Added
 - **`ava update`** installs the latest release. It reads the version from GitHub, checks the archive against the release's `checksums.txt` before touching anything, and swaps the binary by renaming a file written beside it, so a failed update leaves the old `ava` in place. A build made from source needs `--force`. `--source` or `AVA_DOWNLOAD_BASE` points it at another host to try a build before it is released. Releases before this one have to be installed by hand once.
