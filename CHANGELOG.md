@@ -3,6 +3,46 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [0.8.0] — 2026-10-15
+
+Speech and transcripts you can script. `ava speak` can write WAV files instead of playing them,
+with the time each sentence occupies, and `ava transcribe` can write SRT, WebVTT or JSON captions.
+Everything here is on the MCP tools too.
+
+### Added
+- **`ava speak --out file.wav`** saves the speech instead of playing it. The global mute does not
+  apply, and there is no `say` fallback: a down engine is an error that leaves no file, because a
+  macOS voice in a file a script will mux is worse than a failure.
+- **`--timings file.json`** also writes where each segment of the text sits in the audio, from the
+  same synthesis (`start_ms`, `end_ms`, `text`), and **`--split sentence`** cuts the segments per
+  sentence instead of per line. The last segment ends exactly where the WAV does.
+- **`ava speak --out-dir scenes < script.txt`** voices a script into one WAV per non-blank line
+  (`001.wav`, `002.wav`, ...) with a `manifest.json` of each line's number, text, duration and
+  segments. A failing line writes no files and the error names it. Files with the same names are
+  overwritten.
+- **`ava transcribe --format srt|vtt|json`** writes timed captions. `text` is still the default.
+- The MCP `speak` tool takes `out`, `timings`, `split` and `out_dir`, and `transcribe` takes
+  `format`.
+- **`docs/engine-api.md`** documents the Kokoro server's `/health`, `/speak` and the new
+  `/speak/timed` for scripts that skip the CLI. A test fails when a request field or endpoint is
+  missing from it.
+
+### Changed
+- **The engine reports a protocol version** (`ava-engine/2`) in `/health`, and `ava` refuses an
+  engine that reports another. An engine left running across an upgrade used to be spoken to as if
+  it were current, and failed in ways that looked like it being down. `ava` now says the running
+  engine is older and to restart it with `ava engine stop && ava engine start`, then speaks through
+  `say`. It does not restart the engine itself, which another session may be using. **After
+  updating, restart the engine once.**
+- The engine's `POST /speak/timed` asks mlx_audio's pipeline directly, because `generate()` drops
+  each chunk's text. That is an internal API of a pinned version, so a bump of `mlx-audio` needs a
+  real run to check it.
+
+### Fixed
+- The MCP `transcribe` tool called an undecodable file (an AIFF named `.wav`, a truncated download)
+  "no speech detected" and succeeded, where the CLI named the file's real problem. It now does the
+  same.
+
 ## [0.7.2] — 2026-09-24
 
 Polish for installing without Terminal: `Ava.dmg` now has the Applications shortcut to drag Ava
