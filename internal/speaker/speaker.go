@@ -71,6 +71,11 @@ type Options struct {
 	// Async returns as soon as the work is handed off, as a hook needs. Errors then go to stderr, since there's no caller
 	// left to return them to.
 	Async bool
+	// Out writes the engine's WAV to this path instead of playing it. Nothing
+	// is spoken, so the mute, the activity marker and the playback lock do not
+	// apply, and there is no `say` fallback: a different voice in a file a
+	// script will mux is worse than an error.
+	Out string
 }
 
 // Speaker performs synthesis and playback. The function fields are the
@@ -120,6 +125,9 @@ func (s *Speaker) notef(format string, args ...any) {
 // opts.Async). A muted machine is not an error: it returns nil having done
 // nothing, so no caller has to special-case silence.
 func (s *Speaker) Speak(text string, opts Options) error {
+	if opts.Out != "" {
+		return s.render(text, opts)
+	}
 	if s.Settings().Muted {
 		return nil
 	}
@@ -157,6 +165,20 @@ func (s *Speaker) speak(text string, opts Options) error {
 		"so this will not use your configured Kokoro voice. "+
 		"Start it with `ava engine start`.", synthErr)
 	return s.speakWithSay(text, settings, marker)
+}
+
+// render synthesizes text into opts.Out. The file is only created once the
+// engine has answered, so a failure leaves nothing behind to be mistaken for
+// the narration.
+func (s *Speaker) render(text string, opts Options) error {
+	audio, err := s.synthesize(text, opts, s.Settings())
+	if err != nil {
+		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
+	}
+	if err := os.WriteFile(opts.Out, audio, 0644); err != nil {
+		return fmt.Errorf("write %s: %w", opts.Out, err)
+	}
+	return nil
 }
 
 // synthesize returns the WAV bytes from the engine, starting the server

@@ -69,3 +69,34 @@ func TestMcpTranscribeRejectsAMissingFile(t *testing.T) {
 		t.Errorf("transcribe of a missing file = %q (error %v), want `no such audio file`", resultText(t, res), res.IsError)
 	}
 }
+
+// `speak --out` is reachable from the MCP tool too, so an agent can narrate
+// to a file without calling the engine's HTTP endpoint.
+func TestMcpSpeakOutPassesThePathAndReportsTheFile(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "scene one", "out": "/tmp/scene1.wav"})
+	if res.IsError {
+		t.Fatalf("speak with out failed: %s", resultText(t, res))
+	}
+	if len(s.speakOpts) != 1 || s.speakOpts[0].Out != "/tmp/scene1.wav" {
+		t.Errorf("opts = %+v, want Out=/tmp/scene1.wav", s.speakOpts)
+	}
+	if !strings.Contains(resultText(t, res), "/tmp/scene1.wav") {
+		t.Errorf("result = %q, want it to name the file", resultText(t, res))
+	}
+}
+
+func TestMcpSpeakOutRejectsAsync(t *testing.T) {
+	s := &spy{}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "speak", map[string]any{"text": "hi", "out": "/tmp/a.wav", "async": true})
+	if !res.IsError {
+		t.Errorf("speak with out and async succeeded: %s", resultText(t, res))
+	}
+	if len(s.speakOpts) != 0 {
+		t.Errorf("spoke with out and async: %+v", s.speakOpts)
+	}
+}

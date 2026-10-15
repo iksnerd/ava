@@ -41,6 +41,7 @@ ava speak "build finished"
 git log -1 --format=%s | ava speak     # no arguments: reads stdin
 ava speak --voice bf_emma --speed 0.9 "slower, british"
 ava speak --async "don't wait for playback"
+ava speak --out scene1.wav "Once upon a time"   # save a WAV, play nothing
 ```
 
 | Flag | Does |
@@ -48,6 +49,7 @@ ava speak --async "don't wait for playback"
 | `--voice` | A voice id from `ava voices`; several comma-separated ids blend as an average ([tuning](tuning.md#blending-is-an-average-and-it-is-not-limited-to-two)) |
 | `--speed` | Rate multiplier, overriding the configured one |
 | `--async` | Return as soon as playback starts |
+| `--out` | Save the speech as a WAV file instead of playing it. Ignores the mute, has no `say` fallback (a down engine is an error and leaves no file), and cannot be combined with `--async` |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
 
 While the menu bar app's global Mute is on, `speak` prints a notice and plays

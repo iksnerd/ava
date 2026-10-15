@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -26,6 +27,7 @@ func newSpeakCmd() *cobra.Command {
 		voice     string
 		speed     float64
 		async     bool
+		out       string
 		serverURL string
 	)
 
@@ -36,10 +38,14 @@ func newSpeakCmd() *cobra.Command {
 			"With no arguments it reads stdin, so a command's output can be piped\n" +
 			"straight in without shell quoting. Blocks until playback finishes\n" +
 			"unless --async is passed. Silent while the menu bar app's global\n" +
-			"Mute is on, which it warns about rather than pretending to speak.",
+			"Mute is on, which it warns about rather than pretending to speak.\n\n" +
+			"With --out the audio is saved as a WAV instead of played: the mute does\n" +
+			"not apply, and there is no macOS `say` fallback, so a down engine is an\n" +
+			"error rather than a file in a different voice.",
 		Example: "  ava speak \"build finished\"\n" +
 			"  git log -1 --format=%s | ava speak\n" +
-			"  ava speak --voice bf_emma --speed 0.9 \"slower, british\"",
+			"  ava speak --voice bf_emma --speed 0.9 \"slower, british\"\n" +
+			"  ava speak --out scene1.wav \"Once upon a time\"",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,6 +55,19 @@ func newSpeakCmd() *cobra.Command {
 			}
 			if err := validateVoice(voice); err != nil {
 				return err
+			}
+			if out != "" {
+				if async {
+					return fmt.Errorf("--out cannot be combined with --async: the file must exist when the command returns")
+				}
+				if err := checkOutDir(out); err != nil {
+					return err
+				}
+				return speaker.New(serverURL).Speak(text, speaker.Options{
+					Voice: voice,
+					Speed: speed,
+					Out:   out,
+				})
 			}
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
@@ -67,7 +86,10 @@ func newSpeakCmd() *cobra.Command {
 	flags.StringVar(&voice, "voice", "", "Kokoro voice id, or several comma-separated to blend as an average (default: the configured voice)")
 	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
+	flags.StringVar(&out, "out", "", "Save the speech to this WAV file instead of playing it")
 	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
+
+	_ = cmd.MarkFlagFilename("out", "wav")
 
 	// Shell completion for --voice: the ids are a closed set this binary
 	// already knows, so there is no reason to make anyone look them up.
@@ -81,6 +103,20 @@ func newSpeakCmd() *cobra.Command {
 		})
 
 	return cmd
+}
+
+// checkOutDir fails before synthesis when the file could not be written
+// anyway, so a long script is not synthesized only to be thrown away.
+func checkOutDir(path string) error {
+	dir := filepath.Dir(path)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return fmt.Errorf("cannot write %s: directory %s does not exist", path, dir)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("cannot write %s: %s is not a directory", path, dir)
+	}
+	return nil
 }
 
 // readSpeakText takes the text from the arguments, or from stdin when there

@@ -76,6 +76,7 @@ type speakArgs struct {
 	Voice string  `json:"voice,omitempty" jsonschema:"Kokoro voice id (see list_voices); several comma-separated ids blend as an average. Defaults to the user's configured voice."`
 	Speed float64 `json:"speed,omitempty" jsonschema:"speech rate multiplier; defaults to the user's configured speed"`
 	Async bool    `json:"async,omitempty" jsonschema:"return immediately instead of waiting for playback to finish"`
+	Out   string  `json:"out,omitempty" jsonschema:"save the speech to this WAV file path instead of playing it; ignores the mute, has no macOS say fallback, and cannot be combined with async"`
 }
 
 type transcribeArgs struct {
@@ -116,8 +117,19 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		if err := validateVoice(args.Voice); err != nil {
 			return nil, nil, err
 		}
-		if err := deps.Speak(args.Text, speaker.Options{Voice: args.Voice, Speed: args.Speed, Async: args.Async}); err != nil {
+		if args.Out != "" {
+			if args.Async {
+				return nil, nil, fmt.Errorf("out cannot be combined with async: the file must exist when the call returns")
+			}
+			if err := checkOutDir(args.Out); err != nil {
+				return nil, nil, err
+			}
+		}
+		if err := deps.Speak(args.Text, speaker.Options{Voice: args.Voice, Speed: args.Speed, Async: args.Async, Out: args.Out}); err != nil {
 			return nil, nil, err
+		}
+		if args.Out != "" {
+			return textResult("wrote %d characters of speech to %s", len(args.Text), args.Out), nil, nil
 		}
 		if deps.Muted() {
 			return textResult("%s", mutedNotice), nil, nil

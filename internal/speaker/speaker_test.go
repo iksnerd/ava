@@ -401,3 +401,64 @@ func TestAutoStartFailureCarriesTheScriptsReason(t *testing.T) {
 		t.Errorf("startEngine() = %v, want the script's own reason", err)
 	}
 }
+
+// --out renders instead of speaking: the engine's WAV lands in the file and
+// nothing plays. The global mute silences playback, not a file someone asked
+// for, so it must not stop a script that is narrating to disk.
+func TestOutWritesTheEnginesWavAndPlaysNothing(t *testing.T) {
+	engine := &stubEngine{healthy: true, audio: []byte("RIFFwav")}
+	s, rec := newTestSpeaker(t, engine, settingsWith(func(s *voiceconfig.Settings) { s.Muted = true }))
+	out := filepath.Join(t.TempDir(), "line.wav")
+
+	if err := s.Speak("hello there", Options{Out: out}); err != nil {
+		t.Fatalf("Speak(Out) error = %v", err)
+	}
+
+	got, err := os.ReadFile(out)
+	if err != nil || string(got) != "RIFFwav" {
+		t.Fatalf("file = %q, %v; want the engine's bytes", got, err)
+	}
+	if len(rec.played) != 0 || rec.saidText != "" {
+		t.Errorf("played %v / said %q; --out must not make a sound", rec.played, rec.saidText)
+	}
+	if hasMarker(s.ActivityDir) {
+		t.Error("an activity marker was left behind; nothing was spoken")
+	}
+}
+
+// With the engine down there is no file and no `say`: the macOS voice is not
+// the configured one, and a script muxing the output would not know.
+func TestOutFailsWithoutFallbackWhenTheEngineIsDown(t *testing.T) {
+	for name, engine := range map[string]*stubEngine{
+		"not running":     {healthy: false},
+		"synthesis fails": {healthy: true, err: errors.New("boom")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
+			out := filepath.Join(t.TempDir(), "line.wav")
+
+			if err := s.Speak("hello", Options{Out: out}); err == nil {
+				t.Fatal("Speak(Out) succeeded with the engine down")
+			}
+			if _, err := os.Stat(out); !os.IsNotExist(err) {
+				t.Errorf("a file exists after a failed render: %v", err)
+			}
+			if rec.saidText != "" || len(rec.played) != 0 {
+				t.Errorf("fell back to say/playback: said %q played %v", rec.saidText, rec.played)
+			}
+		})
+	}
+}
+
+// --out honours --voice and --speed like any other speak.
+func TestOutPassesVoiceAndSpeedToTheEngine(t *testing.T) {
+	engine := &stubEngine{healthy: true, audio: []byte("wav")}
+	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
+
+	if err := s.Speak("hi", Options{Out: filepath.Join(t.TempDir(), "a.wav"), Voice: "bf_emma", Speed: 0.9}); err != nil {
+		t.Fatal(err)
+	}
+	if got := engine.calls[0]; got.Voice != "bf_emma" || got.Speed != 0.9 {
+		t.Errorf("engine got voice %q speed %v, want bf_emma 0.9", got.Voice, got.Speed)
+	}
+}
