@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iksnerd/ava/internal/enginedist"
 	"github.com/iksnerd/ava/internal/voiceconfig"
@@ -759,5 +760,215 @@ func TestBatchAndSingleFileAreExclusive(t *testing.T) {
 		if err := s.Speak("x", opts); err == nil {
 			t.Errorf("Speak(%+v) succeeded; a batch writes its own files", opts)
 		}
+	}
+}
+
+// --- restart limit (RFC 0004 section 6) -----------------------------------
+
+// guarded is a speaker whose auto-start can be made to fail, behind a start
+// guard on a clock the test moves. calls counts the attempts.
+func guarded(t *testing.T, engine *stubEngine) (s *Speaker, rec *recorder, c *clock, calls *int) {
+	t.Helper()
+	s, rec = newTestSpeaker(t, engine, voiceconfig.Defaults())
+	c = &clock{t: time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)}
+	s.StartGuard = &startGuard{Path: filepath.Join(t.TempDir(), "failures"), Now: c.now, Max: 3, Window: 5 * time.Minute}
+	n := 0
+	calls = &n
+	s.AutoStart = func() error { n++; return errors.New("exit status 1: uvicorn crashed") }
+	return s, rec, c, calls
+}
+
+func speakAndNotice(t *testing.T, s *Speaker) string {
+	t.Helper()
+	var notice strings.Builder
+	s.Notice = &notice
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatalf("Speak() error = %v: it should fall back to say, not fail", err)
+	}
+	return notice.String()
+}
+
+// An engine that crashes at startup is tried three times and then left alone:
+// every speak, hooks included, used to pay for `uv sync` and a doomed start.
+func TestAnEngineThatKeepsFailingToStartIsGivenUpOn(t *testing.T) {
+	s, rec, c, calls := guarded(t, &stubEngine{healthy: false})
+	// The notice names the time in the user's own zone.
+	retry := c.t.Add(5 * time.Minute).Local().Format("15:04")
+
+	var notices []string
+	for i := 0; i < 5; i++ {
+		notices = append(notices, speakAndNotice(t, s))
+		if rec.saidText != "hello" {
+			t.Fatalf("speak %d did not fall back to say", i+1)
+		}
+		rec.saidText = ""
+	}
+	if *calls != 3 {
+		t.Errorf("auto-start was attempted %d times in 5 speaks, want 3", *calls)
+	}
+	for i := 0; i < 3; i++ {
+		if !strings.Contains(notices[i], "auto-start failed") {
+			t.Errorf("speak %d notice %q, want the start failure", i+1, notices[i])
+		}
+	}
+	for i := 3; i < 5; i++ {
+		for _, want := range []string{"3 times", retry, "ava engine start", "to see why it fails"} {
+			if !strings.Contains(notices[i], want) {
+				t.Errorf("speak %d notice %q is missing %q", i+1, notices[i], want)
+			}
+		}
+	}
+}
+
+func TestTheEngineIsTriedAgainOnceTheWindowHasPassed(t *testing.T) {
+	s, _, c, calls := guarded(t, &stubEngine{healthy: false})
+	for i := 0; i < 4; i++ {
+		speakAndNotice(t, s)
+	}
+	if *calls != 3 {
+		t.Fatalf("%d attempts before the window, want 3", *calls)
+	}
+	c.t = c.t.Add(5*time.Minute + time.Second)
+	speakAndNotice(t, s)
+	if *calls != 4 {
+		t.Errorf("%d attempts after the window passed, want 4", *calls)
+	}
+}
+
+// A start that returns cleanly but leaves the engine down is a failed start.
+func TestAStartThatLeavesTheEngineDownCountsAsFailed(t *testing.T) {
+	s, _, _, _ := guarded(t, &stubEngine{healthy: false})
+	attempts := 0
+	s.AutoStart = func() error { attempts++; return nil } // "succeeds", engine stays down
+	for i := 0; i < 5; i++ {
+		speakAndNotice(t, s)
+	}
+	if attempts != 3 {
+		t.Errorf("%d attempts, want 3", attempts)
+	}
+}
+
+func TestASuccessfulStartClearsTheCount(t *testing.T) {
+	engine := &stubEngine{healthy: false, audio: []byte("wav")}
+	s, _, _, _ := guarded(t, engine)
+	fail := true
+	attempts := 0
+	s.AutoStart = func() error {
+		attempts++
+		if fail {
+			return errors.New("crashed")
+		}
+		engine.healthy = true
+		return nil
+	}
+	speakAndNotice(t, s)
+	speakAndNotice(t, s) // two failures
+
+	fail = false
+	speakAndNotice(t, s) // the third attempt works and clears them
+	if !engine.healthy {
+		t.Fatal("the start did not bring the engine up")
+	}
+
+	engine.healthy = false // it dies again
+	fail = true
+	for i := 0; i < 5; i++ {
+		speakAndNotice(t, s)
+	}
+	// 3 before, then 3 more: the success reset the count, so the earlier two
+	// failures did not count towards the second round's limit.
+	if attempts != 6 {
+		t.Errorf("%d attempts in total, want 6 (3, a success, then 3 more)", attempts)
+	}
+}
+
+// An engine the user started by hand is a success too: the failures before it
+// should not hold against the next crash.
+func TestAnEngineThatIsUpClearsTheCount(t *testing.T) {
+	engine := &stubEngine{healthy: false}
+	s, _, _, _ := guarded(t, engine)
+	speakAndNotice(t, s)
+	speakAndNotice(t, s)
+	if _, err := os.Stat(s.StartGuard.Path); err != nil {
+		t.Fatalf("no failures recorded: %v", err)
+	}
+
+	engine.healthy, engine.audio = true, []byte("wav")
+	if err := s.Speak("hello", Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(s.StartGuard.Path); !os.IsNotExist(err) {
+		t.Errorf("the failures were kept after the engine came up: %v", err)
+	}
+}
+
+// Hooks are separate processes: a second speaker on the same file is limited
+// by the first one's failures.
+func TestAnotherProcessSeesTheFailures(t *testing.T) {
+	first, _, c, _ := guarded(t, &stubEngine{healthy: false})
+	for i := 0; i < 3; i++ {
+		speakAndNotice(t, first)
+	}
+
+	second, _ := newTestSpeaker(t, &stubEngine{healthy: false}, voiceconfig.Defaults())
+	second.StartGuard = &startGuard{Path: first.StartGuard.Path, Now: c.now, Max: 3, Window: 5 * time.Minute}
+	attempts := 0
+	second.AutoStart = func() error { attempts++; return errors.New("crashed") }
+	speakAndNotice(t, second)
+	if attempts != 0 {
+		t.Errorf("a second process started the engine %d times despite 3 recent failures", attempts)
+	}
+}
+
+func TestOutIsRefusedWithTheSameReasonWhenTheLimitIsReached(t *testing.T) {
+	s, _, _, _ := guarded(t, &stubEngine{healthy: false})
+	for i := 0; i < 3; i++ {
+		speakAndNotice(t, s)
+	}
+	out := filepath.Join(t.TempDir(), "a.wav")
+	err := s.Speak("hello", Options{Out: out})
+	if err == nil || !strings.Contains(err.Error(), "3 times") {
+		t.Fatalf("err = %v, want the limit named", err)
+	}
+	if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
+		t.Error("a file was written")
+	}
+}
+
+// A stale engine is not a failed start (nothing was started), and an operator
+// who turned auto-start off has not failed to start anything either.
+func TestOnlyFailedStartsCount(t *testing.T) {
+	s, _, _, calls := guarded(t, &stubEngine{stale: true})
+	for i := 0; i < 5; i++ {
+		speakAndNotice(t, s)
+	}
+	if *calls != 0 {
+		t.Errorf("auto-start ran %d times over a stale engine", *calls)
+	}
+	if _, err := os.Stat(s.StartGuard.Path); !os.IsNotExist(err) {
+		t.Error("a stale engine was recorded as a failed start")
+	}
+
+	off, _ := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(s *voiceconfig.Settings) { s.EngineAutoStart = false }))
+	off.StartGuard = &startGuard{Path: filepath.Join(t.TempDir(), "failures"), Max: 3, Window: time.Minute}
+	off.AutoStart = func() error { t.Error("auto-start ran with it switched off"); return nil }
+	speakAndNotice(t, off)
+	if _, err := os.Stat(off.StartGuard.Path); !os.IsNotExist(err) {
+		t.Error("a speak with auto-start off was recorded as a failed start")
+	}
+}
+
+// The speaker the CLI, the MCP server and the hooks use has the limit; a guard
+// only the tests install protects nobody.
+func TestTheProductionSpeakerHasTheStartLimit(t *testing.T) {
+	g := New("").StartGuard
+	if g == nil {
+		t.Fatal("New() has no start guard: a crashing engine would be restarted on every speak")
+	}
+	if g.Max != 3 || g.Window != 5*time.Minute {
+		t.Errorf("guard = %d failures in %v, want 3 in 5m", g.Max, g.Window)
+	}
+	if !strings.HasPrefix(g.Path, os.TempDir()) {
+		t.Errorf("guard file %q is not under the temp dir", g.Path)
 	}
 }

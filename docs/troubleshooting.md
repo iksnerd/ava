@@ -83,6 +83,18 @@ ava engine status
 If it doesn't come up, the server's log is at `/tmp/mlx-engine-server.log`.
 Full detail in [`../mlx-engine/README.md`](../mlx-engine/README.md).
 
+Two other notices mean the same fallback with a different cause:
+
+- **"the running mlx-engine is older than this ava"**: an engine left running
+  across an upgrade. Restart it with `ava engine stop && ava engine start`.
+- **"mlx-engine failed to start 3 times in a row; not trying again until 14:05"**:
+  `ava` tried to start the server three times within five minutes and each
+  attempt failed, so it stops trying until the oldest attempt is five minutes
+  old, rather than paying for a doomed start on every speak. Run `ava engine
+  start` yourself to see why it fails; once the server is up, the count is
+  forgotten. The count is a small file, `ava-engine-start-failures` in your
+  temp directory.
+
 ## Speech is silent, but nothing errors
 
 Check the menu bar app's global Mute. Every speech path honours it. The Claude

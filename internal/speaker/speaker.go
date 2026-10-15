@@ -117,11 +117,14 @@ func SplitPattern(name string) (string, error) {
 // process-spawning seams, injected so tests can exercise the whole
 // mute/marker/fallback protocol without playing audio.
 type Speaker struct {
-	Engine      Engine
-	Settings    func() voiceconfig.Settings
-	Play        func(audioPath string, volume float64, pidFile string) error
-	Say         func(text string, rate int, outPath string) error
-	AutoStart   func() error
+	Engine    Engine
+	Settings  func() voiceconfig.Settings
+	Play      func(audioPath string, volume float64, pidFile string) error
+	Say       func(text string, rate int, outPath string) error
+	AutoStart func() error
+	// StartGuard stops auto-start being retried when it keeps failing. Nil means
+	// no limit, which is what a test wants.
+	StartGuard  *startGuard
 	ActivityDir string
 	LockPath    string
 	// Notice receives user-facing warnings that are not failures — above all,
@@ -136,9 +139,14 @@ type Speaker struct {
 // serverURL may be empty for the default 127.0.0.1:8765.
 func New(serverURL string) *Speaker {
 	s := &Speaker{
-		Engine:      mlx.NewClient(serverURL),
-		Settings:    voiceconfig.Load,
-		AutoStart:   startEngine,
+		Engine:    mlx.NewClient(serverURL),
+		Settings:  voiceconfig.Load,
+		AutoStart: startEngine,
+		StartGuard: &startGuard{
+			Path:   filepath.Join(os.TempDir(), "ava-engine-start-failures"),
+			Max:    startFailuresMax,
+			Window: startFailuresWindow,
+		},
 		ActivityDir: ttsproto.ActivityDir(),
 		LockPath:    ttsproto.LockPath(),
 	}
@@ -202,10 +210,15 @@ func (s *Speaker) speak(text string, opts Options) error {
 		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
-	if errors.Is(synthErr, errStaleEngine) {
+	var limited *errStartLimited
+	switch {
+	case errors.Is(synthErr, errStaleEngine):
 		s.notef("%v — speaking through macOS `say` instead, "+
 			"so this will not use your configured Kokoro voice.", synthErr)
-	} else {
+	case errors.As(synthErr, &limited):
+		s.notef("%v — speaking through macOS `say` instead. "+
+			"Run `ava engine start` to see why it fails.", synthErr)
+	default:
 		s.notef("mlx-engine unavailable (%v) — speaking through macOS `say` instead, "+
 			"so this will not use your configured Kokoro voice. "+
 			"Start it with `ava engine start`.", synthErr)
@@ -274,21 +287,43 @@ func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	switch s.Engine.Check() {
 	case mlx.Stale:
 		return errStaleEngine
-	case mlx.Down:
-		if !settings.EngineAutoStart || s.AutoStart == nil {
-			return fmt.Errorf("mlx-engine is not running")
-		}
-		if err := s.AutoStart(); err != nil {
-			return fmt.Errorf("mlx-engine auto-start failed: %w", err)
-		}
-		switch s.Engine.Check() {
-		case mlx.Stale:
-			return errStaleEngine
-		case mlx.Down:
-			return fmt.Errorf("mlx-engine did not come up")
-		}
+	case mlx.Ready:
+		s.StartGuard.Succeeded() // up, however it got there: earlier failures no longer count
+		return nil
 	}
+
+	if !settings.EngineAutoStart || s.AutoStart == nil {
+		return fmt.Errorf("mlx-engine is not running")
+	}
+	if until, blocked := s.StartGuard.Blocked(); blocked {
+		return &errStartLimited{until: until, max: s.StartGuard.Max}
+	}
+	if err := s.AutoStart(); err != nil {
+		s.StartGuard.Failed()
+		return fmt.Errorf("mlx-engine auto-start failed: %w", err)
+	}
+	switch s.Engine.Check() {
+	case mlx.Stale:
+		return errStaleEngine
+	case mlx.Down:
+		s.StartGuard.Failed()
+		return fmt.Errorf("mlx-engine did not come up")
+	}
+	s.StartGuard.Succeeded()
 	return nil
+}
+
+// errStartLimited is an engine that has failed to start too often to try again
+// for now (RFC 0004 section 6, restart intensity). Retrying costs a `uv sync`
+// and up to two minutes of waiting on every speak, hooks included.
+type errStartLimited struct {
+	until time.Time
+	max   int
+}
+
+func (e *errStartLimited) Error() string {
+	return fmt.Sprintf("mlx-engine failed to start %d times in a row; not trying again until %s",
+		e.max, e.until.Format("15:04"))
 }
 
 // request is what the engine is asked for: the caller's voice and speed, or
