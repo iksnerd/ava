@@ -172,6 +172,20 @@ it against the same cases the Go and bash readers face. It is `make
 check-swift-config`, kept out of both `make lint` and `make test` because it
 needs `swiftc`.
 
+## The dependency direction is a test
+
+The layers are engines (out of process), then the core library (`pkg/` and the
+internal packages meant to go public: `speaker`, `voiceconfig`, `a11y`), then
+the adapters in `cmd/`. Core never depends on an adapter, and a library
+consumer must not pay for the CLI or MCP framework. `internal/archtest` holds
+that as a rules table (`rules.go`) checked against `go list -deps` by an
+ordinary test, so `go test ./...` and the pre-commit gate enforce it. A failure
+names the rule, the package and the import chain that leads to the forbidden
+package. A rule that matches no package also fails, so a rename cannot leave it
+checking nothing. Test-only imports are not in the graph. To change a rule, edit
+`rules.go`, and prove it can still fail by adding the forbidden import on
+purpose.
+
 ## Environment variables
 
 Every variable the code reads. Most exist so a test can point a reader at a
