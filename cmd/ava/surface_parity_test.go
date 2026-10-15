@@ -182,3 +182,30 @@ func TestMcpSpeakOutDirExcludesOut(t *testing.T) {
 		t.Errorf("out_dir with out: error=%v, spoke %d times", res.IsError, len(s.speakOpts))
 	}
 }
+
+// An empty transcript means silence or a file whisper could not decode, and the
+// CLI tells them apart. The MCP tool called both "no speech detected" and
+// succeeded, so a model was told a corrupt file was a quiet room.
+func TestMcpTranscribeNamesAFileThatIsNotAWav(t *testing.T) {
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	os.WriteFile(clip, append([]byte("FORM\x00\x00\x00\x00AIFF"), make([]byte, 32)...), 0644)
+	s := &spy{transcribe: func(string, stt.Options) (string, error) { return "", nil }}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "transcribe", map[string]any{"audio_path": clip})
+	if !res.IsError || !strings.Contains(resultText(t, res), "not a WAV") {
+		t.Errorf("error=%v, result %q; want an error saying the file is not a WAV", res.IsError, resultText(t, res))
+	}
+}
+
+func TestMcpTranscribeStillReportsNoSpeechForARealWav(t *testing.T) {
+	clip := filepath.Join(t.TempDir(), "clip.wav")
+	os.WriteFile(clip, append([]byte("RIFF\x00\x00\x00\x00WAVE"), make([]byte, 32)...), 0644)
+	s := &spy{transcribe: func(string, stt.Options) (string, error) { return "", nil }}
+	session := connect(t, s.deps())
+
+	res := callTool(t, session, "transcribe", map[string]any{"audio_path": clip})
+	if res.IsError || !strings.Contains(resultText(t, res), "no speech detected") {
+		t.Errorf("error=%v, result %q; want a plain no-speech result", res.IsError, resultText(t, res))
+	}
+}

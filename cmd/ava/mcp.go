@@ -191,6 +191,12 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 			return nil, nil, err
 		}
 		if strings.TrimSpace(text) == "" {
+			// As the CLI does: whisper-cli exits 0 with nothing both for a
+			// quiet recording and for a file it could not decode, and only
+			// the first is "no speech".
+			if err := checkAudioDecodable(args.AudioPath); err != nil {
+				return nil, nil, err
+			}
 			return textResult("no speech detected in %s", args.AudioPath), nil, nil
 		}
 		return textResult("%s", text), nil, nil
