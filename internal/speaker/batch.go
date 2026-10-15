@@ -1,6 +1,7 @@
 package speaker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,7 +57,7 @@ func batchName(n, total int) string {
 // written, so a failure on line 7 leaves no files rather than six scenes beside
 // a manifest that is not there. Files with the same names are overwritten,
 // since regenerating a script is the point.
-func (s *Speaker) renderBatch(text string, opts Options) error {
+func (s *Speaker) renderBatch(ctx context.Context, text string, opts Options) error {
 	if opts.Out != "" || opts.Timings != "" {
 		return errors.New("a batch writes its own files: out and timings do not go with out_dir")
 	}
@@ -66,14 +67,14 @@ func (s *Speaker) renderBatch(text string, opts Options) error {
 	}
 
 	settings := s.Settings()
-	if err := s.ready(settings); err != nil {
+	if err := s.ready(ctx, settings); err != nil {
 		return fmt.Errorf("cannot write %s: %w", opts.OutDir, err)
 	}
 
 	manifest := make([]ManifestEntry, len(lines))
 	audio := make([][]byte, len(lines))
 	for i, l := range lines {
-		timed, err := s.Engine.SpeakTimed(s.request(l.text, opts, settings))
+		timed, err := s.Engine.SpeakTimed(ctx, s.request(l.text, opts, settings))
 		if err != nil {
 			return fmt.Errorf("line %d (%q): %w", l.number, l.text, err)
 		}

@@ -1,6 +1,7 @@
 package speaker
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -53,7 +54,7 @@ func TestQueuedSpeakNeverNamesItsOwnProcess(t *testing.T) {
 
 	release := holdLock(t, s.LockPath)
 	done := make(chan error, 1)
-	go func() { done <- s.playLocked("clip.wav", 0, pidFile) }()
+	go func() { done <- s.playLocked(context.Background(), "clip.wav", 0, pidFile) }()
 
 	for i := 0; i < 10; i++ {
 		time.Sleep(20 * time.Millisecond)
@@ -81,7 +82,7 @@ func TestQueuedSpeakGivesUpWhenStopped(t *testing.T) {
 	release := holdLock(t, s.LockPath)
 	defer release()
 	done := make(chan error, 1)
-	go func() { done <- s.playLocked("clip.wav", 0, marker+ttsproto.PlayPIDSuffix) }()
+	go func() { done <- s.playLocked(context.Background(), "clip.wav", 0, marker+ttsproto.PlayPIDSuffix) }()
 
 	time.Sleep(50 * time.Millisecond)
 	if err := os.WriteFile(marker+ttsproto.StoppedSuffix, nil, 0644); err != nil {
@@ -105,7 +106,7 @@ func TestPlayingSpeakNamesThePlayer(t *testing.T) {
 	pidFile := filepath.Join(t.TempDir(), "marker") + ttsproto.PlayPIDSuffix
 
 	done := make(chan error, 1)
-	go func() { done <- s.playLocked("clip.wav", 0, pidFile) }()
+	go func() { done <- s.playLocked(context.Background(), "clip.wav", 0, pidFile) }()
 
 	var named string
 	for i := 0; i < 50 && named == ""; i++ {
@@ -138,7 +139,7 @@ func TestSpeakStoppedBeforeItGetsTheLockNeverPlays(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.playLocked("clip.wav", 0, marker+ttsproto.PlayPIDSuffix); err != nil {
+	if err := s.playLocked(context.Background(), "clip.wav", 0, marker+ttsproto.PlayPIDSuffix); err != nil {
 		t.Fatalf("playLocked: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)

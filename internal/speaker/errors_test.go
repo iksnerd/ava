@@ -1,6 +1,7 @@
 package speaker_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -16,11 +17,11 @@ import (
 // upgrade does: alive, but not on this ava's protocol.
 type staleEngine struct{}
 
-func (staleEngine) Check() mlx.State { return mlx.Stale }
-func (staleEngine) Speak(mlx.SpeakOptions) ([]byte, error) {
+func (staleEngine) Check(context.Context) mlx.State { return mlx.Stale }
+func (staleEngine) Speak(context.Context, mlx.SpeakOptions) ([]byte, error) {
 	return nil, errors.New("unreachable")
 }
-func (staleEngine) SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error) {
+func (staleEngine) SpeakTimed(context.Context, mlx.SpeakOptions) (mlx.TimedSpeech, error) {
 	return mlx.TimedSpeech{}, errors.New("unreachable")
 }
 
@@ -31,7 +32,7 @@ func TestStaleEngineIsMatchableFromOutsideThePackage(t *testing.T) {
 		Engine:   staleEngine{},
 		Settings: voiceconfig.Defaults,
 	}
-	err := s.Speak("hi", speaker.Options{Out: filepath.Join(t.TempDir(), "x.wav")})
+	err := s.Speak(context.Background(), "hi", speaker.Options{Out: filepath.Join(t.TempDir(), "x.wav")})
 	if !errors.Is(err, speaker.ErrStaleEngine) {
 		t.Fatalf("Speak() error = %v, want errors.Is ErrStaleEngine", err)
 	}

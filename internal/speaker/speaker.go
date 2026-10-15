@@ -19,7 +19,9 @@
 // Synthesis has no PID sidecar: it is an in-process HTTP call, and naming
 // our own PID would have a stop kill the whole server.
 // Cancellation mid-synthesis is instead observed through the .stopped
-// sidecar after the request returns.
+// sidecar after the request returns. That is how another process stops a
+// speak; the context passed to Speak is how the caller's own process does,
+// and it does not replace the marker files.
 //
 // The protocol's constants are not spelled here: they live in
 // internal/ttsproto, generated from internal/protocol/protocol.json with the
@@ -27,6 +29,7 @@
 package speaker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -57,10 +60,13 @@ const EngineScriptEnv = enginedist.ScriptEnv
 
 // Engine is the TTS half of the mlx-engine client, narrowed to what
 // speaking needs (satisfied by *mlx.Client).
+//
+// Every method takes the speak's context: ending it aborts the request in
+// flight, and an implementation returns an error that wraps ctx.Err().
 type Engine interface {
-	Check() mlx.State
-	Speak(mlx.SpeakOptions) ([]byte, error)
-	SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error)
+	Check(ctx context.Context) mlx.State
+	Speak(ctx context.Context, opts mlx.SpeakOptions) ([]byte, error)
+	SpeakTimed(ctx context.Context, opts mlx.SpeakOptions) (mlx.TimedSpeech, error)
 }
 
 // ErrStaleEngine (match it with errors.Is) is an engine that answers /health
@@ -78,7 +84,10 @@ type Options struct {
 	// Speed is Kokoro's multiplier; 0 means "use the configured speed".
 	Speed float64
 	// Async returns as soon as the work is handed off, as a hook needs. Errors then go to stderr, since there's no caller
-	// left to return them to.
+	// left to return them to. The handed-off work no longer follows the
+	// caller's context: an MCP request ends the moment it returns, and the
+	// speech it asked for must outlive that. Stop it with the marker-file
+	// protocol (internal/ttscontrol) instead.
 	Async bool
 	// Out writes the engine's WAV to this path instead of playing it. Nothing
 	// is spoken, so the mute, the activity marker and the playback lock do not
@@ -120,9 +129,9 @@ func SplitPattern(name string) (string, error) {
 type Speaker struct {
 	Engine    Engine
 	Settings  func() voiceconfig.Settings
-	Play      func(audioPath string, volume float64, pidFile string) error
-	Say       func(text string, rate int, outPath string) error
-	AutoStart func() error
+	Play      func(ctx context.Context, audioPath string, volume float64, pidFile string) error
+	Say       func(ctx context.Context, text string, rate int, outPath string) error
+	AutoStart func(ctx context.Context) error
 	// StartGuard stops auto-start being retried when it keeps failing. Nil means
 	// no limit, which is what a test wants.
 	StartGuard  *startGuard
@@ -168,31 +177,42 @@ func (s *Speaker) notef(format string, args ...any) {
 // Speak says text out loud and returns once it has finished playing (unless
 // opts.Async). A muted machine is not an error: it returns nil having done
 // nothing, so no caller has to special-case silence.
-func (s *Speaker) Speak(text string, opts Options) error {
+//
+// Ending ctx abandons the speak: the synthesis request is aborted, a wait for
+// the playback lock ends, the player is killed, the marker and its sidecars
+// are removed, and the error wraps ctx.Err(). It is not a failure of the
+// engine, so it never falls back to `say` and never starts the engine. A ctx
+// that is already over does nothing at all. This is the in-process way to
+// stop; stopping from another process is still the marker-file protocol.
+func (s *Speaker) Speak(ctx context.Context, text string, opts Options) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if opts.OutDir != "" {
-		return s.renderBatch(text, opts)
+		return s.renderBatch(ctx, text, opts)
 	}
 	if opts.Timings != "" && opts.Out == "" {
 		return errors.New("timings are written beside a WAV: pass out as well")
 	}
 	if opts.Out != "" {
-		return s.render(text, opts)
+		return s.render(ctx, text, opts)
 	}
 	if s.Settings().Muted {
 		return nil
 	}
 	if opts.Async {
+		detached := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.speak(text, opts); err != nil {
+			if err := s.speak(detached, text, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "speak: %v\n", err)
 			}
 		}()
 		return nil
 	}
-	return s.speak(text, opts)
+	return s.speak(ctx, text, opts)
 }
 
-func (s *Speaker) speak(text string, opts Options) error {
+func (s *Speaker) speak(ctx context.Context, text string, opts Options) error {
 	settings := s.Settings()
 
 	marker, err := s.markActive()
@@ -201,14 +221,19 @@ func (s *Speaker) speak(text string, opts Options) error {
 	}
 	defer clearMarker(marker)
 
-	audio, synthErr := s.synthesize(text, opts, settings)
+	audio, synthErr := s.synthesize(ctx, text, opts, settings)
+	if err := ctx.Err(); err != nil {
+		// The caller walked away. That is not the engine failing, so it is
+		// not a reason to speak in a different voice.
+		return err
+	}
 	if stopped(marker) {
 		// A deliberate stop, not a failure — the user asked for silence,
 		// not for the same sentence in a different voice.
 		return nil
 	}
 	if synthErr == nil {
-		return s.playTemp(audio, "ava-tts-*.wav", settings.Volume, marker)
+		return s.playTemp(ctx, audio, "ava-tts-*.wav", settings.Volume, marker)
 	}
 
 	var limited *StartLimitedError
@@ -224,29 +249,29 @@ func (s *Speaker) speak(text string, opts Options) error {
 			"so this will not use your configured Kokoro voice. "+
 			"Start it with `ava engine start`.", synthErr)
 	}
-	return s.speakWithSay(text, settings, marker)
+	return s.speakWithSay(ctx, text, settings, marker)
 }
 
 // render synthesizes text into opts.Out, and opts.Timings when asked. Files
 // are only created once the engine has answered, so a failure leaves nothing
 // behind to be mistaken for the narration, and a timings file never exists
 // without the WAV it describes.
-func (s *Speaker) render(text string, opts Options) error {
+func (s *Speaker) render(ctx context.Context, text string, opts Options) error {
 	settings := s.Settings()
-	if err := s.ready(settings); err != nil {
+	if err := s.ready(ctx, settings); err != nil {
 		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
 	}
 	req := s.request(text, opts, settings)
 
 	if opts.Timings == "" {
-		audio, err := s.Engine.Speak(req)
+		audio, err := s.Engine.Speak(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot write %s: %w", opts.Out, err)
 		}
 		return writeFile(opts.Out, audio)
 	}
 
-	timed, err := s.Engine.SpeakTimed(req)
+	timed, err := s.Engine.SpeakTimed(ctx, req)
 	if err != nil {
 		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
 	}
@@ -274,23 +299,28 @@ func writeFile(path string, data []byte) error {
 // synthesize returns the WAV bytes from the engine, starting the server
 // first if it's down and the user hasn't explicitly stopped it. An error
 // here is the caller's cue to fall back to `say`.
-func (s *Speaker) synthesize(text string, opts Options, settings voiceconfig.Settings) ([]byte, error) {
-	if err := s.ready(settings); err != nil {
+func (s *Speaker) synthesize(ctx context.Context, text string, opts Options, settings voiceconfig.Settings) ([]byte, error) {
+	if err := s.ready(ctx, settings); err != nil {
 		return nil, err
 	}
-	return s.Engine.Speak(s.request(text, opts, settings))
+	return s.Engine.Speak(ctx, s.request(text, opts, settings))
 }
 
 // ready is nil once there is an engine on our protocol to talk to, starting
 // one if it is down and the user has not stopped it on purpose. A stale
 // engine is not started over; see ErrStaleEngine.
-func (s *Speaker) ready(settings voiceconfig.Settings) error {
-	switch s.Engine.Check() {
+func (s *Speaker) ready(ctx context.Context, settings voiceconfig.Settings) error {
+	switch s.Engine.Check(ctx) {
 	case mlx.Stale:
 		return ErrStaleEngine
 	case mlx.Ready:
 		s.StartGuard.Succeeded() // up, however it got there: earlier failures no longer count
 		return nil
+	}
+	// A cancelled health check reads as Down. Do not take that for an engine
+	// that needs starting: a start costs a `uv sync` and counts against the limit.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	if !settings.EngineAutoStart || s.AutoStart == nil {
@@ -299,14 +329,20 @@ func (s *Speaker) ready(settings voiceconfig.Settings) error {
 	if until, blocked := s.StartGuard.Blocked(); blocked {
 		return &StartLimitedError{Until: until, Max: s.StartGuard.Max}
 	}
-	if err := s.AutoStart(); err != nil {
+	if err := s.AutoStart(ctx); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr // abandoned, not failed: it does not count
+		}
 		s.StartGuard.Failed()
 		return fmt.Errorf("mlx-engine auto-start failed: %w", err)
 	}
-	switch s.Engine.Check() {
+	switch s.Engine.Check(ctx) {
 	case mlx.Stale:
 		return ErrStaleEngine
 	case mlx.Down:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		s.StartGuard.Failed()
 		return fmt.Errorf("mlx-engine did not come up")
 	}
@@ -346,7 +382,7 @@ func (s *Speaker) request(text string, opts Options, settings voiceconfig.Settin
 // speakWithSay is the always-available fallback. `say` has no volume flag,
 // so render to a file and play it through afplay too — that keeps the
 // volume slider meaningful even with the server down.
-func (s *Speaker) speakWithSay(text string, settings voiceconfig.Settings, marker string) error {
+func (s *Speaker) speakWithSay(ctx context.Context, text string, settings voiceconfig.Settings, marker string) error {
 	out, err := os.CreateTemp("", "ava-tts-say-*.aiff")
 	if err != nil {
 		return fmt.Errorf("create temp audio file: %w", err)
@@ -355,16 +391,19 @@ func (s *Speaker) speakWithSay(text string, settings voiceconfig.Settings, marke
 	out.Close()
 	defer os.Remove(path)
 
-	if err := s.Say(text, settings.SayRate, path); err != nil {
+	if err := s.Say(ctx, text, settings.SayRate, path); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		return fmt.Errorf("say fallback failed: %w", err)
 	}
 	if stopped(marker) {
 		return nil
 	}
-	return s.Play(path, settings.Volume, marker+".play.pid")
+	return s.Play(ctx, path, settings.Volume, marker+".play.pid")
 }
 
-func (s *Speaker) playTemp(audio []byte, pattern string, volume float64, marker string) error {
+func (s *Speaker) playTemp(ctx context.Context, audio []byte, pattern string, volume float64, marker string) error {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
 		return fmt.Errorf("create temp audio file: %w", err)
@@ -378,7 +417,7 @@ func (s *Speaker) playTemp(audio []byte, pattern string, volume float64, marker 
 	f.Close()
 	defer os.Remove(path)
 
-	return s.Play(path, volume, marker+".play.pid")
+	return s.Play(ctx, path, volume, marker+".play.pid")
 }
 
 // markActive creates this speak's marker file. The name only has to be
@@ -422,7 +461,7 @@ const lockPollInterval = 50 * time.Millisecond
 // but every stop SIGTERMs that PID, and this process is `ava` itself — for
 // `ava mcp`, the MCP server. A queued speak is cancelled instead by polling
 // for the .stopped sidecar, which every stop writes before it signals.
-func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) error {
+func (s *Speaker) playLocked(ctx context.Context, audioPath string, volume float64, pidFile string) error {
 	lock, err := os.OpenFile(s.LockPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("open playback lock: %w", err)
@@ -441,7 +480,11 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 		if stopped(marker) {
 			return nil
 		}
-		time.Sleep(lockPollInterval)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(lockPollInterval):
+		}
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 
@@ -449,6 +492,10 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 	// player to kill, so check on both sides of that gap.
 	if stopped(marker) {
 		return nil
+	}
+	// Likewise a cancel that arrived while the lock was being taken.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	cmd := exec.Command("afplay", "-v", strconv.FormatFloat(volume, 'f', -1, 64), audioPath)
@@ -467,10 +514,16 @@ func (s *Speaker) playLocked(audioPath string, volume float64, pidFile string) e
 		return nil
 	}
 
+	timeout := time.NewTimer(playbackTimeout)
+	defer timeout.Stop()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(playbackTimeout):
+	case <-ctx.Done():
+		_ = cmd.Process.Kill()
+		<-done
+		return ctx.Err()
+	case <-timeout.C:
 		_ = cmd.Process.Kill()
 		<-done
 		return fmt.Errorf("afplay exceeded %s and was killed", playbackTimeout)
@@ -481,15 +534,15 @@ func writePid(pidFile string, pid int) {
 	_ = os.WriteFile(pidFile, []byte(strconv.Itoa(pid)), 0644)
 }
 
-func renderWithSay(text string, rate int, outPath string) error {
-	return exec.Command("say", "-r", strconv.Itoa(rate), "-o", outPath, text).Run()
+func renderWithSay(ctx context.Context, text string, rate int, outPath string) error {
+	return exec.CommandContext(ctx, "say", "-r", strconv.Itoa(rate), "-o", outPath, text).Run()
 }
 
 // startEngine shells out to the same control script `ava engine
 // start` uses, rather than reimplementing its PID-file locking and uvicorn
 // management here.
-func startEngine() error {
-	out, err := exec.Command("bash", engineScript(), "start").CombinedOutput()
+func startEngine(ctx context.Context) error {
+	out, err := exec.CommandContext(ctx, "bash", engineScript(), "start").CombinedOutput()
 	if err != nil {
 		// The script's last lines say why (no engine found, a crash during
 		// startup); without them the user saw only "exit status 1".

@@ -1,6 +1,7 @@
 package mlx
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -54,7 +55,7 @@ func TestSpeakReturnsAudioAndSendsTextVoiceSpeed(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	got, err := c.Speak(SpeakOptions{Text: "hello there", Voice: "bf_emma", Speed: 1.3})
+	got, err := c.Speak(context.Background(), SpeakOptions{Text: "hello there", Voice: "bf_emma", Speed: 1.3})
 	if err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
@@ -84,7 +85,7 @@ func TestSpeakServerNon200(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL)
-	_, err := c.Speak(SpeakOptions{Text: "hi"})
+	_, err := c.Speak(context.Background(), SpeakOptions{Text: "hi"})
 	if err == nil {
 		t.Fatal("expected an error for a non-200 response")
 	}
@@ -99,7 +100,7 @@ func TestSpeakServerUnreachable(t *testing.T) {
 	srv.Close()
 
 	c := NewClient(url)
-	_, err := c.Speak(SpeakOptions{Text: "hi"})
+	_, err := c.Speak(context.Background(), SpeakOptions{Text: "hi"})
 	if err == nil || !strings.Contains(err.Error(), "is the mlx-engine running") {
 		t.Errorf("err = %v, want a connection-failure hint", err)
 	}
@@ -115,7 +116,7 @@ func TestHealthyTrueWhenTheEngineReportsOurProtocol(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if !NewClient(srv.URL).Healthy() {
+	if !NewClient(srv.URL).Healthy(context.Background()) {
 		t.Error("Healthy() = false, want true for an engine on our protocol")
 	}
 	if path != "/health" {
@@ -128,7 +129,7 @@ func TestHealthyFalseWhenUnreachable(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	if NewClient(url).Healthy() {
+	if NewClient(url).Healthy(context.Background()) {
 		t.Error("Healthy() = true, want false when nothing is listening")
 	}
 }
@@ -139,7 +140,7 @@ func TestHealthyFalseOnNon200(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if NewClient(srv.URL).Healthy() {
+	if NewClient(srv.URL).Healthy(context.Background()) {
 		t.Error("Healthy() = true, want false for a 503")
 	}
 }
@@ -170,13 +171,13 @@ func TestCheckTellsReadyFromStaleFromDown(t *testing.T) {
 		"warming up":        {503, `{"status":"warming"}`, Down},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if got := healthServer(t, tc.status, tc.body).Check(); got != tc.want {
+			if got := healthServer(t, tc.status, tc.body).Check(context.Background()); got != tc.want {
 				t.Errorf("Check() = %v, want %v", got, tc.want)
 			}
 		})
 	}
 
-	if got := NewClient("http://127.0.0.1:1").Check(); got != Down {
+	if got := NewClient("http://127.0.0.1:1").Check(context.Background()); got != Down {
 		t.Errorf("Check() with nothing listening = %v, want Down", got)
 	}
 }
@@ -184,7 +185,7 @@ func TestCheckTellsReadyFromStaleFromDown(t *testing.T) {
 // Healthy stays the question callers ask: is /speak worth attempting. A stale
 // engine is not.
 func TestHealthyIsFalseForAStaleEngine(t *testing.T) {
-	if healthServer(t, 200, `{"status":"ok"}`).Healthy() {
+	if healthServer(t, 200, `{"status":"ok"}`).Healthy(context.Background()) {
 		t.Error("Healthy() = true for an engine that reports no protocol")
 	}
 }
@@ -205,7 +206,7 @@ func TestSpeakTimedDecodesTheAudioAndTheSegments(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	got, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x", Voice: "bf_emma", Speed: 0.9, SplitPattern: `(?<=[.!?])\s+`})
+	got, err := NewClient(srv.URL).SpeakTimed(context.Background(), SpeakOptions{Text: "x", Voice: "bf_emma", Speed: 0.9, SplitPattern: `(?<=[.!?])\s+`})
 	if err != nil {
 		t.Fatalf("SpeakTimed() error = %v", err)
 	}
@@ -230,7 +231,7 @@ func TestSpeakOmitsSplitPatternWhenUnset(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	if _, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"}); err != nil {
+	if _, err := NewClient(srv.URL).Speak(context.Background(), SpeakOptions{Text: "x"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, present := h.lastBody["split_pattern"]; present {
@@ -245,7 +246,7 @@ func TestSpeakTimedReportsAServerError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"})
+	_, err := NewClient(srv.URL).SpeakTimed(context.Background(), SpeakOptions{Text: "x"})
 	if err == nil || !strings.Contains(err.Error(), "500") || !strings.Contains(err.Error(), "out of memory") {
 		t.Errorf("err = %v, want the status and the reason", err)
 	}
@@ -255,7 +256,7 @@ func TestSpeakTimedRejectsABodyThatIsNotTheContract(t *testing.T) {
 	srv := httptest.NewServer(&speakRecorder{respond: jsonResponder(`not json`)})
 	defer srv.Close()
 
-	if _, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"}); err == nil {
+	if _, err := NewClient(srv.URL).SpeakTimed(context.Background(), SpeakOptions{Text: "x"}); err == nil {
 		t.Error("SpeakTimed accepted a body that is not JSON")
 	}
 }
@@ -273,7 +274,7 @@ func TestAResponseOverTheCapIsRefusedAtTheBoundary(t *testing.T) {
 
 	for size, wantErr := range map[int]bool{1023: false, 1024: false, 1025: true, 5000: true} {
 		srv := httptest.NewServer(&speakRecorder{respond: wavResponder(make([]byte, size))})
-		got, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"})
+		got, err := NewClient(srv.URL).Speak(context.Background(), SpeakOptions{Text: "x"})
 		srv.Close()
 		if wantErr {
 			if err == nil || !strings.Contains(err.Error(), "1024") {
@@ -298,7 +299,7 @@ func TestAnErrorBodyOverTheCapIsAlsoBounded(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := NewClient(srv.URL).SpeakTimed(SpeakOptions{Text: "x"})
+	_, err := NewClient(srv.URL).SpeakTimed(context.Background(), SpeakOptions{Text: "x"})
 	if err == nil || len(err.Error()) > 1000 {
 		t.Errorf("err = %q (%d bytes); want a short error, not the whole body", err, len(err.Error()))
 	}
@@ -324,7 +325,7 @@ func TestAResponseThatNeverEndsIsCutOffAtTheCap(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := NewClient(srv.URL).Speak(SpeakOptions{Text: "x"})
+		_, err := NewClient(srv.URL).Speak(context.Background(), SpeakOptions{Text: "x"})
 		done <- err
 	}()
 	select {

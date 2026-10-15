@@ -85,7 +85,7 @@ func newA11yCmd() *cobra.Command {
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
 			}
-			return speaker.New(serverURL).Speak(strings.Join(utterances, ". "), speaker.Options{Voice: voice, Speed: speed})
+			return speaker.New(serverURL).Speak(cmd.Context(), strings.Join(utterances, ". "), speaker.Options{Voice: voice, Speed: speed})
 		},
 	}
 

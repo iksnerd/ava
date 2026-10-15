@@ -1,6 +1,7 @@
 package speaker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -17,6 +18,9 @@ import (
 
 // stubEngine stands in for the mlx-engine HTTP client.
 type stubEngine struct {
+	// onCheck, when set, runs at the start of every Check, so a test can end a
+	// context at the moment the speaker is asking after the engine.
+	onCheck func()
 	healthy bool
 	// stale is an engine that answers /health but is not on our protocol.
 	stale bool
@@ -33,7 +37,7 @@ type stubEngine struct {
 
 func (e *stubEngine) Healthy() bool { return e.healthy }
 
-func (e *stubEngine) SpeakTimed(opts mlx.SpeakOptions) (mlx.TimedSpeech, error) {
+func (e *stubEngine) SpeakTimed(ctx context.Context, opts mlx.SpeakOptions) (mlx.TimedSpeech, error) {
 	e.timedCalls = append(e.timedCalls, opts)
 	if e.timedFor != nil {
 		return e.timedFor(opts.Text)
@@ -41,7 +45,10 @@ func (e *stubEngine) SpeakTimed(opts mlx.SpeakOptions) (mlx.TimedSpeech, error) 
 	return e.timed, e.err
 }
 
-func (e *stubEngine) Check() mlx.State {
+func (e *stubEngine) Check(ctx context.Context) mlx.State {
+	if e.onCheck != nil {
+		e.onCheck()
+	}
 	switch {
 	case e.stale:
 		return mlx.Stale
@@ -51,7 +58,7 @@ func (e *stubEngine) Check() mlx.State {
 	return mlx.Down
 }
 
-func (e *stubEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
+func (e *stubEngine) Speak(ctx context.Context, opts mlx.SpeakOptions) ([]byte, error) {
 	e.calls = append(e.calls, opts)
 	if e.err != nil {
 		return nil, e.err
@@ -83,13 +90,13 @@ func newTestSpeaker(t *testing.T, engine Engine, settings voiceconfig.Settings) 
 		ActivityDir: filepath.Join(dir, "active"),
 		LockPath:    filepath.Join(dir, "playback.lock"),
 	}
-	s.Play = func(audioPath string, volume float64, pidFile string) error {
+	s.Play = func(ctx context.Context, audioPath string, volume float64, pidFile string) error {
 		rec.played = append(rec.played, audioPath)
 		rec.playedVolume = volume
 		rec.markerSeen = hasMarker(s.ActivityDir)
 		return nil
 	}
-	s.Say = func(text string, rate int, outPath string) error {
+	s.Say = func(ctx context.Context, text string, rate int, outPath string) error {
 		rec.saidText = text
 		rec.saidRate = rate
 		return os.WriteFile(outPath, []byte("fake aiff"), 0644)
@@ -123,7 +130,7 @@ func TestMuteSkipsSynthesisAndPlayback(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}
 	s, rec := newTestSpeaker(t, engine, settingsWith(func(s *voiceconfig.Settings) { s.Muted = true }))
 
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v, want nil when muted", err)
 	}
 	if len(engine.calls) != 0 {
@@ -138,7 +145,7 @@ func TestSpeakUsesEngineWhenHealthy(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("RIFFwav")}
 	s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	if err := s.Speak("hello there", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello there", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if len(engine.calls) != 1 {
@@ -164,7 +171,7 @@ func TestSpeakDefaultsVoiceSpeedAndVolumeFromSettings(t *testing.T) {
 	})
 	s, rec := newTestSpeaker(t, engine, settings)
 
-	if err := s.Speak("hi", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hi", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if engine.calls[0].Voice != "bf_emma" || engine.calls[0].Speed != 0.9 {
@@ -179,7 +186,7 @@ func TestSpeakOptionsOverrideSettings(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	if err := s.Speak("hi", Options{Voice: "am_adam", Speed: 1.8}); err != nil {
+	if err := s.Speak(context.Background(), "hi", Options{Voice: "am_adam", Speed: 1.8}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if engine.calls[0].Voice != "am_adam" || engine.calls[0].Speed != 1.8 {
@@ -195,7 +202,7 @@ func TestSpeakFallsBackToSayWhenEngineUnhealthy(t *testing.T) {
 	})
 	s, rec := newTestSpeaker(t, engine, settings)
 
-	if err := s.Speak("no server", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "no server", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if len(engine.calls) != 0 {
@@ -216,7 +223,7 @@ func TestSpeakFallsBackToSayWhenSynthesisFails(t *testing.T) {
 	engine := &stubEngine{healthy: true, err: errors.New("tts not loaded")}
 	s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	if err := s.Speak("degraded", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "degraded", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if rec.saidText != "degraded" {
@@ -230,7 +237,7 @@ func TestSpeakTracksActivityMarkerAndCleansUp(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}
 	s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	if err := s.Speak("tracked", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "tracked", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if !rec.markerSeen {
@@ -261,7 +268,7 @@ func TestStoppedSynthesisDoesNotFallBackToSay(t *testing.T) {
 	// .stopped sidecar next to whatever marker it finds.
 	s.Engine = &stoppingEngine{inner: engine, speaker: s}
 
-	if err := s.Speak("cancel me", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "cancel me", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if rec.saidText != "" {
@@ -279,13 +286,13 @@ type stoppingEngine struct {
 	speaker *Speaker
 }
 
-func (e *stoppingEngine) Check() mlx.State { return mlx.Ready }
+func (e *stoppingEngine) Check(ctx context.Context) mlx.State { return mlx.Ready }
 
-func (e *stoppingEngine) SpeakTimed(mlx.SpeakOptions) (mlx.TimedSpeech, error) {
+func (e *stoppingEngine) SpeakTimed(context.Context, mlx.SpeakOptions) (mlx.TimedSpeech, error) {
 	return mlx.TimedSpeech{}, nil
 }
 
-func (e *stoppingEngine) Speak(opts mlx.SpeakOptions) ([]byte, error) {
+func (e *stoppingEngine) Speak(ctx context.Context, opts mlx.SpeakOptions) ([]byte, error) {
 	entries, _ := os.ReadDir(e.speaker.ActivityDir)
 	for _, entry := range entries {
 		_ = os.WriteFile(filepath.Join(e.speaker.ActivityDir, entry.Name()+".stopped"), nil, 0644)
@@ -301,9 +308,9 @@ func TestSpeakWarnsWhenItFallsBackToSay(t *testing.T) {
 	s, rec := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(c *voiceconfig.Settings) { c.EngineAutoStart = true }))
 	s.Notice = &notice
 	started := 0
-	s.AutoStart = func() error { started++; return errors.New("mlx-engine not installed") }
+	s.AutoStart = func(context.Context) error { started++; return errors.New("mlx-engine not installed") }
 
-	if err := s.Speak("build finished", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "build finished", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
 	}
 	// With auto-start off (the zero Settings this test used to pass), the
@@ -330,7 +337,7 @@ func TestSpeakIsSilentWhenTheEngineWorks(t *testing.T) {
 	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, audio: []byte("RIFF")}, voiceconfig.Settings{})
 	s.Notice = &notice
 
-	if err := s.Speak("all good", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "all good", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
 	}
 	if notice.Len() != 0 {
@@ -373,9 +380,9 @@ func TestSpeakAutoStartsTheEngineAndUsesKokoro(t *testing.T) {
 	engine := &stubEngine{healthy: false, audio: []byte("RIFF")}
 	s, rec := newTestSpeaker(t, engine, settingsWith(autoStartOn))
 	started := 0
-	s.AutoStart = func() error { started++; engine.healthy = true; return nil }
+	s.AutoStart = func(context.Context) error { started++; engine.healthy = true; return nil }
 
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
 	}
 	if started != 1 {
@@ -394,9 +401,9 @@ func TestSpeakFallsBackWhenAutoStartDoesNotBringTheEngineUp(t *testing.T) {
 	engine := &stubEngine{healthy: false}
 	s, rec := newTestSpeaker(t, engine, settingsWith(autoStartOn))
 	s.Notice = &notice
-	s.AutoStart = func() error { return nil }
+	s.AutoStart = func(context.Context) error { return nil }
 
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
 	}
 	if rec.saidText != "hello" {
@@ -411,9 +418,9 @@ func TestSpeakFallsBackWhenAutoStartDoesNotBringTheEngineUp(t *testing.T) {
 // quietly start the engine again.
 func TestSpeakDoesNotAutoStartWhenTheUserStoppedTheEngine(t *testing.T) {
 	s, _ := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(c *voiceconfig.Settings) { c.EngineAutoStart = false }))
-	s.AutoStart = func() error { t.Error("auto-started although the user stopped the engine"); return nil }
+	s.AutoStart = func(context.Context) error { t.Error("auto-started although the user stopped the engine"); return nil }
 
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak: %v", err)
 	}
 }
@@ -429,9 +436,9 @@ func TestAutoStartFailureCarriesTheScriptsReason(t *testing.T) {
 	}
 	t.Setenv(EngineScriptEnv, script)
 
-	err := startEngine()
+	err := startEngine(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "No mlx-engine to start") {
-		t.Errorf("startEngine() = %v, want the script's own reason", err)
+		t.Errorf("startEngine(context.Background()) = %v, want the script's own reason", err)
 	}
 }
 
@@ -443,7 +450,7 @@ func TestOutWritesTheEnginesWavAndPlaysNothing(t *testing.T) {
 	s, rec := newTestSpeaker(t, engine, settingsWith(func(s *voiceconfig.Settings) { s.Muted = true }))
 	out := filepath.Join(t.TempDir(), "line.wav")
 
-	if err := s.Speak("hello there", Options{Out: out}); err != nil {
+	if err := s.Speak(context.Background(), "hello there", Options{Out: out}); err != nil {
 		t.Fatalf("Speak(Out) error = %v", err)
 	}
 
@@ -470,7 +477,7 @@ func TestOutFailsWithoutFallbackWhenTheEngineIsDown(t *testing.T) {
 			s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
 			out := filepath.Join(t.TempDir(), "line.wav")
 
-			if err := s.Speak("hello", Options{Out: out}); err == nil {
+			if err := s.Speak(context.Background(), "hello", Options{Out: out}); err == nil {
 				t.Fatal("Speak(Out) succeeded with the engine down")
 			}
 			if _, err := os.Stat(out); !os.IsNotExist(err) {
@@ -488,7 +495,7 @@ func TestOutPassesVoiceAndSpeedToTheEngine(t *testing.T) {
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	if err := s.Speak("hi", Options{Out: filepath.Join(t.TempDir(), "a.wav"), Voice: "bf_emma", Speed: 0.9}); err != nil {
+	if err := s.Speak(context.Background(), "hi", Options{Out: filepath.Join(t.TempDir(), "a.wav"), Voice: "bf_emma", Speed: 0.9}); err != nil {
 		t.Fatal(err)
 	}
 	if got := engine.calls[0]; got.Voice != "bf_emma" || got.Speed != 0.9 {
@@ -506,9 +513,9 @@ func TestStaleEngineFallsBackToSayWithARestartNotice(t *testing.T) {
 	var notice strings.Builder
 	s.Notice = &notice
 	started := false
-	s.AutoStart = func() error { started = true; return nil }
+	s.AutoStart = func(context.Context) error { started = true; return nil }
 
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if len(engine.calls) != 0 {
@@ -532,7 +539,7 @@ func TestOutNamesAStaleEngine(t *testing.T) {
 	engine := &stubEngine{stale: true}
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	err := s.Speak("hello", Options{Out: filepath.Join(t.TempDir(), "a.wav")})
+	err := s.Speak(context.Background(), "hello", Options{Out: filepath.Join(t.TempDir(), "a.wav")})
 	if err == nil || !strings.Contains(err.Error(), "ava engine stop") {
 		t.Fatalf("err = %v, want one that says to restart the engine", err)
 	}
@@ -553,7 +560,7 @@ func TestTimingsWritesTheWavAndTheSegmentsFromOneSynthesis(t *testing.T) {
 	dir := t.TempDir()
 	out, timings := filepath.Join(dir, "a.wav"), filepath.Join(dir, "a.json")
 
-	if err := s.Speak("x", Options{Out: out, Timings: timings, SplitPattern: "SPLIT"}); err != nil {
+	if err := s.Speak(context.Background(), "x", Options{Out: out, Timings: timings, SplitPattern: "SPLIT"}); err != nil {
 		t.Fatalf("Speak() error = %v", err)
 	}
 	if wav, _ := os.ReadFile(out); string(wav) != "RIFFtimed" {
@@ -575,7 +582,7 @@ func TestTimingsNeedsOut(t *testing.T) {
 	engine := &stubEngine{healthy: true}
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 
-	err := s.Speak("x", Options{Timings: filepath.Join(t.TempDir(), "a.json")})
+	err := s.Speak(context.Background(), "x", Options{Timings: filepath.Join(t.TempDir(), "a.json")})
 	if err == nil || !strings.Contains(err.Error(), "out") {
 		t.Errorf("err = %v, want one saying timings go with out", err)
 	}
@@ -597,7 +604,7 @@ func TestTimingsLeavesNothingWhenTheEngineFails(t *testing.T) {
 			dir := t.TempDir()
 			out, timings := filepath.Join(dir, "a.wav"), filepath.Join(dir, "a.json")
 
-			if err := s.Speak("x", Options{Out: out, Timings: timings}); err == nil {
+			if err := s.Speak(context.Background(), "x", Options{Out: out, Timings: timings}); err == nil {
 				t.Fatal("Speak succeeded")
 			}
 			for _, f := range []string{out, timings} {
@@ -660,7 +667,7 @@ func TestBatchWritesOneWavPerLineAndAManifest(t *testing.T) {
 	s, rec := newTestSpeaker(t, engine, settingsWith(func(s *voiceconfig.Settings) { s.Muted = true }))
 	dir := filepath.Join(t.TempDir(), "scenes")
 
-	if err := s.Speak("Once upon a time.\n\n  The end.  \r\n", Options{OutDir: dir, SplitPattern: "SPLIT"}); err != nil {
+	if err := s.Speak(context.Background(), "Once upon a time.\n\n  The end.  \r\n", Options{OutDir: dir, SplitPattern: "SPLIT"}); err != nil {
 		t.Fatalf("Speak(OutDir) error = %v", err)
 	}
 
@@ -712,7 +719,7 @@ func TestBatchWritesNothingWhenALineFails(t *testing.T) {
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 	dir := filepath.Join(t.TempDir(), "scenes")
 
-	err := s.Speak("good\nbad\nalso good", Options{OutDir: dir})
+	err := s.Speak(context.Background(), "good\nbad\nalso good", Options{OutDir: dir})
 	if err == nil || !strings.Contains(err.Error(), "line 2") {
 		t.Fatalf("err = %v, want it to name line 2", err)
 	}
@@ -730,7 +737,7 @@ func TestBatchWithAnEngineThatIsDownOrStaleWritesNothing(t *testing.T) {
 			s, rec := newTestSpeaker(t, engine, voiceconfig.Defaults())
 			dir := filepath.Join(t.TempDir(), "scenes")
 
-			if err := s.Speak("one\ntwo", Options{OutDir: dir}); err == nil {
+			if err := s.Speak(context.Background(), "one\ntwo", Options{OutDir: dir}); err == nil {
 				t.Fatal("Speak succeeded")
 			}
 			if _, err := os.Stat(dir); !os.IsNotExist(err) {
@@ -745,7 +752,7 @@ func TestBatchWithAnEngineThatIsDownOrStaleWritesNothing(t *testing.T) {
 
 func TestBatchOfNothingIsAnError(t *testing.T) {
 	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, timedFor: scene}, voiceconfig.Defaults())
-	err := s.Speak(" \n\n  ", Options{OutDir: filepath.Join(t.TempDir(), "x")})
+	err := s.Speak(context.Background(), " \n\n  ", Options{OutDir: filepath.Join(t.TempDir(), "x")})
 	if err == nil || !strings.Contains(err.Error(), "nothing to speak") {
 		t.Errorf("err = %v, want nothing to speak", err)
 	}
@@ -757,7 +764,7 @@ func TestBatchAndSingleFileAreExclusive(t *testing.T) {
 		{OutDir: t.TempDir(), Out: "a.wav"},
 		{OutDir: t.TempDir(), Timings: "a.json"},
 	} {
-		if err := s.Speak("x", opts); err == nil {
+		if err := s.Speak(context.Background(), "x", opts); err == nil {
 			t.Errorf("Speak(%+v) succeeded; a batch writes its own files", opts)
 		}
 	}
@@ -774,7 +781,7 @@ func guarded(t *testing.T, engine *stubEngine) (s *Speaker, rec *recorder, c *cl
 	s.StartGuard = &startGuard{Path: filepath.Join(t.TempDir(), "failures"), Now: c.now, Max: 3, Window: 5 * time.Minute}
 	n := 0
 	calls = &n
-	s.AutoStart = func() error { n++; return errors.New("exit status 1: uvicorn crashed") }
+	s.AutoStart = func(context.Context) error { n++; return errors.New("exit status 1: uvicorn crashed") }
 	return s, rec, c, calls
 }
 
@@ -782,7 +789,7 @@ func speakAndNotice(t *testing.T, s *Speaker) string {
 	t.Helper()
 	var notice strings.Builder
 	s.Notice = &notice
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatalf("Speak() error = %v: it should fall back to say, not fail", err)
 	}
 	return notice.String()
@@ -839,7 +846,7 @@ func TestTheEngineIsTriedAgainOnceTheWindowHasPassed(t *testing.T) {
 func TestAStartThatLeavesTheEngineDownCountsAsFailed(t *testing.T) {
 	s, _, _, _ := guarded(t, &stubEngine{healthy: false})
 	attempts := 0
-	s.AutoStart = func() error { attempts++; return nil } // "succeeds", engine stays down
+	s.AutoStart = func(context.Context) error { attempts++; return nil } // "succeeds", engine stays down
 	for i := 0; i < 5; i++ {
 		speakAndNotice(t, s)
 	}
@@ -853,7 +860,7 @@ func TestASuccessfulStartClearsTheCount(t *testing.T) {
 	s, _, _, _ := guarded(t, engine)
 	fail := true
 	attempts := 0
-	s.AutoStart = func() error {
+	s.AutoStart = func(context.Context) error {
 		attempts++
 		if fail {
 			return errors.New("crashed")
@@ -894,7 +901,7 @@ func TestAnEngineThatIsUpClearsTheCount(t *testing.T) {
 	}
 
 	engine.healthy, engine.audio = true, []byte("wav")
-	if err := s.Speak("hello", Options{}); err != nil {
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(s.StartGuard.Path); !os.IsNotExist(err) {
@@ -913,7 +920,7 @@ func TestAnotherProcessSeesTheFailures(t *testing.T) {
 	second, _ := newTestSpeaker(t, &stubEngine{healthy: false}, voiceconfig.Defaults())
 	second.StartGuard = &startGuard{Path: first.StartGuard.Path, Now: c.now, Max: 3, Window: 5 * time.Minute}
 	attempts := 0
-	second.AutoStart = func() error { attempts++; return errors.New("crashed") }
+	second.AutoStart = func(context.Context) error { attempts++; return errors.New("crashed") }
 	speakAndNotice(t, second)
 	if attempts != 0 {
 		t.Errorf("a second process started the engine %d times despite 3 recent failures", attempts)
@@ -926,7 +933,7 @@ func TestOutIsRefusedWithTheSameReasonWhenTheLimitIsReached(t *testing.T) {
 		speakAndNotice(t, s)
 	}
 	out := filepath.Join(t.TempDir(), "a.wav")
-	err := s.Speak("hello", Options{Out: out})
+	err := s.Speak(context.Background(), "hello", Options{Out: out})
 	if err == nil || !strings.Contains(err.Error(), "3 times") {
 		t.Fatalf("err = %v, want the limit named", err)
 	}
@@ -951,7 +958,7 @@ func TestOnlyFailedStartsCount(t *testing.T) {
 
 	off, _ := newTestSpeaker(t, &stubEngine{healthy: false}, settingsWith(func(s *voiceconfig.Settings) { s.EngineAutoStart = false }))
 	off.StartGuard = &startGuard{Path: filepath.Join(t.TempDir(), "failures"), Max: 3, Window: time.Minute}
-	off.AutoStart = func() error { t.Error("auto-start ran with it switched off"); return nil }
+	off.AutoStart = func(context.Context) error { t.Error("auto-start ran with it switched off"); return nil }
 	speakAndNotice(t, off)
 	if _, err := os.Stat(off.StartGuard.Path); !os.IsNotExist(err) {
 		t.Error("a speak with auto-start off was recorded as a failed start")

@@ -21,7 +21,7 @@ import (
 // tested over a real client session without audio hardware or a running
 // mlx-engine.
 type mcpDeps struct {
-	Speak        func(text string, opts speaker.Options) error
+	Speak        func(ctx context.Context, text string, opts speaker.Options) error
 	StopSpeaking func()
 	// Muted reports the global mute switch, so a tool can say that nothing
 	// was actually heard instead of reporting a successful speak.
@@ -126,7 +126,7 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 			return nil, nil, err
 		}
 		file.Voice, file.Speed, file.Async = args.Voice, args.Speed, args.Async
-		if err := deps.Speak(args.Text, file); err != nil {
+		if err := deps.Speak(ctx, args.Text, file); err != nil {
 			return nil, nil, err
 		}
 		if file.OutDir != "" {
@@ -229,7 +229,7 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 		script := strings.Join(utterances, ". ")
 		shouldSpeak := args.Speak == nil || *args.Speak
 		if shouldSpeak {
-			if err := deps.Speak(script, speaker.Options{Voice: args.Voice, Speed: args.Speed}); err != nil {
+			if err := deps.Speak(ctx, script, speaker.Options{Voice: args.Voice, Speed: args.Speed}); err != nil {
 				return nil, nil, err
 			}
 		}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -27,7 +28,7 @@ type spy struct {
 
 func (s *spy) deps() mcpDeps {
 	return mcpDeps{
-		Speak: func(text string, opts speaker.Options) error {
+		Speak: func(_ context.Context, text string, opts speaker.Options) error {
 			s.spoken = append(s.spoken, text)
 			s.speakOpts = append(s.speakOpts, opts)
 			return s.speakErr
@@ -297,5 +298,43 @@ func TestSpeakAccessibilityTreeSaysWhenMuted(t *testing.T) {
 	}
 	if !strings.Contains(resultText(t, res), "link, Home") {
 		t.Errorf("result = %q, want the announcements regardless", resultText(t, res))
+	}
+}
+
+// The tools hand the request's context to the speaker, so a client that
+// cancels its call (or drops the connection) stops the speech instead of
+// leaving it to finish for no one.
+func TestSpeakingToolsCancelWhenTheClientCancelsTheCall(t *testing.T) {
+	for name, args := range map[string]map[string]any{
+		"speak":                    {"text": "hello"},
+		"speak_accessibility_tree": {"snapshot": snapshotFixture},
+	} {
+		t.Run(name, func(t *testing.T) {
+			entered := make(chan struct{})
+			ended := make(chan struct{})
+			deps := (&spy{}).deps()
+			deps.Speak = func(ctx context.Context, _ string, _ speaker.Options) error {
+				close(entered)
+				<-ctx.Done()
+				close(ended)
+				return ctx.Err()
+			}
+			session := connect(t, deps)
+			callCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() { _, _ = session.CallTool(callCtx, &mcp.CallToolParams{Name: name, Arguments: args}) }()
+			select {
+			case <-entered:
+			case <-time.After(2 * time.Second):
+				t.Fatal("the tool never reached the speaker")
+			}
+			cancel()
+			select {
+			case <-ended:
+			case <-time.After(2 * time.Second):
+				t.Fatal("cancelling the call did not cancel the speaker's context")
+			}
+		})
 	}
 }

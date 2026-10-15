@@ -71,7 +71,7 @@ func newSpeakCmd() *cobra.Command {
 			}
 			if toFiles(file) {
 				file.Voice, file.Speed = voice, speed
-				return speaker.New(serverURL).Speak(text, file)
+				return speaker.New(serverURL).Speak(cmd.Context(), text, file)
 			}
 			if voiceconfig.Muted() {
 				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
@@ -79,7 +79,7 @@ func newSpeakCmd() *cobra.Command {
 			if async {
 				return spawnDetached(detachedSpeakArgs(text, voice, speed, serverURL))
 			}
-			return speaker.New(serverURL).Speak(text, speaker.Options{
+			return speaker.New(serverURL).Speak(cmd.Context(), text, speaker.Options{
 				Voice: voice,
 				Speed: speed,
 			})

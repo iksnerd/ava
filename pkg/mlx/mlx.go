@@ -15,6 +15,7 @@ package mlx
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -81,14 +82,14 @@ type TimedSpeech struct {
 // WAV bytes. Playback is the caller's problem — see internal/speaker, which
 // wraps this with the mute/activity-marker/playback-lock protocol that
 // scripts/speak.sh established.
-func (c *Client) Speak(opts SpeakOptions) ([]byte, error) {
-	return c.post("/speak", opts)
+func (c *Client) Speak(ctx context.Context, opts SpeakOptions) ([]byte, error) {
+	return c.post(ctx, "/speak", opts)
 }
 
 // SpeakTimed is Speak with the time each chunk of text occupies, which is
 // what captions need. See docs/engine-api.md for the endpoint.
-func (c *Client) SpeakTimed(opts SpeakOptions) (TimedSpeech, error) {
-	body, err := c.post("/speak/timed", opts)
+func (c *Client) SpeakTimed(ctx context.Context, opts SpeakOptions) (TimedSpeech, error) {
+	body, err := c.post(ctx, "/speak/timed", opts)
 	if err != nil {
 		return TimedSpeech{}, err
 	}
@@ -105,13 +106,13 @@ func (c *Client) SpeakTimed(opts SpeakOptions) (TimedSpeech, error) {
 // post sends opts to a synthesis endpoint and returns the response body. The
 // one place a synthesis request is built, so /speak and /speak/timed cannot
 // differ in timeout or in how a failure reads.
-func (c *Client) post(path string, opts SpeakOptions) ([]byte, error) {
+func (c *Client) post(ctx context.Context, path string, opts SpeakOptions) ([]byte, error) {
 	payload, err := json.Marshal(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode speak request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.ServerURL+path, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.ServerURL+path, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -178,9 +179,13 @@ func (s State) String() string {
 // Check asks /health who is answering. The engine reports its protocol name
 // and version there (internal/protocol, engine_protocol); anything else with
 // a 200, including an older engine that reports none, is Stale.
-func (c *Client) Check() State {
+func (c *Client) Check(ctx context.Context) State {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.ServerURL+"/health", nil)
+	if err != nil {
+		return Down
+	}
 	client := &http.Client{Timeout: healthTimeout}
-	res, err := client.Get(c.ServerURL + "/health")
+	res, err := client.Do(req)
 	if err != nil {
 		return Down
 	}
@@ -200,6 +205,6 @@ func (c *Client) Check() State {
 
 // Healthy reports whether /speak is worth attempting: an engine that speaks
 // this protocol and finished its TTS warmup.
-func (c *Client) Healthy() bool {
-	return c.Check() == Ready
+func (c *Client) Healthy(ctx context.Context) bool {
+	return c.Check(ctx) == Ready
 }
