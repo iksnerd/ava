@@ -3,6 +3,17 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [0.8.1] — 2026-10-15
+
+Three reliability fixes found by reading ava against the drenskiCorp plugin protocol RFCs. None changes a command or a flag.
+
+### Fixed
+- **An engine that keeps failing to start is no longer restarted on every speak.** Each speak, the Claude Code hooks included, ran `uv sync` and a start that was bound to fail before falling back to `say`. After three failed starts inside five minutes `ava` now leaves the engine alone until the oldest has aged out, keeps speaking through `say`, and says when it will try again and to run `ava engine start` to see why. A start that returns but leaves the engine down counts as failed. A successful start, or an engine found already running, forgets the count.
+- **A `whisper-cli` timeout now takes the program's children with it.** It killed `whisper-cli` and left whatever it had started running, and a child holding the output pipe made the timeout take two seconds longer to report. `whisper-cli` now runs in its own process group, which is killed on a timeout and again after a normal exit.
+
+### Changed
+- **The engine client reads at most 256 MiB of a response.** It read whatever answered on `127.0.0.1:8765` into memory until its 300 second timeout. Over the cap it now refuses, and says that something other than the engine may be answering.
+
 ## [0.8.0] — 2026-10-15
 
 Speech and transcripts you can script. `ava speak` can write WAV files instead of playing them,
