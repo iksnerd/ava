@@ -102,6 +102,7 @@ func newRootCmd() *cobra.Command {
 		newTranscribeCmd(),
 		newA11yCmd(),
 		newMonitorCmd(),
+		newUpdateCmd(),
 	)
 
 	return cmd
