@@ -25,7 +25,7 @@ Hardening that makes `ava` safe to embed, plus a break for anyone importing its 
 
 ## [0.8.1] — 2026-10-15
 
-Three reliability fixes found by reading ava against the drenskiCorp plugin protocol RFCs. None changes a command or a flag.
+Three reliability fixes found by reading ava against a plugin protocol's RFCs. None changes a command or a flag.
 
 ### Fixed
 - **An engine that keeps failing to start is no longer restarted on every speak.** Each speak, the Claude Code hooks included, ran `uv sync` and a start that was bound to fail before falling back to `say`. After three failed starts inside five minutes `ava` now leaves the engine alone until the oldest has aged out, keeps speaking through `say`, and says when it will try again and to run `ava engine start` to see why. A start that returns but leaves the engine down counts as failed. A successful start, or an engine found already running, forgets the count.
