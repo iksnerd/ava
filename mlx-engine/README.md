@@ -34,8 +34,11 @@ it pinned open) — the next `/speak` after that pays the warmup again.
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/health` | GET | `{"status", "tts_model", "tts_loaded"}` — doesn't trigger loading or reset the idle timer |
-| `/speak` | POST | JSON `{"text", "voice", "speed"}` → raw `audio/wav` bytes |
+| `/health` | GET | `{"status", "protocol", "tts_model", "tts_loaded"}` — doesn't trigger loading or reset the idle timer |
+| `/speak` | POST | JSON `{"text", "voice", "speed", "split_pattern"}` → raw `audio/wav` bytes |
+| `/speak/timed` | POST | Same request as `/speak`; returns the WAV plus where each segment sits in it |
+
+Every field, the response shapes and the errors are in [docs/engine-api.md](../docs/engine-api.md).
 
 ```bash
 curl -X POST http://127.0.0.1:8765/speak \

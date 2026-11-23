@@ -12,7 +12,7 @@ and what "done" means.
 
 ```bash
 brew install sox whisper-cpp go
-make setup          # system deps + the whisper model
+make setup          # system deps, the Kokoro environment, the whisper model
 make install-hooks  # pre-commit checks; see below for why this matters here
 make test           # Go, mlx-engine, voxtral, and the voice hooks
 ```
@@ -48,10 +48,10 @@ else's checkout. Docs-only commits skip the language checks and finish fast.
 ## Cutting a release
 
 Tagging is the whole trigger. `v*` starts CI, and once both test jobs pass a
-third job builds the two CLI binaries with GoReleaser and attaches them to the
+third job builds the `ava` binary with GoReleaser and attaches it to the
 release.
 
-1. Move `CHANGELOG.md`'s `## Unreleased` section under the new version, and add
+1. Move `CHANGELOG.md`'s `## [Unreleased]` section under the new version, and add
    its link at the bottom.
 2. Commit, tag `vX.Y.Z`, push both.
 
@@ -88,9 +88,9 @@ bar app) and by `scripts/stop-speaking.sh`. Two of them speaking at once is the
 failure this prevents. `internal/speaker`'s package comment documents the
 contract.
 
-**The hooks deliberately do not use the Go binary.** They are plain bash so
-speech still works on a machine where `ava` was never installed. Keep
-it that way.
+**The hooks speak through `ava speak --async`.** `scripts/speak.sh` is only a
+mute check plus a hand-off to it. Keep it that way: a second player is what
+drifted before.
 
 **No hardcoded home directories.** `make lint` fails on `/Users/<name>` or
 `/home/<name>` in any tracked file. This caught two real bugs.

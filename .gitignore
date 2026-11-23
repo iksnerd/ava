@@ -3,6 +3,8 @@
 /dist/
 /ava
 # Pre-0.6.0 binary names, still built by old checkouts and scripts.
+/local-whisper
+/voice-monitor
 
 # Python / mlx-engine
 mlx-engine/.venv/
@@ -48,6 +50,7 @@ scripts/voice_hooks/.ruff_cache/
 
 # Agent-session local state (per-machine, not per-project)
 .claude/settings.local.json
+.claude/worktrees/
 
 # Private working notes — kept out of the published repo on purpose
 /TODO.md

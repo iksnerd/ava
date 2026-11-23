@@ -222,8 +222,14 @@ Sources/AvaMenuBar/
                                           mute Service) and exposes toggleMutedOnDisk()
   ServerController.swift                - polls mlx-engine's /health, drives start/stop
   Speech.swift                          - shells out to scripts/speak.sh
-  SpeechService.swift                   - NSServices provider behind "Read Aloud with Claude
-                                          Voice" and "Toggle Ava Mute"
+  SpeechService.swift                   - NSServices provider behind "Read Aloud with Ava"
+                                          and "Toggle Ava Mute"
+  OllamaStatus.swift                    - checks that the LLM-summary setting can work: whether Ollama
+                                          answers on 127.0.0.1:11434 and has the configured model
+  SetupController.swift                 - offers `ava setup` from the panel; `ava setup --check`
+                                          decides what is missing
+  Protocol.swift                        - generated from internal/protocol/protocol.json (do not
+                                          edit): marker-file paths and the engine's /health identity
   SpeechActivityMonitor.swift           - polls speak.sh's activity marker for the speaking indicator
   Paths.swift                           - resolves scripts/binary from the bundled Resources/ (packaged
                                           build) or this dev checkout (swift run); PATH hardening

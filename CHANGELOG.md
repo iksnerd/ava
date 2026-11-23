@@ -3,6 +3,18 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Changed
+- **Ctrl+C while dictating now stops the recording and transcribes what was captured.** A second Ctrl+C, or SIGTERM, cancels instead. Ctrl+C while transcribing cancels.
+- **The engine start script polls `/health` with a 2 second cap** per request, so a hung server no longer stalls the wait.
+- **The menu bar's Start and Stop ignore a second click while one is in flight,** and give up with an error after 150 seconds instead of showing Starting or Stopping forever.
+- **The menu bar shows its own state when the `ava` binary is missing** from the app, instead of a failed setup.
+
+### Fixed
+- **Speak markers left by a killed process are swept.** A speak ended with SIGKILL never cleaned up its marker, so `ava` read as speaking forever. They are reaped on the next speak or stop.
+- **The engine start lock is no longer taken from a live holder.** The lock records its holder's pid, and only a dead holder's lock is reclaimed. A start that ran past the old age cutoff could lose its lock to a second start.
+
 ## [0.10.0] — 2026-10-16
 
 A new command, `ava update`. No existing command or flag changes.
@@ -574,6 +586,10 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.10.0]: https://github.com/iksnerd/ava/releases/tag/v0.10.0
+[0.9.0]: https://github.com/iksnerd/ava/releases/tag/v0.9.0
+[0.8.1]: https://github.com/iksnerd/ava/releases/tag/v0.8.1
+[0.8.0]: https://github.com/iksnerd/ava/releases/tag/v0.8.0
 [0.7.2]: https://github.com/iksnerd/ava/releases/tag/v0.7.2
 [0.7.1]: https://github.com/iksnerd/ava/releases/tag/v0.7.1
 [0.7.0]: https://github.com/iksnerd/ava/releases/tag/v0.7.0

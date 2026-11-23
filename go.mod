@@ -2,7 +2,7 @@ module github.com/iksnerd/ava
 
 go 1.25.0
 
-toolchain go1.26.8
+toolchain go1.26.11
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0

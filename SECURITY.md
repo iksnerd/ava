@@ -42,9 +42,13 @@ how long.
 pinned to a Hugging Face commit and checked against a sha256 before it is
 installed, by both `ava setup-model` and `scripts/setup-model.sh`, so
 a changed file on Hugging Face fails the download rather than landing on disk.
-The Kokoro and Voxtral weights are not pinned: the Python libraries fetch them
-into the shared Hugging Face cache the first time the server or `ava monitor`
-loads them, trusting Hugging Face and your TLS chain.
+The Kokoro weights are pinned to a Hugging Face revision
+(`TTS_MODEL_REVISION` in `mlx-engine/server.py`) but not checksummed. The
+weights `ava monitor` uses (Voxtral, the Whisper fallback and the Sortformer
+diarizer) are not pinned at all: `voxtral/realtime.py` names them by
+repository id only. In both cases the Python libraries fetch them into the
+shared Hugging Face cache the first time the server or `ava monitor` loads
+them, trusting Hugging Face and your TLS chain.
 
 **The `.app` is ad-hoc signed, not notarized.** There is no Apple Developer ID
 behind it, so Gatekeeper will warn on any machine other than the one that built

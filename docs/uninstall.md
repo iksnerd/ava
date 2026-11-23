@@ -83,8 +83,9 @@ or Ava.app), not to `ava`, so remove only the ones you gave for this.
 All general-purpose, so remove them only if nothing else needs them:
 
 - `sox` and `whisper-cpp`: `brew uninstall sox whisper-cpp`
-- `uv`, installed by `make setup-deps` with Astral's installer rather than
-  Homebrew: `uv self uninstall`
+- `uv`: `ava setup` installs it with Homebrew, so `brew uninstall uv`.
+  `make setup-deps` installs it with Astral's installer instead, so
+  `uv self uninstall`
 - BlackHole and `switchaudio-osx`, if `make setup-blackhole` installed them for
   call capture: `brew uninstall --cask blackhole-2ch` and
   `brew uninstall switchaudio-osx`

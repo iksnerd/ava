@@ -59,7 +59,7 @@ ava setup
 ```
 
 This installs `sox`, `whisper-cli` and `uv` through Homebrew, the 141 MB speech model, and the Kokoro
-voice engine with its model and every voice (about 1.5 GB, a few minutes the first time). After
+voice engine with its model and every voice (about 1.7 GB, a few minutes the first time). After
 it, speech needs no network. Every step is skipped when it is
 already done, so if anything fails, fix it and run `ava setup` again.
 
@@ -215,7 +215,8 @@ Kokoro engine there, so speech uses the macOS voice; dictation works in full.
 
 ## Updating later
 
-- **Release install:** run the step 2 line again, then `ava setup`.
+- **Release install:** `ava update`, then `ava setup` only if the release notes say
+  something changed that needs it.
 - **From source:** `git pull && make install-bin`, and rerun the app build if you use the menu
   bar app.
 

@@ -30,6 +30,8 @@ ava
 ava --dir ~/projects/app --lang en --model base --output transcript.txt
 ```
 
+Ctrl+C while recording stops the recording and transcribes what was captured. A second Ctrl+C, or SIGTERM, cancels instead. Ctrl+C while transcribing cancels.
+
 ## Speak
 
 Kokoro through the local server, falling back to macOS `say` when it's down.
@@ -121,10 +123,10 @@ From a checkout, `bash scripts/install.sh [tag]` does the same. The full new-Mac
 `install.sh` fetches the release with `gh` when it is installed and signed in,
 and otherwise with a plain `curl`, which needs no account. (A `gh` that was never
 signed in refuses even public downloads, so it is only used when signed in.)
-Pass a tag to pin a version: `… | bash -s v0.6.2`. It verifies the checksum before extracting, and installs both
-binaries to `~/.local/bin` — `AVA_BIN` overrides that.
+Pass a tag to pin a version: `… | bash -s v0.6.2`. It verifies the checksum before extracting, and installs `ava`
+to `~/.local/bin` — `AVA_BIN` overrides that.
 
-**Use it rather than downloading the archive in a browser.** The binaries are
+**Use it rather than downloading the archive in a browser.** The binary is
 unsigned: signing for distribution needs a Developer ID certificate and
 notarization, which require a paid Apple Developer Program membership, and an
 Xcode "Apple Development" certificate is not a substitute — it signs cleanly

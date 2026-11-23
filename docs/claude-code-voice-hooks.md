@@ -40,7 +40,7 @@ regardless of how long the actual speech takes.
 
 | Script | Role |
 |---|---|
-| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`), `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release` (generic PID-file + mkdir-lock helpers used by `mlx-engine-server.sh`) |
+| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`), `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release` (generic PID-file + mkdir-lock helpers used by `mlx-engine-server.sh`; the start lock records its holder's pid, and a live holder is never evicted) |
 | `speak.sh` | The "say this" entry point: checks the mute, then hands off to `ava speak --async`, which starts the server on demand, plays under the cross-process lock so concurrent sessions queue, and falls back to macOS `say` if the server's unreachable |
 | `hook-notify.sh` | Speaks the Notification hook's `message` field verbatim (truncated per `notifyMaxChars`) |
 | `hook-stop.sh` | Extracts Claude's last message from the transcript, then speaks it — see below for the length/summary logic |

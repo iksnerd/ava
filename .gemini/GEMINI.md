@@ -1,9 +1,5 @@
-# Ava — Gemini instructions
+# Ava: Gemini instructions
 
-See [`AGENTS.md`](../AGENTS.md) in the repo root. It is the single source of
-truth for build commands, project layout and conventions, and it is kept
-current alongside `CLAUDE.md`.
+Read [`AGENTS.md`](../AGENTS.md) first for the build, test and lint commands. [`CLAUDE.md`](../CLAUDE.md) is the project guide for Go work, and `docs/` holds the per-component docs.
 
-Nothing project-specific lives in this file on purpose: a third copy of the
-same guidance drifts, and the copy that used to be here spent two releases
-claiming this repo had no third-party Go dependencies.
+Nothing project-specific lives in this file on purpose: a second copy of the guidance drifts.

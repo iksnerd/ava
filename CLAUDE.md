@@ -5,7 +5,7 @@ below, and `ava monitor`, the realtime call-transcript monitor in
 `internal/monitor`, see `docs/monitor.md`), `mlx-engine/` (Python Kokoro TTS server used by `ava`),
 `voxtral/` (Python/MLX primitives used by `ava monitor`), `scripts/`
 (Claude Code voice hooks), and `AvaMenuBar/` (Swift menu bar app).
-See each one's own README/SETUP for build/run instructions specific to it —
+See each one's own README (`voxtral/` has none: see `docs/monitor.md`) for build/run instructions specific to it —
 this file covers the Go side. The same voice stack is also served to MCP
 clients by `ava mcp` (see `docs/mcp.md`).
 
@@ -46,7 +46,7 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 
 ## Project Structure
 
-- `cmd/ava/` - CLI entry point. The bare command dictates (record → transcribe → paste); `speak.go`, `stop.go`, `voices.go`, `transcribe.go` and `a11y.go` expose the rest of the voice stack as verbs, and `mcp.go` serves the same five capabilities to MCP clients over stdio (see `docs/mcp.md`). Keep the two surfaces in step: a capability reachable from one and not the other is the gap this layout exists to prevent. Nothing in the `mcp` command may write to stdout — it's the JSON-RPC channel. `setup.go` and `setup_model.go` install what the binary needs without a checkout (sox, whisper-cli, the pinned and sha256-verified model, the Kokoro engine bundle), and `engine.go` starts, stops and checks the Kokoro server.
+- `cmd/ava/` - CLI entry point. The bare command dictates (record → transcribe → paste); `speak.go`, `stop.go`, `voices.go`, `transcribe.go` and `a11y.go` expose the rest of the voice stack as verbs, and `mcp.go` serves the same five capabilities to MCP clients over stdio (see `docs/mcp.md`). Keep the two surfaces in step: a capability reachable from one and not the other is the gap this layout exists to prevent. Nothing in the `mcp` command may write to stdout — it's the JSON-RPC channel. `setup.go` and `setup_model.go` install what the binary needs without a checkout (sox, whisper-cli, the pinned and sha256-verified model, the Kokoro engine bundle), `engine.go` starts, stops and checks the Kokoro server, and `update.go` replaces the running binary with the latest release (the work is in `internal/selfupdate`).
 - `internal/monitor/` - `ava monitor`, the realtime transcript monitor (wired in by `cmd/ava/monitor.go`): serves a live transcript over SSE at localhost and logs it to a file; input can be the mic or a loopback device (e.g. BlackHole) for capturing call audio
 - `internal/recording/` - Audio recording via sox, including peak normalization (`norm -3`) as part of the same sox invocation — capture already happens at `internal/audio`'s target rate/channels, so there's no separate resample/normalize pass
 - `internal/audio/` - shared sox target format constants (`SampleRateHz`, `Channels`) that recording and the transcription engines must agree on
@@ -56,12 +56,16 @@ Run `make lint` before committing. The Python components (`mlx-engine/`, `voxtra
 - `internal/ttsproto/` and `internal/protocol/` - the marker-file protocol every speak and stop path shares (activity dir, playback lock, port). `protocol` is generated from `protocol.json` into Go, bash (`scripts/protocol.sh`) and Swift; `ttsproto` re-exports it under the names the Go packages use. `make check-protocol` fails on a stale copy
 - `internal/ttscontrol/` - cancels speech in flight before the mic opens; a Go port of `scripts/stop-speaking.sh`'s marker-file protocol, since an installed binary can't reach the script
 - `internal/enginedist/` - the mlx-engine bundle embedded in the binary, so `ava setup` can install Kokoro TTS without a checkout. `make check-enginedist` fails when the embedded copy is stale
+- `internal/selfupdate/` - `ava update`: finds the latest GitHub release, checks the archive against that release's `checksums.txt`, then renames the new binary over the old one so a failure at any step leaves the old `ava` running
+- `internal/archtest/` - tests that fail on a forbidden import (e.g. `pkg/` pulling in cobra or the MCP SDK, or anything but `cmd/` importing `cmd/`); add a rule here when a new boundary matters
+- `internal/protocol/gen/` and `internal/enginedist/gen/` - the generators behind `make generate-protocol` and `make generate-enginedist`; never hand-edit what they write
 - `internal/buildinfo/` - which build is running, for `--version` and the MCP handshake
 - `internal/procutil/` - small subprocess helpers shared by the CLIs and engine clients
 - `internal/testutil/` - helpers shared by the test suites (a regular package so any `_test.go` can import it)
 - `internal/a11y/` - parses chrome-devtools MCP's `take_snapshot` accessibility tree and renders it as screen-reader announcements, plus the findings that only surface when a page is heard in order. Pure functions, no I/O — the rendering has to be identical run to run for a spoken audit to mean anything
 - `pkg/stt/` - the `Options`/`Client` shapes of the one-shot transcription engine. Every STT engine lives under here as its own subpackage; there's no `pkg/tts` — synthesis is `pkg/mlx.Client.Speak` wrapped by `internal/speaker` (see `pkg/stt`'s own doc comment)
 - `pkg/stt/whisper/` - whisper-cli subprocess wrapper; the only transcription engine `ava` has
+- `pkg/stt/captions/` - renders timed transcript segments as SRT, WebVTT or JSON; pure, no I/O; used by `pkg/mlx`, `pkg/stt/whisper` and `internal/speaker`
 - `pkg/mlx/` - HTTP client for `mlx-engine/`'s Kokoro TTS. Lives at the top level rather than under `pkg/stt/` because it is not an STT client: mlx-engine's STT half was removed after whisper.cpp measured 13x faster on the same audio
 - `pkg/stt/realtime/` - a *different*, independent client from `pkg/mlx`: wraps `voxtral/realtime.py` directly via `os/exec`, used only by `internal/monitor`. Streaming Voxtral, where `mlx-engine` serves only Kokoro TTS.
 - `mlx-engine/` - local Kokoro TTS server for `ava` (Python, `uv`-managed — see `mlx-engine/README.md`)

@@ -99,6 +99,10 @@ that speaks (the CLI, the MCP server, the hooks and the menu bar through
 is the failure this prevents. `internal/speaker`'s package comment has the
 details.
 
+A speak ended with SIGKILL never removes its own marker. Markers whose owning
+process is gone are reaped on the next stop or speak (`ReapStale` in
+`internal/ttscontrol`).
+
 ## One source for the constants every runtime shares
 
 `internal/protocol/protocol.json` holds the values more than one language has
@@ -195,8 +199,9 @@ throwaway path instead of the real one; nothing in normal operation sets those.
 |---|---|---|
 | `TTS_SPEED`, `TTS_VOLUME`, `TTS_SAY_RATE` | `internal/voiceconfig` (so `speak.sh` too, through `ava speak`) | Override the configured speed, volume and `say` rate for one run. See [the hooks doc](claude-code-voice-hooks.md#settings) |
 | `TTS_NOTIFY_MAX_CHARS`, `TTS_STOP_MAX_CHARS` | `scripts/hook-notify.sh`, `scripts/hook-stop.sh` | Override the spoken-length caps |
-| `MLX_ENGINE_SCRIPT` | `internal/speaker` | Control script that `speak`'s implicit auto-start runs. See [the CLI reference](cli.md#engine-server) |
+| `MLX_ENGINE_SCRIPT` | `internal/enginedist` (`ScriptEnv`) | Control script that `speak`'s implicit auto-start runs. See [the CLI reference](cli.md#engine-server) |
 | `AVA_ENGINE_DIR` | `internal/enginedist` | Where `ava setup` installs the engine bundle, and where auto-start looks for it |
+| `AVA_DOWNLOAD_BASE` | `cmd/ava/update.go` | Base URL `ava update` fetches `checksums.txt` and the archives from, instead of the GitHub release; `--source` wins over it |
 | `AVA_BIN` | `scripts/install.sh` | Install directory, default `~/.local/bin` |
 | `MLX_ENGINE_PID_FILE` | `mlx-engine/server.py` | The pid file the server removes on idle exit. `scripts/mlx-engine-server.sh` sets it so the two cannot disagree; also a test hook |
 | `VOICECONFIG_PATH` | `internal/voiceconfig` | Test hook: the config file the Go reader loads |
