@@ -128,7 +128,7 @@ curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh
 ava setup
 ```
 
-From a checkout, `bash scripts/install.sh [tag]` does the same. The full new-Mac checklist is
+From a checkout, `bash scripts/install.sh [tag]` does the same. The step-by-step checklist is
 [getting-started.md](getting-started.md).
 
 `install.sh` fetches the release with `gh` when it is installed and signed in,

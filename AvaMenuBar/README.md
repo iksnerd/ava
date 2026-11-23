@@ -16,7 +16,7 @@ The menu bar icon shows the state: a muted speaker while muted, a filled wavefor
 
 ## Get it
 
-Download `Ava.dmg` from the [latest release](https://github.com/iksnerd/ava/releases/latest) and follow [the menu bar app](../docs/getting-started.md#the-menu-bar-app) in the getting-started guide.
+Download `Ava.dmg` from the [latest release](https://github.com/iksnerd/ava/releases/latest) and follow [the menu bar app guide](../docs/menu-bar-app.md).
 
 ## Build and run from source
 

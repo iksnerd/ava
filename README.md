@@ -19,7 +19,7 @@ ava                  # dictate: speak, pause for 2 seconds, the text is pasted a
 
 macOS asks for Microphone access (for the app you ran it from) and Accessibility (to paste; `--no-paste` leaves the text on the clipboard). `ava setup --skip-engine` installs dictation only.
 
-Prefer no Terminal? Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), drag it to Applications, and click **Set up Ava** in the menu bar. It is unsigned, so macOS asks you to confirm once. A pinned version, building from source and the menu bar steps are in [Getting started](docs/getting-started.md).
+Prefer no Terminal? Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), drag it to Applications, and click **Set up Ava** in the menu bar. It is unsigned, so macOS asks you to confirm once. The menu bar steps are in [The menu bar app](docs/menu-bar-app.md), a pinned version in [Getting started](docs/getting-started.md), and building from source in [Install from source](docs/install-from-source.md).
 
 ## What it does
 
@@ -66,7 +66,7 @@ Use `ava monitor --log` to choose where a call transcript goes, and delete it wh
 
 ## Documentation
 
-[Getting started](docs/getting-started.md) · [CLI](docs/cli.md) · [Troubleshooting](docs/troubleshooting.md) · [Tuning](docs/tuning.md) · [MCP](docs/mcp.md) · [Engine API](docs/engine-api.md) · [Monitor](docs/monitor.md) · [Voice hooks](docs/claude-code-voice-hooks.md) · [Uninstall](docs/uninstall.md) · [Architecture](docs/architecture.md) · [Menu bar app](AvaMenuBar/README.md) · [Kokoro server](mlx-engine/README.md)
+[Getting started](docs/getting-started.md) · [Menu bar app guide](docs/menu-bar-app.md) · [Install from source](docs/install-from-source.md) · [CLI](docs/cli.md) · [Troubleshooting](docs/troubleshooting.md) · [Tuning](docs/tuning.md) · [MCP](docs/mcp.md) · [Engine API](docs/engine-api.md) · [Monitor](docs/monitor.md) · [Voice hooks](docs/claude-code-voice-hooks.md) · [Uninstall](docs/uninstall.md) · [Architecture](docs/architecture.md) · [Menu bar app](AvaMenuBar/README.md) · [Kokoro server](mlx-engine/README.md)
 
 ## Contributing
 
