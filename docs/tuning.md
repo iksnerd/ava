@@ -1,8 +1,7 @@
 # Tuning the engines
 
-What each engine actually exposes, what it does not, and which knobs are worth
-reaching for. Everything here was checked against the installed versions rather
-than copied from upstream docs.
+What each engine exposes, what it does not, and which knobs are worth reaching
+for.
 
 ← [Back to the README](../README.md)
 
@@ -28,8 +27,7 @@ Kokoro's own `generate()` accepts exactly five things:
 
 So the API surface is not missing much. `/speak` takes `text`, `voice` and
 `speed`, and derives `lang_code`. **Anything else is rejected with a 422**
-rather than accepted and ignored, which is what used to happen — a request
-carrying `temperature` returned 200 and changed nothing.
+rather than accepted and ignored.
 
 ### The voice id carries the accent rules
 
@@ -50,9 +48,8 @@ ava speak --voice af_heart,bf_emma "a fifty-fifty blend"
 ava speak --voice af_heart,bf_emma,am_adam "three-way average"
 ```
 
-Verified against the running server: three ids return 200 and produce audio.
-Each id must be known — an unknown one is an error now, not a silent fallback
-to the macOS voice. `ava voices` lists all 28.
+Each id must be known: an unknown one is an error, not a silent fallback to
+the macOS voice. `ava voices` lists all 28.
 
 ### Intonation and stress
 
@@ -169,8 +166,7 @@ how you stop it writing "cube control". See
 
 ### Flags the wrapper does not expose
 
-`whisper-cli` offers plenty more. None of these is wired up, and this is the
-honest reason: none has been needed. If you want one, follow `--beam-size`:
+`whisper-cli` offers plenty more. None of these is wired up, because none has been needed. To add one, follow `--beam-size`:
 a field on `stt.Options`, appended in `pkg/stt/whisper`'s `buildArgs` only when
 set, and a flag on dictation, `transcribe` and the MCP tool.
 

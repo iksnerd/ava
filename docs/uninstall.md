@@ -1,7 +1,6 @@
 # Uninstalling
 
-What each install path leaves on disk, and how to remove it. Every path below
-was checked against the code that writes it.
+What each install path leaves on disk, and how to remove it.
 
 ← [Back to the README](../README.md)
 
@@ -42,7 +41,7 @@ read, so `make uninstall` never touches it:
 
 ```bash
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16                    # 339 MB
-rm -rf ~/.cache/huggingface/hub/models--prince-canuma--Kokoro-82M                         # a few MB of voices, from before 0.7.1
+rm -rf ~/.cache/huggingface/hub/models--prince-canuma--Kokoro-82M                         # a few MB of voices, from older versions
 rm -rf ~/.cache/huggingface/hub/models--mlx-community--Voxtral-Mini-4B-Realtime-2602-4bit # 2.9 GB, only if you ran ava monitor
 ```
 

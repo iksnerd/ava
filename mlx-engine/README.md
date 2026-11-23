@@ -23,7 +23,7 @@ tracking and idle shutdown:
 
 Kokoro is loaded and warmed at startup, so a healthy server is a ready one:
 its first `generate_audio` call costs an extra ~2.6s of MLX compilation, paid
-once at start rather than on whoever speaks first. Measured on an M3 Pro,
+once at start rather than on whoever speaks first. On an M3 Pro,
 every real `/speak` after that stays at Kokoro's steady-state ~230-290ms.
 `/health` won't respond until the warmup finishes. The server shuts itself down after 15 minutes of no
 `/speak` activity to free the RAM (`/health` polls don't
@@ -68,13 +68,9 @@ No model swap needed for any of these — they're request-level knobs Kokoro
 
 ## Models
 
-This server is TTS-only. It used to also serve Voxtral STT behind
-`ava --engine voxtral`; that was removed after measuring both on the
-same 20s sample — whisper.cpp 1.26s against Voxtral's 17s warm and 127s cold
-(including a 108s model load), for a near-identical transcript. One-shot
-transcription is `pkg/stt/whisper`'s job now, and `internal/monitor` runs
-Voxtral in its own process for streaming, which is a different shape from one
-subprocess per complete file.
+This server is TTS-only. One-shot transcription is `pkg/stt/whisper`'s job
+(whisper.cpp: 1.26s on a 20s sample, against 17s warm and 127s cold for
+Voxtral), and `internal/monitor` runs Voxtral in its own process for streaming.
 
 `mlx_audio` bundles a considerably longer list of STT/TTS models beyond what this
 server currently wires up — worth a look if a different accuracy/speed/voice

@@ -32,12 +32,11 @@ make check-swift-config    # if you touched VoiceSettings.swift (needs swiftc)
 for the Kokoro server's HTTP contract, `make test-voxtral` for the filter and
 device resolution. `make uninstall-hooks` turns the pre-commit hook back off.
 
-**CI only runs on version tags here**, so a pull request will not get a green
-tick and a push to `main` will not be checked. Run the above yourself; that is
-the deal. The workflow still exists and still runs on ubuntu and macOS, it just
-fires at release time.
+**CI only runs on version tags**, so a pull request gets no check and a push to
+`main` is not checked. Run the above yourself. The workflow runs on ubuntu and
+macOS at release time.
 
-`make install-hooks` points `core.hooksPath` at `.githooks/`, which fills the
+`make install-hooks` points `core.hooksPath` at `.githooks/`, which covers the
 gap: gofmt, build, vet, tests, ruff and the hardcoded-path check on every
 commit. It runs against the **staged snapshot**, exported with
 `git checkout-index`, not against your working directory — so staging a file
@@ -47,27 +46,23 @@ else's checkout. Docs-only commits skip the language checks and finish fast.
 
 ## Cutting a release
 
-Tagging is the whole trigger. `v*` starts CI, and once both test jobs pass a
-third job builds the `ava` binary with GoReleaser and attaches it to the
-release.
+Pushing a `v*` tag starts CI. Once both test jobs pass, a third job builds the
+`ava` binary with GoReleaser and attaches it to the release.
 
 1. Move `CHANGELOG.md`'s `## [Unreleased]` section under the new version, and add
    its link at the bottom.
 2. Commit, tag `vX.Y.Z`, push both.
 
-`make release-snapshot` builds exactly what the tag would publish and publishes
-nothing — worth running first, since the alternative is finding out from a
-release. `make release-notes` prints the newest changelog section, which is
-what CI feeds to `--release-notes`; GoReleaser's own commit-list generator is
-off, so the hand-written notes are the only ones.
+`make release-snapshot` builds what the tag would publish and publishes nothing.
+`make release-notes` prints the newest changelog section, which CI passes to
+`--release-notes`; GoReleaser's commit-list generator is off.
 
-Two things about the artifacts. They are **Apple Silicon only** — the code
-shells out to `afplay`, `pbcopy`, `osascript` and `sox`, and the TTS engine is
-MLX, so a Linux build would compile and then fail at the first thing it did.
-And they are **unsigned**: macOS quarantines anything downloaded, so a
-recipient runs `xattr -d com.apple.quarantine` before the binary will start. Signing needs an Apple
-Developer ID this project does not have, which is also why the menu bar app is
-not distributed this way.
+The artifacts are **Apple Silicon only**: the code shells out to `afplay`,
+`pbcopy`, `osascript` and `sox`, and the TTS engine is MLX. They are also
+**unsigned**: macOS quarantines downloads, so a recipient runs
+`xattr -d com.apple.quarantine` before the binary will start. Signing needs an
+Apple Developer ID this project does not have, so the menu bar app is not
+distributed this way.
 
 ## Things worth knowing before you change them
 
@@ -77,8 +72,7 @@ and Swift (`VoiceSettings.swift`). They must agree, including on malformed
 input. `internal/voiceconfig/contract_test.go` runs the bash and Go readers
 against shared cases in `testdata/voice-config-cases.json`, and
 `make check-swift-config` is the Swift arm. **Add a case there before changing
-any reader.** The one config bug that ever shipped was a wrong-typed value
-silently unmuting the app, in the component that had no test.
+any reader.** A wrong-typed value must never silently unmute the app.
 
 **Speech is a cross-process protocol, not a function call.** A global mute, an
 activity marker in `/tmp/ava-tts-active`, and an exclusive `flock(2)` on
@@ -89,11 +83,10 @@ failure this prevents. `internal/speaker`'s package comment documents the
 contract.
 
 **The hooks speak through `ava speak --async`.** `scripts/speak.sh` is only a
-mute check plus a hand-off to it. Keep it that way: a second player is what
-drifted before.
+mute check plus a hand-off to it. Keep it that way: a second player drifts from the first.
 
 **No hardcoded home directories.** `make lint` fails on `/Users/<name>` or
-`/home/<name>` in any tracked file. This caught two real bugs.
+`/home/<name>` in any tracked file.
 
 ## Style
 

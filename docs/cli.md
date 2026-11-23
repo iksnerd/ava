@@ -132,8 +132,8 @@ From a checkout, `bash scripts/install.sh [tag]` does the same. The full new-Mac
 [getting-started.md](getting-started.md).
 
 `install.sh` fetches the release with `gh` when it is installed and signed in,
-and otherwise with a plain `curl`, which needs no account. (A `gh` that was never
-signed in refuses even public downloads, so it is only used when signed in.)
+and otherwise with a plain `curl`, which needs no account. A `gh` that is not
+signed in refuses even public downloads, so it is only used when signed in.
 Pass a tag to pin a version: `… | bash -s v0.6.2`. It verifies the checksum before extracting, and installs `ava`
 to `~/.local/bin` — `AVA_BIN` overrides that.
 
@@ -145,11 +145,10 @@ and `spctl -a -t exec` still rejects the result.
 
 That only matters for a browser download, because macOS attaches
 `com.apple.quarantine` when a browser fetches a file and not when `curl` or
-`gh` does. Two things are worth knowing about the case where it does happen,
-both measured on macOS 27:
+`gh` does. If it is set:
 
 - **Extracting in a terminal does not launder it.** Quarantine survives
-  `tar xzf`, whatever older advice says.
+  `tar xzf`.
 - **There is nothing to search for.** A quarantined unsigned binary run from a
   shell is killed with exit 137 and prints nothing at all, and the GUI dialog
   macOS shows offers **Move to Trash**, not Open. Getting past it means
@@ -178,9 +177,8 @@ it at startup to decide whether to offer its Set up button.
 Each step is skipped when it is already done, so re-running is cheap — and
 re-running is how you refresh the engine after installing a newer binary.
 
-It exists because the binary is otherwise only half usable without a checkout.
-`make setup` does the same things, but only from the repo, which is the
-one thing a downloaded binary does not have. The engine is carried inside the
+`make setup` does the same things, but only from a checkout, which a downloaded
+binary does not have. The engine is carried inside the
 binary as ~600 KB of scripts, `server.py` and a `uv.lock`; the 1.2 GB of Python
 is resolved by `uv` at install time and the 339 MB Kokoro model is fetched at
 the end of setup (`mlx-engine-server.sh fetch`), so neither is shipped.
@@ -252,7 +250,7 @@ three commands.
 
 `stop` also disarms on-demand auto-start (`engineAutoStart` in the config), so
 the server stays stopped instead of the next hook bringing it back up; `start`
-re-arms it, and `stop` now says which it did. See
+re-arms it, and `stop` says which it did. See
 [`claude-code-voice-hooks.md`](claude-code-voice-hooks.md#settings).
 
 Use `stop --keep-autostart` when the stop is temporary — you started the engine
@@ -297,9 +295,9 @@ each. `--voice` completes to the Kokoro voice ids.
 
 ## Why there is only one transcription engine
 
-`ava` transcribes with whisper.cpp and nothing else. There used to be
-a `--engine voxtral` that went through mlx-engine's HTTP server; it was removed
-after measuring both on the same 20-second sample:
+`ava` transcribes with whisper.cpp and nothing else. A Voxtral engine behind
+mlx-engine's HTTP server was measured against it on the same 20-second sample
+and is not offered:
 
 | | whisper.cpp | Voxtral 4B via mlx-engine |
 |---|---|---|
@@ -309,9 +307,8 @@ after measuring both on the same 20-second sample:
 | Peak memory | none held | ~4GB resident, 11GB while loading |
 | Transcript | near-identical | near-identical |
 
-Voxtral is still used, in `ava monitor`: that path streams, where the wrapper
-here transcribes a complete file per subprocess. (whisper.cpp does ship a
-streaming example; it is not what `pkg/stt/whisper` wraps.) See
+Voxtral is used in `ava monitor`: that path streams, where the wrapper here
+transcribes a complete file per subprocess. See
 [`monitor.md`](monitor.md).
 
 ## Context files
