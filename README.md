@@ -1,216 +1,77 @@
 # Ava
 
-Dictation, speech, and live call transcripts for macOS, running entirely
-on-device.
+On-device dictation, speech and live call transcripts for macOS. No audio and no transcript leaves the machine.
 
-Cloud voice tools are a non-starter for anything you wouldn't paste into a
-stranger's web form. Client calls, mostly. This keeps the loop local:
-whisper.cpp for speech-to-text, Kokoro for speech. No audio and no transcript
-leaves the machine.
+[Getting started](docs/getting-started.md) · [CLI reference](docs/cli.md) · [MCP tools](docs/mcp.md) · [Architecture](docs/architecture.md)
 
-It started as a Go CLI for dictation and grew into the stack around it: a menu
-bar app, Claude Code hooks that speak session status out loud, and an MCP
-server so other programs can use the same voice. If you want a dictation app,
-the ones [below](#compared-with-a-dictation-app) are better at that. This is
-the substrate underneath one.
+Ava is a Go CLI built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp) for speech-to-text and [Kokoro](https://huggingface.co/mlx-community/Kokoro-82M-bf16) for text-to-speech. The CLI, an MCP server, Claude Code hooks and a menu bar app share one voice engine, one config file and one playback lock, so you can script speech, drive it from an agent, or have a hook talk.
 
 ## Install
 
-Needs a Mac with Apple Silicon and [Homebrew](https://brew.sh); the menu bar app
-also needs macOS 13 or later.
+Needs an Apple Silicon Mac and [Homebrew](https://brew.sh).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iksnerd/ava/main/scripts/install.sh | bash
-ava setup
+ava setup            # sox, whisper-cli, uv, the speech model and the Kokoro voice (about 1.7 GB)
+ava speak "hello"    # the first run starts the engine, a few seconds
+ava                  # dictate: speak, pause for 2 seconds, the text is pasted at your cursor
 ```
 
-The first line installs the latest [release](https://github.com/iksnerd/ava/releases)
-to `~/.local/bin` after checking its checksum. `ava setup` installs `sox`,
-`whisper-cli` and `uv` through Homebrew, the 141 MB speech model, and the Kokoro voice
-engine with its 339 MB model and every voice (about 1.7 GB in all;
-`--skip-engine` for dictation only), so speech works offline afterwards. Then:
+macOS asks for Microphone access (for the app you ran it from) and Accessibility (to paste; `--no-paste` leaves the text on the clipboard). `ava setup --skip-engine` installs dictation only.
 
-```bash
-ava speak "hello"   # the first run starts the engine, a few seconds
-ava                 # dictate: speak, pause for 2 seconds, the text is pasted at your cursor
-```
-
-A release gives you dictation, `speak`, `transcribe`, the MCP server and the
-accessibility narrator. A pinned version, a manual download from the Releases
-page, and a check after every step are in
-[`docs/getting-started.md`](docs/getting-started.md).
-
-### The menu bar app, without Terminal
-
-Install [Homebrew](https://brew.sh) first; it is the one step that needs
-Terminal. Then download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg),
-drag Ava into Applications and open it. It is not signed, so macOS first says it
-cannot verify it: open System Settings → Privacy & Security and click **Open
-Anyway**. Then click the waveform in the menu bar and **Set up Ava**.
-
-Every step, written for someone who has never used Terminal:
-[the menu bar app](docs/getting-started.md#the-menu-bar-app).
-
-### From source
-
-The Claude Code voice hooks and `ava monitor`'s call transcripts need a
-checkout, as does building the menu bar app yourself:
-
-```bash
-brew install sox whisper-cpp go
-git clone https://github.com/iksnerd/ava.git && cd ava
-make setup                # uv, the Kokoro engine's Python environment, the speech model
-make install-bin          # builds ava and installs it to ~/.local/bin
-
-export PATH="$HOME/.local/bin:$PATH"                          # add both to ~/.zshrc
-export MLX_ENGINE_SCRIPT="$PWD/scripts/mlx-engine-server.sh"  # optional: lets `ava speak` start this checkout's engine from any folder
-```
-
-- Menu bar app: `bash AvaMenuBar/scripts/build-app.sh`, then `open -a Ava`
-  ([`AvaMenuBar/README.md`](AvaMenuBar/README.md)).
-- Voice hooks: [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md).
-  They speak through `ava`, so keep a built or installed one around.
-- Call transcripts: `make setup-voxtral`, then `bin/ava monitor`
-  ([`docs/monitor.md`](docs/monitor.md)).
-
-On an Intel Mac only dictation works: `go install github.com/iksnerd/ava/cmd/ava@latest`,
-then `ava setup`, which skips Kokoro there and speaks with the macOS voice.
-
-### First run
-
-Switch to the app you want to dictate into first. Run from a terminal, the text
-is pasted at your own shell prompt, which is the tool working. A hotkey makes it
-natural: `make install-raycast` adds a Raycast command, or use the menu bar app.
-
-macOS asks for two permissions. **Microphone**, for whatever you ran it from:
-without it, recording "succeeds" and captures silence. **Accessibility**,
-because auto-paste sends Cmd+V through AppleScript; `ava --no-paste` leaves the
-transcript on the clipboard instead.
+Prefer no Terminal? Download [`Ava.dmg`](https://github.com/iksnerd/ava/releases/latest/download/Ava.dmg), drag it to Applications, and click **Set up Ava** in the menu bar. It is unsigned, so macOS asks you to confirm once. A pinned version, building from source and the menu bar steps are in [Getting started](docs/getting-started.md).
 
 ## What it does
 
-**Dictate into whatever has focus.** Records until 2 seconds of silence,
-transcribes, copies, pastes. A 20-second recording takes about 1.3 s with the
-default `base.en` model on an M3 Pro.
-
-**Speak, from anywhere.** `ava speak`, an MCP tool, the Claude Code hooks and
-the menu bar app all go through one Kokoro server, one global mute and one
-playback lock, so two of them never talk over each other. 28 voices, blendable
-by passing several ids.
-
-**Hear a web page the way a screen reader announces it.** With
-[chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp),
-`speak_accessibility_tree` narrates a page in reading order, then reports what
-only shows up when you listen: six links that all say "read more", skipped
-heading levels, alt text that passes the linter and sounds like nonsense.
-
-**Live call transcripts.** `ava monitor` streams a transcript to
-`localhost:8766` from your mic or a loopback device, with optional speaker
-labels. It uses Voxtral, which is built for streaming; dictation's whisper.cpp
-path transcribes a complete file at a time.
-
-**Spoken Claude Code notifications.** Hooks that say when Claude finishes a
-turn or needs a decision, optionally shortened by a local Ollama model first.
-
-## Compared with a dictation app
-
-You probably want one. [VoiceInk](https://github.com/beingpax/VoiceInk) is open
-source with a real installer, [Handy](https://github.com/cjpais/Handy) is
-cross-platform, and [superwhisper](https://superwhisper.com) and
-[MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper) are polished
-commercial products. All of them run locally too.
-
-The difference is shape. There the app is the product. Here the pieces are
-peers: a CLI, an MCP server, shell hooks and a menu bar app share one config
-file, one activity marker and one `flock(2)`, so you can script speech, drive it
-from an agent, or have a hook talk. The cost is convenience: no signed `.dmg`,
-an install that is a shell script or `make`, and Apple Silicon for most of it.
-
-## How it works
-
-Four ways in (the CLI, an MCP client, the Claude Code hooks, the menu bar app)
-and two engines underneath: whisper.cpp as a subprocess per transcription, and
-Kokoro on a local server that idles down after 15 minutes and restarts in a
-couple of seconds. Everything that speaks goes through one Go implementation;
-the hooks and the menu bar reach it through `scripts/speak.sh`.
-
-Diagram and the reasoning behind each choice:
-[`docs/architecture.md`](docs/architecture.md).
-
-## Privacy
-
-No audio or transcript is ever transmitted. Both engines run locally,
-`mlx-engine` and `ava monitor` bind `127.0.0.1`, and there is no account,
-telemetry or server component. The network is used only to install
-dependencies and download model weights.
-
-What lands on disk:
-
-| What | Where | Cleaned up |
-| --- | --- | --- |
-| Dictation audio | `/tmp/voice-input/` | On exit; a crash leaves the `.wav` behind |
-| Speech audio | `$TMPDIR/ava-tts-*` (your per-user temp folder) | After playback |
-| **`ava monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and readable by every user (`0644`) |
-
-Pass `ava monitor --log` to choose where a call transcript goes, and delete it
-when you are done.
-
-**Accessibility permission allows any keystroke**, not just Cmd+V. Grant it to a
-terminal or app you trust, or use `--no-paste`.
-
-**Loopback capture records the other participants.** Consent law varies, and
-some places require every party to agree. That is your call, not the tool's.
-
-With `llmSummary` on (off by default), hook text goes to a local Ollama on
-`127.0.0.1:11434` before it is spoken.
-
-## Common commands
+- **Dictation.** Records until 2 seconds of silence, transcribes, pastes at the cursor. About 1.3 s for 20 seconds of audio with the default `base.en` model on an M3 Pro.
+- **Speech.** `ava speak`, the MCP server, the hooks and the menu bar all use one Kokoro server, one global mute and one playback lock, so two never talk over each other. 28 voices, blendable.
+- **Transcription.** `ava transcribe file.wav`, with text, SRT, WebVTT or JSON output.
+- **Page narration.** With [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp), `speak_accessibility_tree` reads a page the way a screen reader does and reports what only shows up when you listen, such as repeated "read more" links or skipped heading levels.
+- **Live call transcripts.** `ava monitor` streams a transcript to `localhost:8766` from the mic or a loopback device, optionally with speaker labels ([docs](docs/monitor.md)).
+- **Spoken Claude Code notifications.** Hooks say when a turn finishes or a decision is needed ([docs](docs/claude-code-voice-hooks.md)).
 
 ```bash
-ava                              # dictate
-ava transcribe meeting.wav       # transcribe a file you already have
-
-ava speak "build finished"
+ava transcribe meeting.wav
 git log -1 --format=%s | ava speak
 ava speak --voice af_heart,bf_emma "a blend of two voices"
-ava stop                         # cancel speech from any source
-ava voices                       # the ids --voice accepts
-
-ava engine start|status|stop     # the Kokoro server
-ava mcp                          # serve the stack over MCP
-ava update                       # install the latest release
-ava a11y snapshot.txt            # narrate an accessibility tree
+ava stop              # cancel speech from any source
+ava engine status     # start | status | stop for the Kokoro server
+ava mcp               # serve the stack over MCP (stdio)
+ava update            # install the latest release
 ```
 
 Every command and flag: [`docs/cli.md`](docs/cli.md).
 
+## When not to use it
+
+- You want a dictation app. [VoiceInk](https://github.com/beingpax/VoiceInk) (open source), [Handy](https://github.com/cjpais/Handy) (cross-platform), [superwhisper](https://superwhisper.com) and [MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper) are more polished at that, and all run locally. Ava is the layer underneath one.
+- You are on Intel, Linux or Windows. Only dictation works on Intel Macs; speech needs Apple Silicon (MLX).
+- You need a signed installer. The binary and the `.dmg` are unsigned.
+
+## How it works
+
+Four front ends (CLI, MCP, hooks, menu bar) and two engines: whisper.cpp as a subprocess per transcription, and Kokoro on a local server that idles down after 15 minutes and restarts in a couple of seconds. Everything that speaks goes through one Go implementation. See [`docs/architecture.md`](docs/architecture.md).
+
+## Privacy
+
+Both engines run locally, `mlx-engine` and `ava monitor` bind `127.0.0.1`, and there is no account, telemetry or server component. The network is used only to install dependencies and download model weights.
+
+| What | Where | Cleaned up |
+| --- | --- | --- |
+| Dictation audio | `/tmp/voice-input/` | On exit; a crash leaves the `.wav` behind |
+| Speech audio | `$TMPDIR/ava-tts-*` | After playback |
+| **`ava monitor` transcripts** | `/tmp/voice-input/transcript-<ts>.txt` | **Never**, and readable by every user (`0644`) |
+
+Use `ava monitor --log` to choose where a call transcript goes, and delete it when you are done. Accessibility permission allows any keystroke, so grant it only to a terminal or app you trust. Loopback capture records the other participants; consent law varies. With `llmSummary` on (off by default), hook text goes to a local Ollama on `127.0.0.1:11434` before it is spoken.
+
 ## Documentation
 
-| | |
-| --- | --- |
-| [`docs/getting-started.md`](docs/getting-started.md) | A new Mac from nothing, with a check after every step |
-| [`docs/cli.md`](docs/cli.md) | Every command and flag, context files |
-| [`docs/troubleshooting.md`](docs/troubleshooting.md) | When nothing pastes, or nothing plays |
-| [`docs/tuning.md`](docs/tuning.md) | Kokoro's parameters, stress and IPA markup, whisper.cpp flags |
-| [`docs/mcp.md`](docs/mcp.md) | The five MCP tools |
-| [`docs/engine-api.md`](docs/engine-api.md) | The Kokoro server's HTTP API, for scripts that skip the CLI |
-| [`docs/monitor.md`](docs/monitor.md) | Live transcripts and loopback setup |
-| [`docs/claude-code-voice-hooks.md`](docs/claude-code-voice-hooks.md) | Spoken notifications and every config key |
-| [`docs/uninstall.md`](docs/uninstall.md) | Everything an install leaves on disk |
-| [`docs/architecture.md`](docs/architecture.md) | How the pieces fit, and why |
-
-Also: [`mlx-engine/README.md`](mlx-engine/README.md) (the Kokoro server),
-[`AvaMenuBar/README.md`](AvaMenuBar/README.md) (the menu bar app).
+[Getting started](docs/getting-started.md) · [CLI](docs/cli.md) · [Troubleshooting](docs/troubleshooting.md) · [Tuning](docs/tuning.md) · [MCP](docs/mcp.md) · [Engine API](docs/engine-api.md) · [Monitor](docs/monitor.md) · [Voice hooks](docs/claude-code-voice-hooks.md) · [Uninstall](docs/uninstall.md) · [Architecture](docs/architecture.md) · [Menu bar app](AvaMenuBar/README.md) · [Kokoro server](mlx-engine/README.md)
 
 ## Contributing
 
-`make install-hooks`, then `make lint && make test` before a commit. CI runs
-only on version tags, so a pull request gets no automated check; say in it what
-you ran. [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the rest,
-including what to read before touching the config readers or the speech
-protocol. Security reports: [`SECURITY.md`](SECURITY.md).
+`make install-hooks`, then `make lint && make test` before a commit. CI runs only on version tags, so a pull request gets no automated check; say in it what you ran. See [`CONTRIBUTING.md`](CONTRIBUTING.md). Security reports: [`SECURITY.md`](SECURITY.md).
 
 ## License
 
-MIT. Third-party components and model licences are in [`NOTICE`](NOTICE).
-`ava monitor --diarize` downloads a model licensed for non-commercial use only.
+MIT. Third-party components and model licences are in [`NOTICE`](NOTICE). `ava monitor --diarize` downloads a model licensed for non-commercial use only.
