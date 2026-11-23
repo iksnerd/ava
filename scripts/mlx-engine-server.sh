@@ -125,7 +125,9 @@ case "$1" in
         echo "✅ Server started with PID $PID. Logs at $LOG_FILE"
 
         echo "⏳ Waiting for server process to come up (models load lazily per-endpoint)..."
-        for i in {1..120}; do
+        # Polled every 0.2s (600 x 0.2s = the same two minutes): a 1s interval
+        # added up to a second to a start that takes about four.
+        for _ in $(seq 1 600); do
             if engine_healthy; then
                 echo "🎉 Server is up and ready!"
                 exit 0
@@ -138,7 +140,7 @@ case "$1" in
                 tail -5 "$LOG_FILE" | sed 's/^/   /'
                 exit 1
             fi
-            sleep 1
+            sleep 0.2
         done
         echo "❌ Server failed to start in time. Check $LOG_FILE"
         exit 1
