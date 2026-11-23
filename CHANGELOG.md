@@ -3,7 +3,7 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.12.1] — 2026-11-24
 
 ### Added
 - **`--trace` on `ava transcribe` and `ava speak`** prints how long each stage took to stderr (audio check, whisper-cli with its load, encode and decode, engine check and start, synthesis, playback). Stdout is unchanged.
@@ -615,6 +615,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.12.1]: https://github.com/iksnerd/ava/releases/tag/v0.12.1
 [0.12.0]: https://github.com/iksnerd/ava/releases/tag/v0.12.0
 [0.11.0]: https://github.com/iksnerd/ava/releases/tag/v0.11.0
 [0.10.0]: https://github.com/iksnerd/ava/releases/tag/v0.10.0
