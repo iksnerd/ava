@@ -51,37 +51,37 @@ func newTranscribeCmd() *cobra.Command {
 				return err
 			}
 
+			// A bad file gets the same message on every format, before whisper
+			// runs: the caption formats would otherwise fail on a temp path.
+			if err := checkAudioDecodable(args[0]); err != nil {
+				return err
+			}
+
 			transcriber, err := newTranscriber(model)
 			if err != nil {
 				return err
 			}
 
 			text, err := transcriber.Transcribe(stt.Options{
-				AudioPath:  args[0],
-				OutputPath: output,
-				Language:   language,
-				BeamSize:   beamSize,
-				Format:     format,
+				AudioPath: args[0],
+				// OutputPath stays empty: the engine only warns on a failed
+				// write, and an --output the user asked for must fail.
+				Language: language,
+				BeamSize: beamSize,
+				Format:   format,
 			})
 			if err != nil {
 				return fmt.Errorf("transcription failed: %w", err)
 			}
-			if strings.TrimSpace(text) == "" {
-				// whisper-cli exits 0 with empty output both for a genuinely
-				// silent recording and for a file it could not decode at all —
-				// an AIFF named .wav, a truncated download, a zero-byte file.
-				// Reporting "no speech" for the second case sends the user off
-				// to check their microphone and silence thresholds when the
-				// real problem is the file. Distinguish them before concluding
-				// the room was quiet.
-				if err := checkAudioDecodable(args[0]); err != nil {
-					return err
-				}
+			if strings.TrimSpace(text) == "" || stt.IsNonSpeech(text) {
+				// A tone or silence gives either nothing or a marker such as
+				// "♪"; both mean no speech, on every format.
 				return fmt.Errorf("no speech detected in %s", args[0])
 			}
 
+			// Print before writing the file so a failed write loses nothing.
 			fmt.Fprintln(cmd.OutOrStdout(), strings.TrimRight(text, "\n"))
-			return nil
+			return stt.WriteOutputIfRequested(stt.Options{OutputPath: output}, text)
 		},
 	}
 

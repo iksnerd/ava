@@ -14,4 +14,9 @@ done
 if [ -n "$oj" ]; then
   printf '%s' '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello there."}]}' > "$of.json"
 fi
+# A test can have a plain-text run print something by dropping this file in
+# HOME (the engine passes HOME through, not the rest of the environment).
+if [ -z "$oj" ] && [ -f "$HOME/fixture-whisper-stdout" ]; then
+  cat "$HOME/fixture-whisper-stdout"
+fi
 exit 0

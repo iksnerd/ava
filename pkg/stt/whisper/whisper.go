@@ -66,7 +66,7 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 			return "", err
 		}
 		text := strings.TrimSpace(string(out))
-		stt.WriteOutputIfRequested(opts, text)
+		warnOutput(opts, text)
 		return text, nil
 	}
 
@@ -74,8 +74,18 @@ func (c *Client) Transcribe(opts stt.Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	stt.WriteOutputIfRequested(opts, rendered)
+	warnOutput(opts, rendered)
 	return rendered, nil
+}
+
+// warnOutput writes opts.OutputPath if one was given. A failure is a warning
+// here, not an error: the dictation path passes a debug copy that must never
+// abort a good transcription. `ava transcribe --output` does its own write
+// and fails on error.
+func warnOutput(opts stt.Options, text string) {
+	if err := stt.WriteOutputIfRequested(opts, text); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️ %v\n", err)
+	}
 }
 
 // maxOutputBytes caps what is read from whisper-cli's stdout. A transcript of

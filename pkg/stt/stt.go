@@ -16,6 +16,7 @@ package stt
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -65,16 +66,34 @@ type Client interface {
 	Transcribe(Options) (string, error)
 }
 
-// WriteOutputIfRequested writes text to opts.OutputPath if one was given —
-// for debugging/caching, not something callers depend on. A write failure
-// here doesn't invalidate an otherwise-successful transcription, so it's
-// reported to stderr rather than returned as an error. Shared by every
-// Client implementation instead of each repeating the same five lines.
-func WriteOutputIfRequested(opts Options, text string) {
+// WriteOutputIfRequested writes text to opts.OutputPath if one was given and
+// returns the write error, naming the path. Whether a failure matters is the
+// caller's call: the dictation path writes a debug copy and only warns, while
+// `ava transcribe --output` was asked for the file and exits non-zero.
+func WriteOutputIfRequested(opts Options, text string) error {
 	if opts.OutputPath == "" {
-		return
+		return nil
 	}
 	if err := os.WriteFile(opts.OutputPath, []byte(text), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "⚠️ Failed to write output file %s: %v\n", opts.OutputPath, err)
+		return fmt.Errorf("cannot write output file %s: %w", opts.OutputPath, err)
 	}
+	return nil
+}
+
+var (
+	bracketed = regexp.MustCompile(`\[[^\]]*\]`)
+	musicNote = strings.NewReplacer("♪", "", "♫", "")
+)
+
+// IsNonSpeech reports whether whisper's output is nothing but non-speech
+// markers: music notes and bracketed tags such as [BLANK_AUDIO] or [MUSIC].
+// whisper-cli prints these for a tone or silence instead of nothing. Output
+// that mixes a marker with words is speech and is not matched. Empty text is
+// not a marker; callers test for that themselves.
+func IsNonSpeech(text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	rest := musicNote.Replace(bracketed.ReplaceAllString(text, ""))
+	return strings.TrimSpace(rest) == ""
 }

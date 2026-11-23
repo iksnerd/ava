@@ -3,6 +3,13 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Fixed
+- **`ava transcribe --output` exits non-zero when the file cannot be written,** and the error names the path. The transcript is printed first, so it is not lost. Dictation's debug copy still only warns.
+- **`ava transcribe` reports no speech for a tone or silence in every format.** Text mode printed whisper's `♪` or `[BLANK_AUDIO]` and exited 0, while `--format srt|vtt|json` exited 1. Output made only of such markers now exits 1 with `no speech detected`; so does the MCP `transcribe` tool's text result.
+- **`ava transcribe --format srt|vtt|json` on a file that is not a WAV names the file** instead of leaking a temp path. The file is checked before whisper runs, for every format.
+
 ## [0.11.0] — 2026-11-23
 
 ### Changed
