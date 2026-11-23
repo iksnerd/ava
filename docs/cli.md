@@ -18,13 +18,13 @@ ava
 | `--model` | `base` | `base` (141MB) or `tiny` (74MB, faster, less accurate) |
 | `--lang` | `en` | Language code: `en`, `es`, `fr`, `de`, … |
 | `--beam-size` | whisper's (5) | Beam width; lower is faster and less accurate. See [tuning](tuning.md#whispercpp-speech-to-text) |
-| `--context` | — | Path to a context file (see below) |
-| `--output` | — | Also write the transcript to this file |
-| `--dir` | — | Change to this directory before anything else, so a relative `--context` or `--output` path resolves from it. It does not move where the text is pasted |
+| `--context` | none | Path to a context file (see below) |
+| `--output` | none | Also write the transcript to this file |
+| `--dir` | none | Change to this directory before anything else, so a relative `--context` or `--output` path resolves from it. It does not move where the text is pasted |
 | `--no-paste` | off | Copy to the clipboard but don't paste |
 | `--no-sound` | off | No audio cues |
 | `--verbose` | `true` | Status messages; `--quiet` is the inverse |
-| `--version`, `-v` | — | Print the version and exit (`--version --json` for `{"version":...}`) |
+| `--version`, `-v` | none | Print the version and exit (`--version --json` for `{"version":...}`) |
 
 ```bash
 ava --dir ~/projects/app --lang en --model base --output transcript.txt
@@ -135,12 +135,12 @@ From a checkout, `bash scripts/install.sh [tag]` does the same. The full new-Mac
 and otherwise with a plain `curl`, which needs no account. A `gh` that is not
 signed in refuses even public downloads, so it is only used when signed in.
 Pass a tag to pin a version: `… | bash -s v0.6.2`. It verifies the checksum before extracting, and installs `ava`
-to `~/.local/bin` — `AVA_BIN` overrides that.
+to `~/.local/bin`; `AVA_BIN` overrides that.
 
 **Use it rather than downloading the archive in a browser.** The binary is
 unsigned: signing for distribution needs a Developer ID certificate and
 notarization, which require a paid Apple Developer Program membership, and an
-Xcode "Apple Development" certificate is not a substitute — it signs cleanly
+Xcode "Apple Development" certificate is not a substitute; it signs cleanly
 and `spctl -a -t exec` still rejects the result.
 
 That only matters for a browser download, because macOS attaches
@@ -174,7 +174,7 @@ Homebrew, the whisper.cpp `base.en` model (~141 MB), the Kokoro TTS engine, and
 its model with every voice (339 MB), so speech needs no network afterwards.
 `--check` uses the same rules setup uses to skip a step; the menu bar app runs
 it at startup to decide whether to offer its Set up button.
-Each step is skipped when it is already done, so re-running is cheap — and
+Each step is skipped when it is already done, so re-running is cheap, and
 re-running is how you refresh the engine after installing a newer binary.
 
 `make setup` does the same things, but only from a checkout, which a downloaded
@@ -188,7 +188,7 @@ CLI and the menu bar app already share. `AVA_ENGINE_DIR` overrides
 that, mainly so the install can be exercised against a throwaway directory.
 
 **The install path has a length budget.** espeak-ng, which Kokoro phonemizes
-through, keeps its data path in a 160-byte buffer and truncates past it — the
+through, keeps its data path in a 160-byte buffer and truncates past it; the
 server then starts, loads the model and dies on a missing `phontab` against a
 path that names neither the length nor the directory. `setup` measures this up
 front and refuses rather than letting you find out after `uv` has resolved a
@@ -253,7 +253,7 @@ the server stays stopped instead of the next hook bringing it back up; `start`
 re-arms it, and `stop` says which it did. See
 [`claude-code-voice-hooks.md`](claude-code-voice-hooks.md#settings).
 
-Use `stop --keep-autostart` when the stop is temporary — you started the engine
+Use `stop --keep-autostart` when the stop is temporary: you started the engine
 to check on it and want the machine back as you found it. Without it, undoing a
 throwaway stop means starting the server again, which is the opposite of
 tidying up, and the setting it changed outlives the command: every later hook
@@ -302,7 +302,7 @@ and is not offered:
 | | whisper.cpp | Voxtral 4B via mlx-engine |
 |---|---|---|
 | Warm | **1.26s** | 17.0s |
-| Cold | same — no server | 126.7s, including a 108s model load |
+| Cold | same, no server | 126.7s, including a 108s model load |
 | Model on disk | 141MB | 2.9GB |
 | Peak memory | none held | ~4GB resident, 11GB while loading |
 | Transcript | near-identical | near-identical |

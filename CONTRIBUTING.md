@@ -39,7 +39,7 @@ macOS at release time.
 `make install-hooks` points `core.hooksPath` at `.githooks/`, which covers the
 gap: gofmt, build, vet, tests, ruff and the hardcoded-path check on every
 commit. It runs against the **staged snapshot**, exported with
-`git checkout-index`, not against your working directory — so staging a file
+`git checkout-index`, not against your working directory, so staging a file
 that imports something you never `git add`ed fails here rather than on someone
 else's checkout. Docs-only commits skip the language checks and finish fast.
 `git commit --no-verify` skips it when you mean to.
@@ -92,7 +92,7 @@ mute check plus a hand-off to it. Keep it that way: a second player drifts from 
 
 Match the surrounding code. Go is `gofmt`-clean and `go vet`-clean; Python is
 `ruff`-formatted; commit subjects are plain sentences describing what changed,
-not `type(scope):` prefixes — `git log` shows the pattern.
+not `type(scope):` prefixes; `git log` shows the pattern.
 
 Tests should fail for the reason they claim. If you add one, try breaking the
 code it guards and check that it actually goes red.
@@ -100,7 +100,7 @@ code it guards and check that it actually goes red.
 ## Reporting bugs
 
 Include `ava --version`. If it's a speech problem, say whether you
-heard the Kokoro voice or the macOS `say` fallback — they sound obviously
+heard the Kokoro voice or the macOS `say` fallback; they sound obviously
 different, and it narrows the cause immediately.
 
 Security issues go through

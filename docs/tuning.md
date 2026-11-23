@@ -9,7 +9,7 @@ for.
 
 ### The whole knob surface
 
-`mlx_audio`'s `generate_audio()` advertises about 25 parameters — `temperature`,
+`mlx_audio`'s `generate_audio()` advertises about 25 parameters: `temperature`,
 `cfg_scale`, `ddpm_steps`, `sigma`, `ref_audio`, `stream`, `use_zero_spk_emb`
 and so on. **Almost none of them are Kokoro's.** They exist because that function
 is shared across every TTS model `mlx_audio` supports, and the ones that do not
@@ -22,7 +22,7 @@ Kokoro's own `generate()` accepts exactly five things:
 | `text` | `text` | Required |
 | `voice` | `voice` | A voice id, or several comma-separated to blend |
 | `speed` | `speed` | Rate multiplier; 1.0 is natural |
-| `lang_code` | *derived* | Taken from the voice id's first letter — see below |
+| `lang_code` | *derived* | Taken from the voice id's first letter; see below |
 | `split_pattern` | `split_pattern` | Chunking regex. Defaults to blank lines |
 
 So the API surface is not missing much. `/speak` takes `text`, `voice` and
@@ -34,7 +34,7 @@ rather than accepted and ignored.
 The first letter of the voice id selects the phonemizer locale: `a` American
 English, `b` British, `e` Spanish, and so on. Without it every voice is
 phonemized with American rules, so a British voice speaks in the right timbre
-with the wrong pronunciation — audible only if you are listening for it. The
+with the wrong pronunciation, audible only if you are listening for it. The
 server derives this from the voice you pass, so it is automatic.
 
 ### Blending is an average, and it is not limited to two
@@ -54,8 +54,8 @@ the macOS voice. `ava voices` lists all 28.
 ### Intonation and stress
 
 This is the real prosody control, and it lives in the text rather than in a
-parameter. `misaki`, the phonemizer, reads a markdown-link syntax —
-`[word](payload)` — and interprets the payload four ways:
+parameter. `misaki`, the phonemizer, reads a markdown-link syntax,
+`[word](payload)`, and interprets the payload four ways:
 
 | Payload | Effect |
 | --- | --- |
@@ -79,7 +79,7 @@ plain          ðə ɹəpˈɔɹt ɪz dˈu tədˈA.
 ```
 
 So in practice: **negative values de-emphasise**, and positive values only do
-something when the word was not already stressed — raising a word that already
+something when the word was not already stressed, raising a word that already
 carries primary stress is a no-op. Adding stress to an unstressed word gives it
 secondary stress.
 
@@ -88,7 +88,7 @@ more reliable than any amount of stress nudging.
 
 ### What is not exposed, and why
 
-Underneath, `Model.__call__` takes a `ref_s` style vector — the StyleTTS2
+Underneath, `Model.__call__` takes a `ref_s` style vector, the StyleTTS2
 mechanism that actually carries prosody. It is not reachable through the API,
 and there is a wrinkle worth knowing even so: the voice file is a *pack* of
 style vectors, and the pipeline picks one by phoneme count
@@ -97,7 +97,7 @@ different prosody for a short utterance than a long one.** That is by design,
 not drift.
 
 `split_pattern` is exposed on `/speak`. Kokoro's default splits on blank lines,
-which is the wrong unit for text that arrives as one long paragraph — that lands
+which is the wrong unit for text that arrives as one long paragraph; that lands
 as a single chunk and runs into the token cap. Pass `"\\. "` to chunk by
 sentence instead. Omit it entirely to keep Kokoro's default; sending `null` is
 the same as omitting it.
@@ -122,7 +122,7 @@ synthesises in about 1.3s and returns ~20s of audio.
 
 ### Speed
 
-Warm, on an M3 Pro, roughly **16x faster than real time** — about 0.13s for a
+Warm, on an M3 Pro, roughly **16x faster than real time**, about 0.13s for a
 2-second utterance. The first call after the server starts costs ~2.6s more,
 which is MLX compiling; the server pays that at startup on purpose so no real
 request does.
@@ -138,10 +138,10 @@ request does.
 | `-m` | the model path | `base.en` by default, `tiny.en` with `--model tiny` |
 | `-f` | the audio file | 16kHz mono WAV, which `internal/audio` guarantees |
 | `-t` | `8` | Threads. The binary defaults to 4 |
-| `-nt` | — | No timestamps, so stdout *is* the transcript. With `--format srt\|vtt\|json` it is replaced by `-oj -of <temp>`, and the captions are rendered from the JSON |
-| `-sns` | — | Suppress non-speech tokens `(coughs)`, `[music]` |
+| `-nt` | none | No timestamps, so stdout *is* the transcript. With `--format srt\|vtt\|json` it is replaced by `-oj -of <temp>`, and the captions are rendered from the JSON |
+| `-sns` | none | Suppress non-speech tokens `(coughs)`, `[music]` |
 | `-l` | `--lang` | Language code |
-| `--prompt` | the context file | Vocabulary hints — see below |
+| `--prompt` | the context file | Vocabulary hints; see below |
 | `-bs` | `--beam-size` | Only when set; otherwise whisper-cli's default of 5 applies |
 
 `whisper-cli` is started with a clean environment: only `PATH`, `HOME`, `LANG` and `TMPDIR` (those that are set) reach it, so a token or key in your shell is not passed on, and neither is a variable you might have set for whisper.cpp itself. Its output is read up to 32 MiB and the run is stopped past that; a transcript of hours of audio is a few hundred kilobytes.
@@ -178,7 +178,7 @@ set, and a flag on dictation, `transcribe` and the MCP tool.
 | `-et`, `--entropy-thold` | 2.40 | Decoder giving up mid-segment |
 | `-mc`, `--max-context` | -1 | Constraining cross-segment context drift |
 | `-tr`, `--translate` | off | Translating to English instead of transcribing |
-| `-di`, `--diarize` | off | Stereo speaker separation — different from `ava monitor --diarize` |
+| `-di`, `--diarize` | off | Stereo speaker separation; different from `ava monitor --diarize` |
 | `-p`, `--processors` | 1 | Long files on many cores |
 
 Run `whisper-cli --help` for the full list.
@@ -188,7 +188,7 @@ Run `whisper-cli --help` for the full list.
 `base.en` transcribes a 20-second recording in about **1.26s** on an M3 Pro,
 roughly 16x faster than real time. `tiny.en` is faster and noticeably less
 accurate. The model reloads on every run, since each transcription is its own
-subprocess — that cost is already in the number above.
+subprocess; that cost is already in the number above.
 
 ## Recording
 
@@ -198,7 +198,7 @@ Set in `internal/audio` and `internal/recording`, not configurable at runtime:
 - **`norm -3`** peak normalisation, applied in the same `sox` call as capture
 - **2 seconds below a 3% threshold** ends the recording
 - **`--highpass-hz`** on `ava monitor` only. The flag defaults to `0`, which
-  means "use the built-in default" of 80Hz — `0` does not disable it. It matters
+  means "use the built-in default" of 80Hz; `0` does not disable it. It matters
   more for loopback capture than for a microphone, since loopback audio runs
   much quieter so the noise floor weighs more. See
   [`monitor.md`](monitor.md)
