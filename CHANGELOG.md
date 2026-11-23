@@ -3,7 +3,7 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.12.0] — 2026-11-23
 
 ### Changed
 - **`ava setup --check` now fails while an engine older than this `ava` is running,** with a line saying to run `ava engine stop && ava engine start`. It used to print "Ava is set up" and every `speak` then failed. A stopped engine is still fine. The menu bar app does not offer Set up for it.
@@ -602,6 +602,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.12.0]: https://github.com/iksnerd/ava/releases/tag/v0.12.0
 [0.11.0]: https://github.com/iksnerd/ava/releases/tag/v0.11.0
 [0.10.0]: https://github.com/iksnerd/ava/releases/tag/v0.10.0
 [0.9.0]: https://github.com/iksnerd/ava/releases/tag/v0.9.0
