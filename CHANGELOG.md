@@ -3,6 +3,11 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
+## [Unreleased]
+
+### Fixed
+- **`ava update` no longer leaves speech broken.** The engine files `ava setup` installs were only replaced by running `ava setup` again, so a newer `ava` found an older engine, called it stale and refused to speak. The installed files are now brought level with the binary the next time the engine starts, with no download. A running engine still needs `ava engine stop && ava engine start` once.
+
 ## [0.12.0] — 2026-11-23
 
 ### Changed

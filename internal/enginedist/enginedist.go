@@ -18,11 +18,14 @@
 package enginedist
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // all: is load-bearing. A plain `//go:embed files` silently skips entries
@@ -100,6 +103,13 @@ func ResolveScript(flag string) (string, error) {
 		return ScriptRelPath, nil
 	}
 	if installed, ok := InstalledScript(); ok {
+		// An `ava update` swaps the binary and leaves this bundle behind;
+		// bring it level before anything starts from it. A failure here is not
+		// fatal: the older bundle still runs, and the engine's own
+		// stale check reports a real mismatch.
+		if dir, err := DefaultDir(); err == nil && !Current(dir) {
+			_, _ = Materialize(dir)
+		}
 		return installed, nil
 	}
 	return "", fmt.Errorf("no mlx-engine control script found.\n"+
@@ -154,5 +164,54 @@ func Materialize(dir string) (int, error) {
 	if err != nil {
 		return written, fmt.Errorf("materialize engine bundle into %s: %w", dir, err)
 	}
+	if err := Stamp(dir); err != nil {
+		return written, fmt.Errorf("stamp engine bundle in %s: %w", dir, err)
+	}
 	return written, nil
+}
+
+// stampFile records which bundle was last written into an install directory.
+const stampFile = ".bundle-sha256"
+
+// bundleHash is a digest of every embedded file's path and bytes, so any
+// change to the shipped engine changes it and nothing else does.
+func bundleHash() (string, error) {
+	h := sha256.New()
+	err := fs.WalkDir(bundle, "files", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := bundle.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00", path, len(data))
+		h.Write(data)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// Stamp marks dir as holding this binary's bundle. Materialize calls it.
+func Stamp(dir string) error {
+	sum, err := bundleHash()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, stampFile), []byte(sum+"\n"), 0644)
+}
+
+// Current reports whether dir was stamped with this binary's bundle. A missing
+// or different stamp is not current, which covers an install made before
+// stamps existed.
+func Current(dir string) bool {
+	sum, err := bundleHash()
+	if err != nil {
+		return false
+	}
+	got, err := os.ReadFile(filepath.Join(dir, stampFile))
+	return err == nil && strings.TrimSpace(string(got)) == sum
 }
