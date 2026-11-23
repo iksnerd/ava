@@ -3,7 +3,7 @@
 Notable changes. Dates are release dates; `v0.1.0` predates this file, so its
 entry is a summary rather than a record kept as it happened.
 
-## [Unreleased]
+## [0.11.0] — 2026-11-23
 
 ### Changed
 - **Ctrl+C while dictating now stops the recording and transcribes what was captured.** A second Ctrl+C, or SIGTERM, cancels instead. Ctrl+C while transcribing cancels.
@@ -14,6 +14,7 @@ entry is a summary rather than a record kept as it happened.
 ### Fixed
 - **Speak markers left by a killed process are swept.** A speak ended with SIGKILL never cleaned up its marker, so `ava` read as speaking forever. They are reaped on the next speak or stop.
 - **The engine start lock is no longer taken from a live holder.** The lock records its holder's pid, and only a dead holder's lock is reclaimed. A start that ran past the old age cutoff could lose its lock to a second start.
+- **The release is built with Go 1.26.11.** The 0.10.0 binary was built with 1.26.8, which has standard library vulnerabilities in `net/http`, `crypto/tls`, `crypto/x509` and `net/textproto` that `govulncheck` reports as reachable. `ava update` to this release picks up the fix.
 
 ## [0.10.0] — 2026-10-16
 
@@ -586,6 +587,7 @@ failures that used to happen silently now say so.
 Initial release: the `local-whisper` CLI for dictation, with Raycast
 integration.
 
+[0.11.0]: https://github.com/iksnerd/ava/releases/tag/v0.11.0
 [0.10.0]: https://github.com/iksnerd/ava/releases/tag/v0.10.0
 [0.9.0]: https://github.com/iksnerd/ava/releases/tag/v0.9.0
 [0.8.1]: https://github.com/iksnerd/ava/releases/tag/v0.8.1
