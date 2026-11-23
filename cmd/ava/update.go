@@ -40,7 +40,7 @@ func newUpdateCmd() *cobra.Command {
 			if source == "" {
 				source = os.Getenv("AVA_DOWNLOAD_BASE")
 			}
-			_, err = selfupdate.Run(cmd.Context(), selfupdate.Options{
+			res, err := selfupdate.Run(cmd.Context(), selfupdate.Options{
 				Current: buildinfo.Get(),
 				Exe:     exe,
 				GOOS:    runtime.GOOS,
@@ -50,6 +50,9 @@ func newUpdateCmd() *cobra.Command {
 				Client:  &http.Client{Timeout: 5 * time.Minute},
 				Out:     cmd.OutOrStdout(),
 			})
+			if err == nil && res.Updated {
+				hintStaleEngine(cmd.OutOrStdout(), setupEngineURL)
+			}
 			return err
 		},
 	}

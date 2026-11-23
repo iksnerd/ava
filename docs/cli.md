@@ -182,6 +182,7 @@ That only matters for a browser download, because macOS attaches
 ```bash
 ava setup                 # tools + speech model + Kokoro engine and its model
 ava setup --skip-engine   # dictation only, without most of the ~1.7 GB (the Kokoro engine and model)
+ava setup --no-warmup     # skip the closing warm-up
 ava setup --check         # what is still missing; installs nothing, exits 1 until done
 ava setup --check --json  # {"ok":bool,"missing":[...],"stale_engine":bool}
 ```
@@ -195,6 +196,13 @@ its model with every voice (339 MB), so speech needs no network afterwards.
 it at startup to decide whether to offer its Set up button.
 Each step is skipped when it is already done, so re-running is cheap, and
 re-running is how you refresh the engine after installing a newer binary.
+
+When it finishes, setup warms the caches so your first real use is quick: one
+transcription of a second of silence, and, if the Kokoro engine is already
+running, one short synthesis. Output is discarded, nothing is started, and a
+failure only prints a line. `--no-warmup` skips it; `--check` never runs it.
+After `ava update`, a running engine older than the new binary gets a one-line
+hint to restart it.
 
 `make setup` does the same things, but only from a checkout, which a downloaded
 binary does not have. The engine is carried inside the

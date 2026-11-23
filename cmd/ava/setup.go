@@ -29,7 +29,7 @@ import (
 // feature never runs. `make setup` does the same three things, but only from
 // a checkout — which is the one thing a downloaded binary does not have.
 func newSetupCmd() *cobra.Command {
-	var skipEngine, check, asJSON bool
+	var skipEngine, check, asJSON, noWarmup bool
 
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -71,6 +71,10 @@ func newSetupCmd() *cobra.Command {
 				return err
 			}
 
+			if !noWarmup {
+				warmUp(out, skipEngine)
+			}
+
 			// Suggest something that exercises what was just installed:
 			// after --skip-engine, `speak` would only demo the fallback voice.
 			if skipEngine {
@@ -87,6 +91,8 @@ func newSetupCmd() *cobra.Command {
 		`With --check, print {"ok":bool,"missing":[...],"stale_engine":bool} on stdout`)
 	cmd.Flags().BoolVar(&skipEngine, "skip-engine", false,
 		"Skip the Kokoro TTS engine and model (most of the ~1.7 GB); speech falls back to the macOS say voice")
+	cmd.Flags().BoolVar(&noWarmup, "no-warmup", false,
+		"Skip the closing warm-up (one short transcription, and one synthesis if the engine is already running)")
 	return cmd
 }
 
