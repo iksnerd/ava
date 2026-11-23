@@ -2,19 +2,20 @@
 
 [← Back to the README](../README.md)
 
-Wires Claude Code's `Notification` and `Stop` hooks to speak through the
-local `mlx-engine` server (`../mlx-engine/`) — you hear when Claude needs a
-decision (a permission prompt, waiting on input) or has finished a turn,
-without watching the terminal.
+Wires Claude Code's `Notification` and `Stop` hooks to speak through the local
+`mlx-engine` server, so you hear when Claude needs a decision or has finished a
+turn without watching the terminal.
 
 ## Setup
 
-The hooks speak through `ava speak`, so build it first (`make build`, found
-as the checkout's `bin/ava`) or install a release (`ava` on PATH or in
-`~/.local/bin`). Without one, `speak.sh` exits non-zero and says so.
+The hooks live in this repo's `scripts/` directory, so they need a checkout.
+They speak through `ava speak`: build it with `make build` (the hooks find the
+checkout's `bin/ava`) or install a release (`ava` on PATH or in `~/.local/bin`).
+Without one, `speak.sh` exits non-zero and says so. Run `make setup-voice-hooks`
+once to create the hooks' Python environment.
 
-Add to `~/.claude/settings.json` (global, not per-project — hooks fire for
-every Claude Code session):
+Add to `~/.claude/settings.json` (global, not per-project, so the hooks fire in
+every Claude Code session). Replace `/path/to/ava` with your checkout:
 
 ```json
 {
@@ -29,29 +30,20 @@ every Claude Code session):
 }
 ```
 
-Both hooks prefix what they speak with the originating repo's name (resolved
-from the hook payload's `cwd` via `scripts/repo-name.sh`), so overlapping
-sessions across projects stay distinguishable — e.g. *"my-app: Claude
-finished: ..."*. Both run fully backgrounded, so a slow TTS or LLM-summary
-call never stalls the hook itself; Claude Code gets control back immediately
-regardless of how long the actual speech takes.
+Both hooks prefix what they speak with the repo's name (from the hook payload's
+`cwd`), such as "my-app: Claude finished: ...", so overlapping sessions stay
+distinguishable. They run in the background, so slow speech or summarization
+never stalls Claude Code.
 
-## Scripts
-
-| Script | Role |
-|---|---|
-| `lib.sh` | Shared: PATH hardening (hooks run with a minimal PATH that may not include `uv`/Homebrew dirs), hook JSON parsing, `config_get`/`config_get_int`/`config_get_bool`/`voice_is_muted`, `voice_hooks_run` (invokes the `voice_hooks/` CLIs below via `uv run`), `server_pidfile_alive`/`server_lock_acquire`/`server_lock_release` (generic PID-file + mkdir-lock helpers used by `mlx-engine-server.sh`; the start lock records its holder's pid, and a live holder is never evicted) |
-| `speak.sh` | The "say this" entry point: checks the mute, then hands off to `ava speak --async`, which starts the server on demand, plays under the cross-process lock so concurrent sessions queue, and falls back to macOS `say` if the server's unreachable |
-| `hook-notify.sh` | Speaks the Notification hook's `message` field verbatim (truncated per `notifyMaxChars`) |
-| `hook-stop.sh` | Extracts Claude's last message from the transcript, then speaks it — see below for the length/summary logic |
-| `voice_hooks/` | `uv`-managed Python package (flat scripts, no nested package — same pattern as `../voxtral/`): markdown stripping, `pysbd`-based sentence-boundary truncation, and Ollama summarization (`httpx`). `hook-stop.sh`/`hook-notify.sh` each shell out to it exactly once per firing via `lib.sh`'s `voice_hooks_run`. First-time setup: `make setup-voice-hooks`. |
-| `repo-name.sh` | Resolves a `cwd` to a short repo/folder name |
-| `mlx-engine-server.sh` | Start/stop/status for the `mlx-engine` server — atomic start-lock so concurrent sessions can't double-spawn it |
+The scripts in `scripts/` are thin entry points: `speak.sh` checks the mute and
+hands off to `ava speak --async`, and `hook-stop.sh` and `hook-notify.sh` do
+their text processing in `scripts/voice_hooks/`. `repo-name.sh` resolves the repo
+name, and `mlx-engine-server.sh` starts and stops the engine.
 
 ## Settings
 
 Every setting below lives in `~/Library/Application Support/ava/config.json`
-(edited live by `../AvaMenuBar/`) with `voice-defaults.json` as the
+(edited live by the menu bar app) with `voice-defaults.json` as the
 fallback for anything not yet in that file. An environment variable of the
 matching name always overrides both, for one-off testing:
 
@@ -61,56 +53,45 @@ TTS_SPEED=1.0 ./scripts/speak.sh "test at normal speed"
 
 | Config key | Env override | Default | Meaning |
 |---|---|---|---|
-| `muted` | — | `false` | Global kill switch — while on, `speak.sh` exits immediately (before starting the server, calling Ollama, or touching `afplay`) for every caller: both hooks, `Read Aloud`, and the menu bar app's Test/Preview buttons. The Go side honours the same flag through `internal/voiceconfig`, so `ava speak`/`a11y` and the MCP `speak` tool are silent too — they say so rather than reporting success. Both hooks also check it themselves, before doing any transcript/truncation work, purely so a muted session doesn't pay for work whose result will never be heard. Toggle from the menu bar app, or system-wide via the `Toggle Ava Mute` Service (see `../AvaMenuBar/README.md`). |
+| `muted` | none | `false` | Global kill switch, described below the table |
 | `speed` | `TTS_SPEED` | 1.3 | Kokoro playback speed |
 | `volume` | `TTS_VOLUME` | 1.0 | `afplay` volume |
-| `voice` | — (2nd positional arg to `speak.sh`) | `af_heart` | Kokoro voice name |
+| `voice` | none (2nd argument to `speak.sh`) | `af_heart` | Kokoro voice name |
 | `sayRate` | `TTS_SAY_RATE` | 220 | `say` fallback words/min |
 | `stopMaxChars` | `TTS_STOP_MAX_CHARS` | 600 | Length cap for Stop-hook messages |
 | `notifyMaxChars` | `TTS_NOTIFY_MAX_CHARS` | 500 | Length cap for Notification messages |
-| `llmSummary` | — | `false` | Summarize over-length Stop messages with Ollama instead of truncating |
-| `summaryModel` | — | `qwen2.5:3b` | Ollama model used when `llmSummary` is on. Not checked for existence: if Ollama isn't installed or hasn't pulled this model, summarization silently falls back to truncation |
-| `engineAutoStart` | — | `true` | Whether a hook may start `mlx-engine` on demand. `ava engine stop` and the menu bar app's Stop button both set this to `false`, so stopping the server stays stopped instead of the next hook bringing it straight back; `engine start` re-arms it. With it off, speech falls back to macOS `say` |
+| `llmSummary` | none | `false` | Summarize over-length Stop messages with Ollama instead of truncating |
+| `summaryModel` | none | `qwen2.5:3b` | Ollama model used when `llmSummary` is on. If it is not installed, summarization falls back to truncation |
+| `engineAutoStart` | none | `true` | Whether a hook may start `mlx-engine` on demand. `ava engine stop` and the menu bar Stop button set it to `false`; `engine start` sets it back. While off, speech falls back to macOS `say` |
 
-A length cap of `0` or less means **unlimited** (the menu bar app's "No
-limit" toggle sets this).
+A length cap of `0` or less means unlimited (the menu bar app's "No limit"
+toggle sets it).
+
+**Mute.** While `muted` is on, `speak.sh` exits before starting the server,
+calling Ollama or playing anything, for every caller: both hooks, `Read Aloud`
+and the menu bar app's Test/Preview buttons. `ava speak`, `a11y` and the MCP
+`speak` tool honour it too and say so rather than reporting success. Toggle it
+from the menu bar app, or system-wide with the `Toggle Ava Mute` Service (see
+`../AvaMenuBar/README.md`).
 
 ## How `hook-stop.sh` decides what to say
 
-`hook-stop.sh` resolves config (bash stays the single source of truth for
-that) and passes it to `voice_hooks/stop.py`, which owns the actual decision:
+- A message under `stopMaxChars` is spoken verbatim.
+- A longer one is summarized by the local Ollama daemon
+  (`http://127.0.0.1:11434`) when `llmSummary` is on, to roughly the cap's
+  spoken length.
+- If summarization is off, fails or times out, the message is truncated at
+  `stopMaxChars`, always keeping its last sentence.
+- With the cap unlimited, the full message is spoken and never truncated.
 
-1. If the message fits under `stopMaxChars` (or the cap is unlimited and the
-   message is under a short internal sanity threshold), it's spoken
-   **verbatim**.
-2. Otherwise, if `llmSummary` is on, the message is sent to the local Ollama
-   daemon (`http://127.0.0.1:11434`, via `httpx`) for a one-sentence summary
-   of under `stopMaxChars / 6` words (at least 8), about six characters a
-   word, so the summary lands near the same spoken length as the cap. With
-   the cap unlimited, a 600-character budget stands in for it.
-3. If summarization is off, fails, or times out, it falls back to
-   front-truncating at `stopMaxChars` while always keeping the message's true
-   last sentence intact — real sentence segmentation (`pysbd`, not a naive
-   `.!?` regex that mis-splits on abbreviations like "e.g.") decides where
-   the lead-in is cut, but the final sentence (usually the actual conclusion)
-   is never the part that gets dropped.
-4. **Exception**: if the cap is unlimited, step 3's fallback is the full
-   message, never a truncation — "No limit" is treated as a hard promise
-   that a message is never cut off mid-sentence, even when summarization
-   was attempted and didn't come back.
-
-This all happens inside the `voice_hooks` CLI. If that call fails outright
-instead of running and returning a result — unsynced venv, `uv` not on
-`PATH` — both hooks fall back to speaking the raw, untruncated, unstripped
-message rather than saying nothing. This fails *open*, not silent: run `make
-setup-voice-hooks` once if you notice responses being read aloud in full or
-with markdown noise instead of summarized or cleanly truncated.
+If the `voice_hooks` call itself fails (venv not synced, `uv` not on `PATH`),
+both hooks speak the raw message instead of staying silent. If you hear whole
+responses or markdown noise, run `make setup-voice-hooks`.
 
 ## Requires
 
-- `mlx-engine` running (auto-started on demand) — see `../mlx-engine/README.md`.
+- `mlx-engine` running (auto-started on demand): see `../mlx-engine/README.md`.
 - `jq`, `curl`, `python3`, `uv` on `PATH`.
-- `make setup-voice-hooks` run once (creates `scripts/voice_hooks/.venv`) —
-  see the fallback note above for what happens if this is skipped.
+- `make setup-voice-hooks` run once (creates `scripts/voice_hooks/.venv`).
 - [Ollama](https://ollama.com) running locally, only if `llmSummary` is
   enabled (`ollama pull qwen2.5:3b` or whichever model `summaryModel` names).
