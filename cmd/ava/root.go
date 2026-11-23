@@ -1,16 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync/atomic"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/ava/internal/audio"
 	"github.com/iksnerd/ava/internal/buildinfo"
 	"github.com/iksnerd/ava/internal/clipboard"
-	"github.com/iksnerd/ava/internal/procutil"
 	"github.com/iksnerd/ava/internal/recording"
 	"github.com/iksnerd/ava/pkg/stt"
 	"github.com/iksnerd/ava/pkg/stt/whisper"
@@ -73,8 +76,8 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.contextFile, "context", "", "Path to context file (optional)")
 	flags.StringVar(&opts.outputFile, "output", "", "Output file for transcription (optional)")
 	flags.StringVar(&opts.workDir, "dir", "", "Run as if started from this directory (affects --context discovery)")
-	flags.StringVar(&opts.modelName, "model", "base", "Model size: base or tiny")
-	flags.StringVar(&opts.language, "lang", "en", "Language code: en, es, fr, de, etc.")
+	flags.StringVar(&opts.modelName, "model", "base", modelSizeUsage)
+	flags.StringVar(&opts.language, "lang", "en", languageUsage)
 	flags.IntVar(&opts.beamSize, "beam-size", 0, beamSizeUsage)
 	flags.BoolVar(&opts.noPaste, "no-paste", false, "Copy to the clipboard but don't paste")
 	flags.BoolVar(&opts.noSound, "no-sound", false, "Disable sound effects")
@@ -135,6 +138,65 @@ func newTranscriber(modelName string) (stt.Client, error) {
 	return whisper.NewClient(modelPath), nil
 }
 
+// dictationPhase is how far a dictation run has got, so an interrupt can say
+// what it actually stopped.
+type dictationPhase int32
+
+const (
+	phaseStarting dictationPhase = iota
+	phaseRecording
+	phaseTranscribing
+	phaseDelivering
+)
+
+// recordingControl is what the interrupt handler needs from the recorder.
+type recordingControl interface {
+	Stop() // end the recording, keeping the audio captured so far
+	Kill() // end it now, the mic closed, the audio unusable
+}
+
+// newInterruptHandler returns run's per-signal handler. It acts per phase:
+//
+//   - Recording, first SIGINT: stop recording and carry on (the banner says
+//     "press Ctrl+C to stop"). It does not exit: sox finalizes the file and
+//     run goes on to transcribe it. A terminal's Ctrl+C reaches sox on its
+//     own as well; Stop covers a SIGINT sent to ava alone.
+//   - Recording, a second SIGINT, or SIGTERM (a kill is not a request to
+//     transcribe): cancel. sox is killed so the mic never stays open.
+//   - Starting or transcribing: cancel, nothing has been delivered.
+//   - Delivering: nothing. The transcript is printed and being copied, so
+//     "cancelled" would be false; run finishes on its own.
+//
+// A cancel cleans up and exits 0 (a deliberate cancel, as before).
+func newInterruptHandler(phase *atomic.Int32, rec recordingControl, showStatus bool, cleanup func(), exit func(int)) func(os.Signal) {
+	stopRequested := false
+	return func(sig os.Signal) {
+		var msg string
+		switch dictationPhase(phase.Load()) {
+		case phaseDelivering:
+			return
+		case phaseTranscribing:
+			msg = "Transcription cancelled."
+		default:
+			if sig == syscall.SIGINT && !stopRequested && dictationPhase(phase.Load()) == phaseRecording {
+				stopRequested = true
+				rec.Stop()
+				if showStatus {
+					fmt.Println("\n⏹️ Recording stopped.")
+				}
+				return
+			}
+			msg = "Recording cancelled."
+		}
+		rec.Kill()
+		if showStatus {
+			fmt.Println("\n⏹️ " + msg)
+		}
+		cleanup()
+		exit(0)
+	}
+}
+
 // run is the root command's RunE body: record, transcribe, output.
 func run(opts options) error {
 	if err := validateModel(opts.modelName); err != nil {
@@ -160,13 +222,17 @@ func run(opts options) error {
 	// Setup signal handling for graceful shutdown: clean up the temp
 	// directory (which may hold recorded audio) before exiting, same as a
 	// normal run does via the defer above.
-	procutil.OnInterrupt(func() {
-		if opts.showStatus {
-			fmt.Println("\n⏹️ Recording cancelled.")
+	var phase atomic.Int32
+	audioPath := filepath.Join(tmpDir, "prompt.wav")
+	recorder := recording.NewRecorder(audioPath, !opts.noSound)
+	handle := newInterruptHandler(&phase, recorder, opts.showStatus, cleanup, os.Exit)
+	sigs := make(chan os.Signal, 4)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		for sig := range sigs {
+			handle(sig)
 		}
-		cleanup()
-		os.Exit(0)
-	})
+	}()
 
 	// Check dependencies based on engine
 	if err := checkDependencies(); err != nil {
@@ -182,9 +248,14 @@ func run(opts options) error {
 		fmt.Println("🎧 Listening... (press Ctrl+C to stop)")
 	}
 
-	audioPath := filepath.Join(tmpDir, "prompt.wav")
-	recorder := recording.NewRecorder(audioPath, !opts.noSound)
+	phase.Store(int32(phaseRecording))
 	if err := recorder.Record(); err != nil {
+		if errors.Is(err, recording.ErrStoppedBeforeStart) {
+			if opts.showStatus {
+				fmt.Println("⏹️ Recording cancelled.")
+			}
+			return nil
+		}
 		return fmt.Errorf("recording failed: %w", err)
 	}
 
@@ -215,6 +286,7 @@ func run(opts options) error {
 	}
 
 	// Step 3: Transcribe
+	phase.Store(int32(phaseTranscribing))
 	if opts.showStatus {
 		fmt.Println("🧠 Transcribing audio...")
 	}
@@ -243,7 +315,9 @@ func run(opts options) error {
 			"input level in Sound settings")
 	}
 
-	// Step 4: Output
+	// Step 4: Output. From here the text exists and is being copied, so an
+	// interrupt no longer cancels anything: the run finishes delivering.
+	phase.Store(int32(phaseDelivering))
 	fmt.Printf("✅ Copied: %s\n", text)
 
 	if opts.outputFile != "" {

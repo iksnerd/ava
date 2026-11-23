@@ -46,7 +46,5 @@ func copyFixtureBin(t *testing.T, dir, name string) {
 	if err != nil {
 		t.Fatalf("read fixture bin %s: %v", name, err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, name), content, 0755); err != nil {
-		t.Fatalf("write fixture bin %s: %v", name, err)
-	}
+	testutil.WriteExec(t, filepath.Join(dir, name), string(content))
 }

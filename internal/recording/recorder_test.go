@@ -165,3 +165,83 @@ func TestRecordCommandFailure(t *testing.T) {
 		t.Fatal("expected an error when sox fails, got nil")
 	}
 }
+
+// bin-trap's sox keeps "recording" until SIGINT, then writes the file and
+// exits 130, as real sox does when interrupted.
+func TestStopFinalizesAndKeepsAudio(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-trap")
+	isolateTTSActivityDir(t)
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "audio.wav")
+	t.Setenv("SOX_READY", filepath.Join(dir, "ready"))
+	r := NewRecorder(out, false)
+
+	done := make(chan error, 1)
+	go func() { done <- r.Record() }()
+	waitForFile(t, filepath.Join(dir, "ready"))
+
+	r.Stop()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Record() after Stop = %v, want nil", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Record() did not return after Stop")
+	}
+	if b, _ := os.ReadFile(out); string(b) != "finalized\n" {
+		t.Errorf("output = %q, want the finalized audio", b)
+	}
+}
+
+func TestKillEndsSoxWithoutWaitingForIt(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin-trap")
+	isolateTTSActivityDir(t)
+
+	dir := t.TempDir()
+	t.Setenv("SOX_READY", filepath.Join(dir, "ready"))
+	r := NewRecorder(filepath.Join(dir, "audio.wav"), false)
+
+	done := make(chan error, 1)
+	go func() { done <- r.Record() }()
+	waitForFile(t, filepath.Join(dir, "ready"))
+
+	r.Kill()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Record() did not return after Kill")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "audio.wav")); err == nil {
+		t.Error("a killed sox must not have written the file")
+	}
+}
+
+func TestStopBeforeStartSkipsSox(t *testing.T) {
+	testutil.PrependPath(t, "testdata/bin")
+	isolateTTSActivityDir(t)
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "audio.wav")
+	r := NewRecorder(out, false)
+	r.Stop()
+	if err := r.Record(); err != ErrStoppedBeforeStart {
+		t.Fatalf("Record() = %v, want ErrStoppedBeforeStart", err)
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Error("sox ran although recording was stopped before it started")
+	}
+}
+
+func waitForFile(t *testing.T, path string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("%s never appeared", path)
+}

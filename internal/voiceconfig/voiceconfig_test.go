@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // writeLiveConfig points Load() at a throwaway config file holding cfg.
@@ -121,15 +123,19 @@ func TestUnparseableEnvOverrideIsIgnored(t *testing.T) {
 	}
 }
 
+// voiceDefaultsJSON returns the raw bytes of scripts/voice-defaults.json; the
+// one reader every test in this package shares.
+func voiceDefaultsJSON(t *testing.T) []byte {
+	t.Helper()
+	return testutil.RepoFile(t, "scripts", "voice-defaults.json")
+}
+
 // Defaults() is hand-maintained Go rather than an embedded copy of
 // scripts/voice-defaults.json (go:embed can't reach a parent directory, and
 // a second copy of the file would defeat its "single source of truth" job).
 // This test is what keeps the two honest.
 func TestDefaultsMatchVoiceDefaultsJSON(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "scripts", "voice-defaults.json"))
-	if err != nil {
-		t.Fatalf("read scripts/voice-defaults.json: %v", err)
-	}
+	data := voiceDefaultsJSON(t)
 	var file struct {
 		Muted           bool    `json:"muted"`
 		Speed           float64 `json:"speed"`

@@ -39,9 +39,7 @@ exit "${STUB_FETCH_EXIT:-0}"
 `
 	script := "#!/bin/sh\necho \"$PWD $*\" > " + record + "\nmkdir -p .venv/bin && touch .venv/bin/uvicorn && chmod +x .venv/bin/uvicorn\n" +
 		"cat > .venv/bin/python <<'PY'\n" + python + "PY\nchmod +x .venv/bin/python\n"
-	if err := os.WriteFile(filepath.Join(bin, "uv"), []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, filepath.Join(bin, "uv"), script)
 	testutil.PrependPath(t, bin)
 	return record
 }

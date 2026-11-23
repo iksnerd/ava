@@ -14,19 +14,22 @@ import (
 	"github.com/iksnerd/ava/internal/ttsproto"
 )
 
-// stubAfplay puts an afplay on PATH that records its own PID and plays for
-// a moment, so playLocked runs for real without making a sound.
-func stubAfplay(t *testing.T) string {
+// stubAfplay puts an afplay on PATH that records its own PID and then runs
+// tail (shell), so playLocked runs for real without making a sound.
+func stubAfplay(t *testing.T, tail string) string {
 	t.Helper()
 	bin := t.TempDir()
 	pidOut := filepath.Join(t.TempDir(), "afplay.pid")
-	script := "#!/bin/sh\necho $$ > " + pidOut + "\nsleep 0.2\n"
-	if err := os.WriteFile(filepath.Join(bin, "afplay"), []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, filepath.Join(bin, "afplay"), "#!/bin/sh\necho $$ > "+pidOut+"\n"+tail)
 	testutil.PrependPath(t, bin)
 	return pidOut
 }
+
+// playBriefly makes the stub afplay play for a moment.
+const playBriefly = "sleep 0.2\n"
+
+// playForever makes the stub afplay play for 30s.
+const playForever = "exec sleep 30\n"
 
 // holdLock takes the playback lock the way another speaker would, so the
 // speaker under test has to queue.
@@ -47,7 +50,7 @@ func holdLock(t *testing.T, path string) (release func()) {
 // dictation starting killed the whole process, which for `ava mcp` is the
 // MCP server. The PID file may only ever name the player.
 func TestQueuedSpeakNeverNamesItsOwnProcess(t *testing.T) {
-	stubAfplay(t)
+	stubAfplay(t, playBriefly)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	marker := filepath.Join(t.TempDir(), "marker")
 	pidFile := marker + ttsproto.PlayPIDSuffix
@@ -75,7 +78,7 @@ func TestQueuedSpeakNeverNamesItsOwnProcess(t *testing.T) {
 // writes the .stopped sidecar first, and the waiter has to notice it and give
 // up rather than play once the lock frees.
 func TestQueuedSpeakGivesUpWhenStopped(t *testing.T) {
-	afplayPID := stubAfplay(t)
+	afplayPID := stubAfplay(t, playBriefly)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	marker := filepath.Join(t.TempDir(), "marker")
 
@@ -101,7 +104,7 @@ func TestQueuedSpeakGivesUpWhenStopped(t *testing.T) {
 // Once it has the lock, the PID file names the player, which is what a stop
 // has to kill to silence it.
 func TestPlayingSpeakNamesThePlayer(t *testing.T) {
-	afplayPID := stubAfplay(t)
+	afplayPID := stubAfplay(t, playBriefly)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	pidFile := filepath.Join(t.TempDir(), "marker") + ttsproto.PlayPIDSuffix
 
@@ -132,7 +135,7 @@ func TestPlayingSpeakNamesThePlayer(t *testing.T) {
 // anyway. The .stopped sidecar is written before any signal, so a speak that
 // finds it on getting the lock must not start the player at all.
 func TestSpeakStoppedBeforeItGetsTheLockNeverPlays(t *testing.T) {
-	afplayPID := stubAfplay(t)
+	afplayPID := stubAfplay(t, playBriefly)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	marker := filepath.Join(t.TempDir(), "marker")
 	if err := os.WriteFile(marker+ttsproto.StoppedSuffix, nil, 0644); err != nil {

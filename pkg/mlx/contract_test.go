@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/iksnerd/ava/internal/protocol"
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // mlx-engine's port used to be spelled in five places. Four of them now derive
@@ -29,19 +30,9 @@ func enginePort(t *testing.T) string {
 	return DefaultServerURL[i+1:]
 }
 
-func mustRead(t *testing.T, parts ...string) string {
-	t.Helper()
-	path := filepath.Join(append([]string{"..", ".."}, parts...)...)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	return string(data)
-}
-
 func TestUngeneratedPortSpellingAgreesWithTheConstant(t *testing.T) {
 	port := enginePort(t)
-	body := mustRead(t, "mlx-engine", "Makefile")
+	body := string(testutil.RepoFile(t, "mlx-engine", "Makefile"))
 
 	m := regexp.MustCompile(`--port\s+(\d+)`).FindStringSubmatch(body)
 	if m == nil {
@@ -108,7 +99,7 @@ func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 
 	docRe := regexp.MustCompile(`(?:127\.0\.0\.1|localhost):(\d+)`)
 	for _, doc := range [][]string{{"SECURITY.md"}, {"README.md"}, {"docs", "architecture.md"}, {"docs", "mcp.md"}, {"docs", "monitor.md"}, {"docs", "troubleshooting.md"}} {
-		for _, m := range docRe.FindAllStringSubmatch(mustRead(t, doc...), -1) {
+		for _, m := range docRe.FindAllStringSubmatch(string(testutil.RepoFile(t, doc...)), -1) {
 			if !inCode[m[1]] {
 				t.Errorf("%s quotes port %s, which appears in no source file — stale doc",
 					filepath.Join(doc...), m[1])
@@ -122,8 +113,8 @@ func TestEveryPortInTheDocsExistsInTheSource(t *testing.T) {
 // contract goes stale, so every field of SpeakRequest, every endpoint and the
 // protocol value must appear in it.
 func TestEngineAPIDocNamesEveryRequestFieldAndTheProtocol(t *testing.T) {
-	server := mustRead(t, "mlx-engine", "server.py")
-	doc := mustRead(t, "docs", "engine-api.md")
+	server := string(testutil.RepoFile(t, "mlx-engine", "server.py"))
+	doc := string(testutil.RepoFile(t, "docs", "engine-api.md"))
 
 	cls := regexp.MustCompile(`(?s)class SpeakRequest\(BaseModel\):(.*?)\n\nclass `).FindStringSubmatch(server)
 	if cls == nil {

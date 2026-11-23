@@ -86,8 +86,8 @@ func newTranscribeCmd() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&language, "lang", "en", "Language code: en, es, fr, de, etc.")
-	flags.StringVar(&model, "model", "base", "Model size: base or tiny")
+	flags.StringVar(&language, "lang", "en", languageUsage)
+	flags.StringVar(&model, "model", "base", modelSizeUsage)
 	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
 	flags.IntVar(&beamSize, "beam-size", 0, beamSizeUsage)
 	flags.StringVar(&format, "format", "text", "Output format: "+strings.Join(stt.Formats, ", ")+". srt, vtt and json carry each segment's start and end time")

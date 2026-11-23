@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/iksnerd/ava/pkg/mlx"
+)
 
 const (
 	baseModel = "ggml-base.en.bin"
@@ -19,6 +23,15 @@ func validateModel(model string) error {
 // beamSizeUsage is --beam-size's help text, shared by dictation and
 // `transcribe` so the two describe it identically.
 const beamSizeUsage = "Beam width for decoding; lower is faster and less accurate (0 = whisper's default, 5)"
+
+// Flag help text shared by more than one command, so they describe the flag
+// identically. The rendered --help of each command is unchanged.
+const (
+	serverURLUsage = "mlx-engine base URL (default " + mlx.DefaultServerURL + ")"
+	speedUsage     = "Speech rate multiplier (default: the configured speed)"
+	languageUsage  = "Language code: en, es, fr, de, etc."
+	modelSizeUsage = "Model size: base or tiny"
+)
 
 // validateBeamSize rejects a negative --beam-size. Zero means "not set", so
 // whisper-cli keeps its own default.

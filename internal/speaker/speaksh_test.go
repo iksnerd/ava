@@ -56,9 +56,7 @@ func speakShLayout(t *testing.T, ava string, muted bool) (script, argvFile strin
 			t.Fatal(err)
 		}
 		stub := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > " + argvFile + "\n"
-		if err := os.WriteFile(path, []byte(stub), 0755); err != nil {
-			t.Fatal(err)
-		}
+		testutil.WriteExec(t, path, stub)
 	}
 
 	config := filepath.Join(t.TempDir(), "config.json")
@@ -118,9 +116,7 @@ func TestSpeakShFindsTheAppBundlesAva(t *testing.T) {
 func TestSpeakShIgnoresAStrayBuildInACheckoutRoot(t *testing.T) {
 	script, argv := speakShLayout(t, checkoutAva, false)
 	stray := filepath.Join(filepath.Dir(filepath.Dir(script)), "ava")
-	if err := os.WriteFile(stray, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, stray, "#!/bin/sh\nexit 0\n")
 	if out, err := runSpeak(t, script, "hello"); err != nil {
 		t.Fatalf("speak.sh: %v\n%s", err, out)
 	}

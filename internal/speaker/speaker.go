@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/internal/ttscontrol"
 	"github.com/iksnerd/ava/internal/ttsproto"
 	"github.com/iksnerd/ava/internal/voiceconfig"
 	"github.com/iksnerd/ava/pkg/mlx"
@@ -428,6 +429,8 @@ func (s *Speaker) markActive() (string, error) {
 	if err := os.MkdirAll(s.ActivityDir, 0755); err != nil {
 		return "", fmt.Errorf("create activity dir: %w", err)
 	}
+	// Markers of speaks that were SIGKILLed would otherwise stay forever.
+	ttscontrol.ReapStale(s.ActivityDir)
 	marker := filepath.Join(s.ActivityDir, fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()))
 	if err := os.WriteFile(marker, nil, 0644); err != nil {
 		return "", fmt.Errorf("create activity marker: %w", err)

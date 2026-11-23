@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // fakeRelease writes the two assets a GoReleaser release publishes: the
@@ -57,7 +59,7 @@ src="` + release + `/$(basename "$url")"
 [ -f "$src" ] || { echo "curl: (22) 404 $url" >&2; exit 22; }
 cp "$src" "$out"
 `
-	os.WriteFile(filepath.Join(stub, "curl"), []byte(script), 0755)
+	testutil.WriteExec(t, filepath.Join(stub, "curl"), script)
 
 	bin := t.TempDir()
 	cmd := exec.Command("bash", filepath.Join("..", "..", "scripts", "install.sh"), "v9.9.9")

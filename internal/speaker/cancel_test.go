@@ -249,23 +249,8 @@ func TestAsyncSpeechOutlivesTheCallersContext(t *testing.T) {
 	}
 }
 
-// stubSlowAfplay is an afplay that publishes its PID and then plays for 30s.
-func stubSlowAfplay(t *testing.T) string {
-	t.Helper()
-	bin := t.TempDir()
-	pidOut := filepath.Join(t.TempDir(), "afplay.pid")
-	script := "#!/bin/sh\necho $$ > " + pidOut + "\nexec sleep 30\n"
-	if err := os.WriteFile(filepath.Join(bin, "afplay"), []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	testutil.PrependPath(t, bin)
-	return pidOut
-}
-
-func alive(pid int) bool { return syscall.Kill(pid, 0) == nil }
-
 func TestCancelWhileQueuedBehindThePlaybackLockStopsWaiting(t *testing.T) {
-	afplayPID := stubAfplay(t)
+	afplayPID := stubAfplay(t, playBriefly)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	marker := filepath.Join(t.TempDir(), "marker")
 	release := holdLock(t, s.LockPath)
@@ -288,7 +273,7 @@ func TestCancelWhileQueuedBehindThePlaybackLockStopsWaiting(t *testing.T) {
 }
 
 func TestCancelDuringPlaybackKillsThePlayer(t *testing.T) {
-	afplayPID := stubSlowAfplay(t)
+	afplayPID := stubAfplay(t, playForever)
 	s := &Speaker{LockPath: filepath.Join(t.TempDir(), "playback.lock")}
 	pidFile := filepath.Join(t.TempDir(), "marker") + ttsproto.PlayPIDSuffix
 	ctx, cancel := context.WithCancel(context.Background())
@@ -304,7 +289,7 @@ func TestCancelDuringPlaybackKillsThePlayer(t *testing.T) {
 			pid, _ = strconv.Atoi(strings.TrimSpace(string(data)))
 		}
 	}
-	if pid == 0 || !alive(pid) {
+	if pid == 0 || !testutil.Alive(pid) {
 		t.Fatalf("the stub player never ran (pid %d)", pid)
 	}
 	// The pid file is published after Start; wait for it so the cancel lands
@@ -325,10 +310,10 @@ func TestCancelDuringPlaybackKillsThePlayer(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("playback did not stop when its context was cancelled")
 	}
-	for i := 0; i < 100 && alive(pid); i++ {
+	for i := 0; i < 100 && testutil.Alive(pid); i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if alive(pid) {
+	if testutil.Alive(pid) {
 		t.Errorf("afplay (pid %d) still running after cancel", pid)
 		_ = syscall.Kill(pid, syscall.SIGKILL)
 	}
@@ -340,7 +325,7 @@ func TestCancelDuringPlaybackKillsThePlayer(t *testing.T) {
 // End to end through Speak: a cancel during real playback leaves no marker,
 // sidecar or player.
 func TestCancelDuringPlaybackThroughSpeakLeavesNothing(t *testing.T) {
-	afplayPID := stubSlowAfplay(t)
+	afplayPID := stubAfplay(t, playForever)
 	engine := &stubEngine{healthy: true, audio: []byte("wav")}
 	s, _ := newTestSpeaker(t, engine, voiceconfig.Defaults())
 	s.Play = s.playLocked
@@ -367,7 +352,7 @@ func TestCancelDuringPlaybackThroughSpeakLeavesNothing(t *testing.T) {
 		t.Errorf("activity dir still holds %v after cancel", left)
 	}
 	data, _ := os.ReadFile(afplayPID)
-	if pid, _ := strconv.Atoi(strings.TrimSpace(string(data))); pid != 0 && alive(pid) {
+	if pid, _ := strconv.Atoi(strings.TrimSpace(string(data))); pid != 0 && testutil.Alive(pid) {
 		t.Errorf("afplay (pid %d) still running after cancel", pid)
 		_ = syscall.Kill(pid, syscall.SIGKILL)
 	}
@@ -437,9 +422,7 @@ func TestCancelDuringSayFallbackReturnsCtxErr(t *testing.T) {
 // for a `say` that is mid-sentence.
 func TestCancelKillsSay(t *testing.T) {
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "say"), []byte("#!/bin/sh\nexec sleep 30\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, filepath.Join(bin, "say"), "#!/bin/sh\nexec sleep 30\n")
 	testutil.PrependPath(t, bin)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(100 * time.Millisecond); cancel() }()
@@ -455,9 +438,7 @@ func TestCancelKillsSay(t *testing.T) {
 // Same for the engine's start script, which can run for minutes.
 func TestCancelKillsTheEngineStartScript(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "engine.sh")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexec sleep 30\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, script, "#!/bin/sh\nexec sleep 30\n")
 	t.Setenv(EngineScriptEnv, script)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(100 * time.Millisecond); cancel() }()

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/internal/testutil"
 	"github.com/iksnerd/ava/internal/voiceconfig"
 	"github.com/iksnerd/ava/pkg/mlx"
 	"github.com/iksnerd/ava/pkg/stt/captions"
@@ -357,9 +358,7 @@ func TestEngineScriptFindsTheInstalledBundle(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(installed), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(installed, []byte("#!/bin/bash\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, installed, "#!/bin/bash\n")
 
 	if got := engineScript(); got != installed {
 		t.Errorf("engineScript() = %q, want the installed bundle %q", got, installed)
@@ -431,9 +430,7 @@ func TestSpeakDoesNotAutoStartWhenTheUserStoppedTheEngine(t *testing.T) {
 func TestAutoStartFailureCarriesTheScriptsReason(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "mlx-engine-server.sh")
 	body := "#!/bin/bash\necho '🚀 Starting...'\necho '❌ No mlx-engine to start: run ava setup'\nexit 1\n"
-	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, script, body)
 	t.Setenv(EngineScriptEnv, script)
 
 	err := startEngine(context.Background())

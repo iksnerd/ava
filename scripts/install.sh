@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs the ava CLI binaries from a GitHub release.
+# Installs the ava CLI binary from a GitHub release.
 #
 # Run it rather than downloading in a browser, and Gatekeeper never enters the
 # picture: macOS attaches com.apple.quarantine only when an app that opts into
@@ -8,7 +8,7 @@
 # `tar xzf` there, so extracting a browser-downloaded archive in a terminal
 # does not launder it, whatever older advice says.
 #
-# That matters more than it sounds. These binaries are unsigned (signing for
+# That matters more than it sounds. The binary is unsigned (signing for
 # distribution needs an Apple Developer Program membership this project does
 # not have), and a quarantined unsigned binary run from a shell is killed
 # outright: exit 137, no message on stdout or stderr, nothing to search for.

@@ -13,7 +13,6 @@ import (
 	"github.com/iksnerd/ava/internal/speaker"
 	"github.com/iksnerd/ava/internal/ttscontrol"
 	"github.com/iksnerd/ava/internal/voiceconfig"
-	"github.com/iksnerd/ava/pkg/mlx"
 	"github.com/iksnerd/ava/pkg/stt"
 )
 
@@ -66,7 +65,7 @@ func newMcpCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
+	cmd.Flags().StringVar(&serverURL, "server-url", "", serverURLUsage)
 
 	return cmd
 }
@@ -256,6 +255,14 @@ func newMcpServer(deps mcpDeps) *mcp.Server {
 	})
 
 	return server
+}
+
+// warnIfMuted prints the muted notice to stderr for the CLI verbs, so a muted
+// machine does not turn a speak into a silent no-op that looks like a bug.
+func warnIfMuted(cmd *cobra.Command) {
+	if voiceconfig.Muted() {
+		fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
+	}
 }
 
 // mutedNotice is what every speaking tool says instead of claiming success

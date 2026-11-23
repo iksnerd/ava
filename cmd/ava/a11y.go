@@ -10,8 +10,6 @@ import (
 
 	"github.com/iksnerd/ava/internal/a11y"
 	"github.com/iksnerd/ava/internal/speaker"
-	"github.com/iksnerd/ava/internal/voiceconfig"
-	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newA11yCmd renders a Chrome accessibility tree as screen-reader
@@ -82,9 +80,7 @@ func newA11yCmd() *cobra.Command {
 			if quiet {
 				return nil
 			}
-			if voiceconfig.Muted() {
-				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
-			}
+			warnIfMuted(cmd)
 			return speaker.New(serverURL).Speak(cmd.Context(), strings.Join(utterances, ". "), speaker.Options{Voice: voice, Speed: speed})
 		},
 	}
@@ -93,8 +89,8 @@ func newA11yCmd() *cobra.Command {
 	flags.StringVar(&mode, "mode", string(a11y.ModeReading), "What to announce: "+strings.Join(a11y.Modes(), ", "))
 	flags.BoolVar(&quiet, "quiet", false, "Print the announcements without speaking them")
 	flags.StringVar(&voice, "voice", "", "Kokoro voice id to narrate with (default: the configured voice)")
-	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
-	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
+	flags.Float64Var(&speed, "speed", 0, speedUsage)
+	flags.StringVar(&serverURL, "server-url", "", serverURLUsage)
 
 	_ = cmd.RegisterFlagCompletionFunc("mode",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

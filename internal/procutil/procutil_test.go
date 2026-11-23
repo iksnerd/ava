@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 func TestSilenceRedirectsStdoutAndStderr(t *testing.T) {
@@ -86,13 +88,11 @@ func TestOnInterruptFiresOnSigint(t *testing.T) {
 	}
 }
 
-func processAlive(pid int) bool { return syscall.Kill(pid, 0) == nil }
-
 func waitGone(t *testing.T, pid int, when string) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if !processAlive(pid) {
+		if !testutil.Alive(pid) {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -145,7 +145,7 @@ func TestReapGroupKillsWhatTheProgramLeftRunning(t *testing.T) {
 	}
 	child := readPidFile(t, pidFile)
 	defer syscall.Kill(child, syscall.SIGKILL)
-	if !processAlive(child) {
+	if !testutil.Alive(child) {
 		t.Fatal("the fixture's child was already gone; there is nothing to reap")
 	}
 	ReapGroup(cmd)

@@ -154,8 +154,13 @@ server_pidfile_alive() {
 
 # server_lock_acquire <lockdir> <stale_sec> -> atomically acquires a mutual-
 # exclusion lock via mkdir (atomic on POSIX filesystems), waiting up to ~10s
-# for a concurrent holder to finish. A lock older than <stale_sec> is
-# assumed abandoned (e.g. the process holding it crashed) and reclaimed.
+# for a concurrent holder to finish. The holder's PID is written to
+# <lockdir>/pid right after the mkdir. A lock whose holder is dead is
+# abandoned (e.g. it crashed) and reclaimed. A live holder is never evicted:
+# a start can run `uv sync` and wait 2 minutes for /health, far longer than
+# any age cutoff. Only a lock with no pid file (the holder is between mkdir
+# and the write, or died there) falls back to the age rule: older than
+# <stale_sec> by the lockdir's mtime is abandoned.
 # Pair with server_lock_release <lockdir> — ideally via `trap ... EXIT` so a
 # crash mid-critical-section doesn't wedge it forever.
 server_lock_acquire() {
@@ -163,21 +168,63 @@ server_lock_acquire() {
     local waited=0
     while ! mkdir "$lockdir" 2>/dev/null; do
         if [ -d "$lockdir" ]; then
-            local mtime age
-            mtime=$(stat -f %m "$lockdir" 2>/dev/null || echo 0)
-            age=$(( $(date +%s) - mtime ))
-            if [ "$age" -gt "$stale_sec" ]; then
-                rmdir "$lockdir" 2>/dev/null
-                continue
+            local owner stale=0
+            owner=$(cat "$lockdir/pid" 2>/dev/null)
+            if [ -n "$owner" ]; then
+                kill -0 "$owner" 2>/dev/null || stale=1
+            else
+                local mtime age
+                mtime=$(stat -f %m "$lockdir" 2>/dev/null || echo 0)
+                age=$(( $(date +%s) - mtime ))
+                [ "$age" -gt "$stale_sec" ] && stale=1
+            fi
+            if [ "$stale" = 1 ]; then
+                # Reclaim by renaming the lockdir aside: rename of a directory
+                # is atomic, so of several waiters that judged the same dead
+                # owner stale exactly one mv succeeds. The losers' mv fails
+                # (source gone) and they fall through to wait and retry mkdir.
+                # A plain rmdir here would let a slow waiter remove a live new
+                # owner's lock that a faster waiter had already re-created.
+                local aside="$lockdir.stale.$$"
+                if mv "$lockdir" "$aside" 2>/dev/null; then
+                    if [ "$(cat "$aside/pid" 2>/dev/null)" = "$owner" ]; then
+                        rm -rf "$aside"
+                        continue
+                    fi
+                    # We moved a lock that is not the one we judged: someone
+                    # reclaimed and re-took it between our read and our mv.
+                    # Put it back, but only if the path is still free (mv onto
+                    # an existing dir would nest into it). Remaining window,
+                    # accepted: between our mv and this restore the lock path
+                    # is absent, so a third process can mkdir it and run
+                    # alongside the displaced owner. That needs a waiter to
+                    # stall between two adjacent statements while a reclaim
+                    # and a fresh acquire both complete. The same residue
+                    # exists for a pidless lock judged stale by age whose
+                    # owner writes its pid after our read. Closing it fully
+                    # would need a real lock (flock), which macOS lacks.
+                    if [ ! -e "$lockdir" ]; then
+                        mv "$aside" "$lockdir" 2>/dev/null || rm -rf "$aside"
+                    else
+                        rm -rf "$aside"
+                    fi
+                    continue
+                fi
             fi
         fi
         waited=$((waited + 1))
         [ "$waited" -gt 50 ] && return 1 # ~10s
         sleep 0.2
     done
+    echo "$$" > "$lockdir/pid"
     return 0
 }
 
+# server_lock_release <lockdir> -> releases the lock only if this process
+# holds it, so a holder whose lock was reclaimed never removes the new
+# owner's.
 server_lock_release() {
+    [ "$(cat "$1/pid" 2>/dev/null)" = "$$" ] || return 0
+    rm -f "$1/pid"
     rmdir "$1" 2>/dev/null
 }

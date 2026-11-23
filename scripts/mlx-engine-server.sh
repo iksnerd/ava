@@ -126,7 +126,7 @@ case "$1" in
 
         echo "⏳ Waiting for server process to come up (models load lazily per-endpoint)..."
         for i in {1..120}; do
-            if curl -s -f $ENGINE_URL/health > /dev/null; then
+            if engine_healthy; then
                 echo "🎉 Server is up and ready!"
                 exit 0
             fi

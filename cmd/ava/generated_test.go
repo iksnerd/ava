@@ -1,11 +1,11 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // `make install-raycast` writes a launcher into the user's home directory,
@@ -19,17 +19,15 @@ import (
 // only version that catches a flag removal — asserting the Makefile contains
 // some expected string would need updating by the same person who forgot.
 func TestRaycastGeneratorUsesOnlyRealFlags(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "Makefile"))
-	if err != nil {
-		t.Fatalf("read Makefile: %v", err)
-	}
+	data := testutil.RepoFile(t, "Makefile")
 
-	// The generator's payload lines look like:
-	//   @echo "exec $(abspath $(BINARY_PATH)) --some-flag" >> $(RAYCAST_DIR)/...
-	execLine := regexp.MustCompile(`@echo "exec \$\(abspath \$\(BINARY_PATH\)\)([^"]*)"`)
+	// The generator's payload is the RAYCAST_SCRIPT define, whose launch line
+	// looks like:
+	//   exec $(abspath $(BINARY_PATH)) --some-flag
+	execLine := regexp.MustCompile(`(?m)^exec \$\(abspath \$\(BINARY_PATH\)\)([^\n]*)$`)
 	matches := execLine.FindAllSubmatch(data, -1)
 	if len(matches) == 0 {
-		t.Fatal("found no `@echo \"exec $(abspath $(BINARY_PATH))...\"` line in the Makefile — " +
+		t.Fatal("found no `exec $(abspath $(BINARY_PATH))...` line in the Makefile — " +
 			"if install-raycast was rewritten, update this pattern rather than deleting the test")
 	}
 

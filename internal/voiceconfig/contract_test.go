@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // This file is the drift guard for a fact that isn't visible from any one
@@ -58,10 +60,7 @@ var keyKind = map[string]string{
 
 func loadContractCases(t *testing.T) []contractCase {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "voice-config-cases.json"))
-	if err != nil {
-		t.Fatalf("read contract fixtures: %v", err)
-	}
+	data := testutil.RepoFile(t, "testdata", "voice-config-cases.json")
 	var file struct {
 		Cases []contractCase `json:"cases"`
 	}
@@ -79,10 +78,7 @@ func loadContractCases(t *testing.T) []contractCase {
 // rather than to a number repeated in this test.
 func defaultsFromJSON(t *testing.T) map[string]string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "scripts", "voice-defaults.json"))
-	if err != nil {
-		t.Fatalf("read voice-defaults.json: %v", err)
-	}
+	data := voiceDefaultsJSON(t)
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("parse voice-defaults.json: %v", err)
@@ -167,10 +163,7 @@ func bashResolved(t *testing.T, configPath, key, lastResort string) string {
 		call = fmt.Sprintf("config_get %s", key)
 	}
 
-	libPath, err := filepath.Abs(filepath.Join("..", "..", "scripts", "lib.sh"))
-	if err != nil {
-		t.Fatalf("resolve lib.sh: %v", err)
-	}
+	libPath := testutil.RepoPath(t, "scripts", "lib.sh")
 
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("source %q; %s", libPath, call))
 	cmd.Env = append(os.Environ(), "VOICE_CONFIG_FILE="+configPath)

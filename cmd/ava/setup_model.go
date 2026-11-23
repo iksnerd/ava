@@ -70,7 +70,7 @@ func newSetupModelCmd() *cobra.Command {
 			return installModel(cmd.OutOrStdout(), model)
 		},
 	}
-	cmd.Flags().StringVar(&model, "model", "base", "Model size: base or tiny")
+	cmd.Flags().StringVar(&model, "model", "base", modelSizeUsage)
 	_ = cmd.RegisterFlagCompletionFunc("model",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return []string{"base", "tiny"}, cobra.ShellCompDirectiveNoFileComp

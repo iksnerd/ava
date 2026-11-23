@@ -14,7 +14,6 @@ import (
 
 	"github.com/iksnerd/ava/internal/speaker"
 	"github.com/iksnerd/ava/internal/voiceconfig"
-	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and
@@ -73,9 +72,7 @@ func newSpeakCmd() *cobra.Command {
 				file.Voice, file.Speed = voice, speed
 				return speaker.New(serverURL).Speak(cmd.Context(), text, file)
 			}
-			if voiceconfig.Muted() {
-				fmt.Fprintf(cmd.ErrOrStderr(), "⚠️  %s\n", mutedNotice)
-			}
+			warnIfMuted(cmd)
 			if async {
 				return spawnDetached(detachedSpeakArgs(text, voice, speed, serverURL))
 			}
@@ -88,13 +85,13 @@ func newSpeakCmd() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&voice, "voice", "", "Kokoro voice id, or several comma-separated to blend as an average (default: the configured voice)")
-	flags.Float64Var(&speed, "speed", 0, "Speech rate multiplier (default: the configured speed)")
+	flags.Float64Var(&speed, "speed", 0, speedUsage)
 	flags.BoolVar(&async, "async", false, "Return immediately instead of waiting for playback to finish")
 	flags.StringVar(&out, "out", "", "Save the speech to this WAV file instead of playing it")
 	flags.StringVar(&timings, "timings", "", "With --out, also write where each segment of the text sits in the audio, as JSON (start_ms, end_ms, text)")
 	flags.StringVar(&outDir, "out-dir", "", "Speak each line of the text into its own WAV in this directory, with a manifest.json of durations and segments")
 	flags.StringVar(&split, "split", "", "With --out or --out-dir, how segments are cut: line (default) or sentence")
-	flags.StringVar(&serverURL, "server-url", "", fmt.Sprintf("mlx-engine base URL (default %s)", mlx.DefaultServerURL))
+	flags.StringVar(&serverURL, "server-url", "", serverURLUsage)
 
 	_ = cmd.MarkFlagFilename("out", "wav")
 	_ = cmd.MarkFlagFilename("timings", "json")

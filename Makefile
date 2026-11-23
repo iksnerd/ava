@@ -3,6 +3,7 @@
 BINARY_NAME=ava
 BUILD_DIR=bin
 RAYCAST_DIR=$(HOME)/raycast-scripts
+PY_PROJECTS := mlx-engine voxtral scripts/voice_hooks
 INSTALL_BIN_DIR=$(HOME)/.local/bin
 # git describe so a build can name the exact commit it came from; a tarball
 # with no .git falls back to the tag-less form, and `go install` gets its
@@ -97,18 +98,14 @@ fmt:
 	@echo "🎨 Formatting Go code..."
 	@gofmt -w .
 	@echo "🎨 Formatting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
-	@cd mlx-engine && uv run ruff format .
-	@cd voxtral && uv run ruff format .
-	@cd scripts/voice_hooks && uv run ruff format .
+	@for d in $(PY_PROJECTS); do (cd $$d && uv run ruff format .) || exit 1; done
 	@echo "✅ Formatted"
 
 fmt-check:
 	@echo "🎨 Checking Go formatting..."
 	@test -z "$$(gofmt -l .)" || (echo "❌ Not gofmt'd:" && gofmt -l . && exit 1)
 	@echo "🎨 Checking Python formatting (mlx-engine, voxtral, scripts/voice_hooks)..."
-	@cd mlx-engine && uv run ruff format --check .
-	@cd voxtral && uv run ruff format --check .
-	@cd scripts/voice_hooks && uv run ruff format --check .
+	@for d in $(PY_PROJECTS); do (cd $$d && uv run ruff format --check .) || exit 1; done
 	@echo "✅ Formatting clean"
 
 check-swift-config:
@@ -179,9 +176,7 @@ uninstall-hooks:
 
 lint: vet fmt-check check-paths check-names check-protocol check-enginedist check-docs
 	@echo "🔍 Linting Python code (mlx-engine, voxtral, scripts/voice_hooks)..."
-	@cd mlx-engine && uv run ruff check .
-	@cd voxtral && uv run ruff check .
-	@cd scripts/voice_hooks && uv run ruff check .
+	@for d in $(PY_PROJECTS); do (cd $$d && uv run ruff check .) || exit 1; done
 	@echo "✅ Lint passed"
 
 setup-deps:
@@ -203,24 +198,29 @@ setup-voice-hooks:
 setup-blackhole:
 	@bash scripts/setup-blackhole.sh
 
+define RAYCAST_SCRIPT
+#!/bin/bash
+
+# @raycast.schemaVersion 1
+# @raycast.title Dictate with Ava
+# @raycast.description Dictate into the focused app, on-device
+# @raycast.mode fullOutput
+# @raycast.currentDirectoryPath
+# @raycast.icon 🎙️
+# @raycast.packageName Voice
+# @raycast.author iksnerd
+
+cd "$${RAYCAST_CURRENT_DIRECTORY_PATH:-$(abspath .)}" || exit 1
+exec $(abspath $(BINARY_PATH))
+endef
+export RAYCAST_SCRIPT
+
 install-raycast: build setup-model
 	@echo "📦 Installing Raycast commands..."
 	@mkdir -p $(RAYCAST_DIR)
 
 	@echo "-> Creating whisper-transcribe.sh"
-	@echo "#!/bin/bash" > $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.schemaVersion 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.title Dictate with Ava" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.description Dictate into the focused app, on-device" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.mode fullOutput" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.currentDirectoryPath" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.icon 🎙️" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.packageName Voice" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "# @raycast.author iksnerd" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "cd \"\$${RAYCAST_CURRENT_DIRECTORY_PATH:-$(abspath .)}\" || exit 1" >> $(RAYCAST_DIR)/whisper-transcribe.sh
-	@echo "exec $(abspath $(BINARY_PATH))" >> $(RAYCAST_DIR)/whisper-transcribe.sh
+	@printf '%s\n' "$$RAYCAST_SCRIPT" > $(RAYCAST_DIR)/whisper-transcribe.sh
 	@chmod +x $(RAYCAST_DIR)/whisper-transcribe.sh
 
 

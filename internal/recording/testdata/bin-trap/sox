@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fixture "sox" that records until interrupted: on SIGINT it finalizes the
+# output (arg 6) and exits 130, like real sox. Touches $SOX_READY once its
+# handler is installed.
+out="$6"
+trap 'echo finalized > "$out"; exit 130' INT
+touch "$SOX_READY"
+while :; do sleep 0.05; done

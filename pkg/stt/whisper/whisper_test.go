@@ -380,7 +380,7 @@ func TestATimeoutKillsWhisperCliAndItsChildren(t *testing.T) {
 	}
 	defer syscall.Kill(child, syscall.SIGKILL)
 	for time.Now().Before(deadline.Add(2 * time.Second)) {
-		if syscall.Kill(child, 0) != nil {
+		if !testutil.Alive(child) {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -409,7 +409,7 @@ func TestAChildLeftRunningAfterASuccessfulRunIsReaped(t *testing.T) {
 	defer syscall.Kill(child, syscall.SIGKILL)
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if syscall.Kill(child, 0) != nil {
+		if !testutil.Alive(child) {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)

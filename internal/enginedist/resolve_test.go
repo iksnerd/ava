@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // ResolveScript is the one answer to "which control script runs the
@@ -26,9 +28,7 @@ func resolveEnv(t *testing.T) (installDir string) {
 func touch(t *testing.T, path string) {
 	t.Helper()
 	os.MkdirAll(filepath.Dir(path), 0755)
-	if err := os.WriteFile(path, []byte("#!/bin/bash\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, path, "#!/bin/bash\n")
 }
 
 func TestResolveScriptPrefersTheFlag(t *testing.T) {

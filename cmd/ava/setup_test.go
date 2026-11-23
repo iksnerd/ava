@@ -79,7 +79,7 @@ func TestSetupToolsInstallsUvWithTheOtherTools(t *testing.T) {
 		"whisper-cli": "exit 0",
 		"brew":        `echo "$@" >> ` + calls,
 	} {
-		os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0755)
+		testutil.WriteExec(t, filepath.Join(bin, name), "#!/bin/sh\n"+body+"\n")
 	}
 	testutil.SetPath(t, bin, "/usr/bin", "/bin")
 

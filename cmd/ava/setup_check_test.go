@@ -23,15 +23,15 @@ func newSetupRig(t *testing.T) *setupRig {
 	t.Helper()
 	r := &setupRig{bin: t.TempDir(), home: t.TempDir(), engine: shortEngineDir(t)}
 	r.brewCalls = filepath.Join(t.TempDir(), "brew-calls")
-	os.WriteFile(filepath.Join(r.bin, "brew"), []byte("#!/bin/sh\necho \"$@\" >> "+r.brewCalls+"\n"), 0755)
+	testutil.WriteExec(t, filepath.Join(r.bin, "brew"), "#!/bin/sh\necho \"$@\" >> "+r.brewCalls+"\n")
 	testutil.SetPath(t, r.bin, "/usr/bin", "/bin")
 	t.Setenv("HOME", r.home)
 	return r
 }
 
-func (r *setupRig) addTools() {
+func (r *setupRig) addTools(t *testing.T) {
 	for bin := range setupToolFormulae {
-		os.WriteFile(filepath.Join(r.bin, bin), []byte("#!/bin/sh\nexit 0\n"), 0755)
+		testutil.WriteExec(t, filepath.Join(r.bin, bin), "#!/bin/sh\nexit 0\n")
 	}
 }
 
@@ -51,16 +51,16 @@ func (r *setupRig) addModel(t *testing.T) {
 
 // addEngine installs a stub bundle whose control script answers `fetch
 // --check` with $STUB_MODEL_MISSING (0 = the Kokoro model is there).
-func (r *setupRig) addEngine() {
+func (r *setupRig) addEngine(t *testing.T) {
 	venv := filepath.Join(r.engine, "mlx-engine", ".venv", "bin")
 	os.MkdirAll(venv, 0755)
-	os.WriteFile(filepath.Join(venv, "uvicorn"), []byte("#!/bin/sh\n"), 0755)
+	testutil.WriteExec(t, filepath.Join(venv, "uvicorn"), "#!/bin/sh\n")
 	script := filepath.Join(r.engine, enginedist.ScriptRelPath)
 	os.MkdirAll(filepath.Dir(script), 0755)
-	os.WriteFile(script, []byte(`#!/bin/sh
+	testutil.WriteExec(t, script, `#!/bin/sh
 [ "$1 $2" = "fetch --check" ] || { echo "unexpected: $*" >&2; exit 9; }
 exit "${STUB_MODEL_MISSING:-0}"
-`), 0755)
+`)
 }
 
 func (r *setupRig) check(t *testing.T, args ...string) (string, error) {
@@ -95,9 +95,9 @@ func skipOffAppleSilicon(t *testing.T) {
 func TestSetupCheckPassesWhenEverythingIsThere(t *testing.T) {
 	skipOffAppleSilicon(t)
 	r := newSetupRig(t)
-	r.addTools()
+	r.addTools(t)
 	r.addModel(t)
-	r.addEngine()
+	r.addEngine(t)
 
 	out, err := r.check(t)
 	if err != nil {
@@ -129,9 +129,9 @@ func TestSetupCheckNamesWhatIsMissingAndInstallsNothing(t *testing.T) {
 func TestSetupCheckAsksTheEngineAboutItsModel(t *testing.T) {
 	skipOffAppleSilicon(t)
 	r := newSetupRig(t)
-	r.addTools()
+	r.addTools(t)
 	r.addModel(t)
-	r.addEngine()
+	r.addEngine(t)
 	t.Setenv("STUB_MODEL_MISSING", "1")
 
 	out, err := r.check(t)
@@ -145,7 +145,7 @@ func TestSetupCheckAsksTheEngineAboutItsModel(t *testing.T) {
 
 func TestSetupCheckWithSkipEngineIgnoresTheEngine(t *testing.T) {
 	r := newSetupRig(t)
-	r.addTools()
+	r.addTools(t)
 	r.addModel(t)
 
 	if out, err := r.check(t, "--skip-engine"); err != nil {

@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 const (
@@ -106,9 +108,7 @@ func serve(t *testing.T, r *release) (Options, string) {
 	t.Cleanup(srv.Close)
 
 	exe := filepath.Join(t.TempDir(), "ava")
-	if err := os.WriteFile(exe, []byte(oldBinary), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, exe, oldBinary)
 	return Options{
 		Current:      "v0.9.0",
 		Exe:          exe,

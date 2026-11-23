@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 // syscallZero probes whether a process exists without signalling it.
@@ -51,9 +52,7 @@ func engineLayout(t *testing.T) string {
 	if err := os.MkdirAll(bin, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(bin, "uvicorn"), []byte(stubUvicorn), 0755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExec(t, filepath.Join(bin, "uvicorn"), stubUvicorn)
 	return root
 }
 
@@ -64,10 +63,7 @@ func copyScripts(t *testing.T, dir string) string {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"mlx-engine-server.sh", "lib.sh", "protocol.sh", "voice-defaults.json"} {
-		data, err := os.ReadFile(filepath.Join("..", "..", "scripts", name))
-		if err != nil {
-			t.Fatal(err)
-		}
+		data := testutil.RepoFile(t, "scripts", name)
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -90,14 +86,9 @@ func newEngineRun(t *testing.T) *engineRun {
 	stubBin := filepath.Join(tmp, "bin")
 	os.MkdirAll(stubBin, 0755)
 	// `uv sync` in a stub layout has nothing to sync.
-	os.WriteFile(filepath.Join(stubBin, "uv"), []byte("#!/bin/sh\nexit 0\n"), 0755)
+	testutil.WriteExec(t, filepath.Join(stubBin, "uv"), "#!/bin/sh\nexit 0\n")
 
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
+	port := testutil.FreePort(t)
 
 	r := &engineRun{
 		t:      t,
@@ -313,7 +304,7 @@ echo /fake/hf-cache/kokoro-snapshot
 func TestEngineFetchRunsTheEnginesOwnDownload(t *testing.T) {
 	r := newEngineRun(t)
 	checkout := engineLayout(t)
-	os.WriteFile(filepath.Join(checkout, "mlx-engine", ".venv", "bin", "python"), []byte(stubPython), 0755)
+	testutil.WriteExec(t, filepath.Join(checkout, "mlx-engine", ".venv", "bin", "python"), stubPython)
 	script := copyScripts(t, filepath.Join(checkout, "scripts"))
 
 	out, err := r.script(script, "fetch")
@@ -357,7 +348,7 @@ func TestEngineFetchCheckPassesTheAnswerThrough(t *testing.T) {
 	script := copyScripts(t, filepath.Join(checkout, "scripts"))
 
 	for _, exit := range []string{"0", "1"} {
-		os.WriteFile(python, []byte("#!/bin/sh\necho \"$@\" > \"$STUB_OUT/python-argv\"\nexit "+exit+"\n"), 0755)
+		testutil.WriteExec(t, python, "#!/bin/sh\necho \"$@\" > \"$STUB_OUT/python-argv\"\nexit "+exit+"\n")
 		_, err := r.script(script, "fetch", "--check")
 		if got := strings.TrimSpace(r.saw("python-argv")); !strings.HasSuffix(got, "server.py fetch --check") {
 			t.Errorf("fetch --check ran python with %q", got)
@@ -365,5 +356,102 @@ func TestEngineFetchCheckPassesTheAnswerThrough(t *testing.T) {
 		if (err == nil) != (exit == "0") {
 			t.Errorf("engine check exited %s, script returned err=%v", exit, err)
 		}
+	}
+}
+
+// lockScript runs a bash snippet with lib.sh's lock functions sourced.
+func lockScript(t *testing.T, snippet string) (string, error) {
+	t.Helper()
+	lib := testutil.RepoPath(t, "scripts", "lib.sh")
+	out, err := exec.Command("bash", "-c", "source '"+lib+"'; "+snippet).CombinedOutput()
+	return string(out), err
+}
+
+// A start can run uv sync and wait two minutes for /health, so a lock whose
+// mtime is past the stale cutoff but whose holder is alive must not be broken.
+func TestStartLockHeldByALiveProcessIsNotBrokenWhenOld(t *testing.T) {
+	lock := filepath.Join(t.TempDir(), "l")
+	old := time.Now().Add(-time.Hour)
+	holder := exec.Command("sleep", "30")
+	if err := holder.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { holder.Process.Kill(); holder.Wait() })
+	os.Mkdir(lock, 0755)
+	os.WriteFile(filepath.Join(lock, "pid"), []byte(strconv.Itoa(holder.Process.Pid)), 0644)
+	os.Chtimes(lock, old, old)
+
+	// Stale cutoff 1s; the loop gives up after ~10s, so this takes a while
+	// only if the lock is (correctly) respected.
+	out, err := lockScript(t, "server_lock_acquire '"+lock+"' 1 && echo ACQUIRED")
+	if strings.Contains(out, "ACQUIRED") || err == nil {
+		t.Fatalf("broke a live holder's lock: %q err=%v", out, err)
+	}
+}
+
+func TestStartLockOfADeadHolderIsReclaimed(t *testing.T) {
+	lock := filepath.Join(t.TempDir(), "l")
+	dead := exec.Command("true")
+	dead.Run()
+	os.Mkdir(lock, 0755)
+	os.WriteFile(filepath.Join(lock, "pid"), []byte(strconv.Itoa(dead.Process.Pid)), 0644)
+
+	out, err := lockScript(t, "server_lock_acquire '"+lock+"' 30 && echo ACQUIRED")
+	if err != nil || !strings.Contains(out, "ACQUIRED") {
+		t.Fatalf("did not reclaim a dead holder's lock: %q err=%v", out, err)
+	}
+}
+
+func TestStartLockReleaseOnlyWhenOwned(t *testing.T) {
+	lock := filepath.Join(t.TempDir(), "l")
+	os.Mkdir(lock, 0755)
+	os.WriteFile(filepath.Join(lock, "pid"), []byte("1"), 0644) // someone else
+	if _, err := lockScript(t, "server_lock_release '"+lock+"'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(lock); err != nil {
+		t.Fatal("released a lock owned by another process")
+	}
+	out, err := lockScript(t, "rm -rf '"+lock+"'; server_lock_acquire '"+lock+"' 30 && server_lock_release '"+lock+"' && [ ! -d '"+lock+"' ] && echo GONE")
+	if err != nil || !strings.Contains(out, "GONE") {
+		t.Fatalf("own lock not released: %q err=%v", out, err)
+	}
+}
+
+// Two waiters that both judge the same dead owner stale must not both win:
+// the reclaim is a rename, so exactly one acquires and the other, facing a
+// live holder, times out waiting. Throwaway lockdir only.
+func TestStartLockTwoReclaimersOfADeadOwnerOnlyOneAcquires(t *testing.T) {
+	lock := filepath.Join(t.TempDir(), "l")
+	os.Mkdir(lock, 0755)
+	os.WriteFile(filepath.Join(lock, "pid"), []byte(strconv.Itoa(testutil.DeadPID(t))), 0644)
+
+	lib := testutil.RepoPath(t, "scripts", "lib.sh")
+	// Each acquirer that wins keeps the lock held (sleep) so the other one
+	// cannot also win by waiting for a release.
+	script := "source '" + lib + "'; server_lock_acquire '" + lock + "' 30 && { echo ACQUIRED; sleep 14; }"
+	type result struct {
+		out string
+		err error
+	}
+	res := make(chan result, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			out, err := exec.Command("bash", "-c", script).CombinedOutput()
+			res <- result{string(out), err}
+		}()
+	}
+	acquired := 0
+	for i := 0; i < 2; i++ {
+		r := <-res
+		if strings.Contains(r.out, "ACQUIRED") {
+			acquired++
+		}
+	}
+	if acquired != 1 {
+		t.Fatalf("%d reclaimers acquired the lock, want exactly 1", acquired)
+	}
+	if m, _ := filepath.Glob(lock + ".stale.*"); len(m) != 0 {
+		t.Errorf("stale lock debris left behind: %v", m)
 	}
 }

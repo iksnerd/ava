@@ -39,7 +39,51 @@ func StopSpeaking() {
 	stop(ttsproto.ActivityDir())
 }
 
+// markerOwnerDead reports whether a marker named "<pid>-<unixnano>" belongs to
+// a process that no longer exists (kill(pid, 0) fails with ESRCH). A name that
+// does not have that shape, or a process we may not signal (EPERM), is not
+// judged dead: leaving a marker is safe, removing a live one is not.
+//
+// PID reuse can make a dead speak's marker look live; it then behaves as it
+// did before this check existed (stop waits out its cap).
+func markerOwnerDead(name string) bool {
+	pidStr, nanos, ok := strings.Cut(name, "-")
+	if !ok || nanos == "" {
+		return false
+	}
+	if _, err := strconv.ParseInt(nanos, 10, 64); err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil || pid <= 0 {
+		return false
+	}
+	return syscall.Kill(pid, 0) == syscall.ESRCH
+}
+
+// ReapStale removes every marker in dir whose owning process is gone, along
+// with its sidecars. A speak killed with SIGKILL never runs its deferred
+// cleanup, and its marker would otherwise read as "speaking" forever.
+func ReapStale(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if ttsproto.IsSidecar(name) || !markerOwnerDead(name) {
+			continue
+		}
+		marker := filepath.Join(dir, name)
+		for _, path := range []string{marker, marker + ttsproto.PlayPIDSuffix, marker + ttsproto.StoppedSuffix} {
+			_ = os.Remove(path)
+		}
+	}
+}
+
 func stop(dir string) {
+	ReapStale(dir)
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return

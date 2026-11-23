@@ -1,12 +1,12 @@
 package voiceconfig
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/iksnerd/ava/internal/testutil"
 )
 
 func TestVoicesDescribeAccentAndGenderFromThePrefix(t *testing.T) {
@@ -45,10 +45,7 @@ func TestDefaultVoiceIsInTheList(t *testing.T) {
 // the same Kokoro model, maintained in two languages. This is what catches
 // them drifting apart.
 func TestVoicesMatchMenuBarAppList(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "AvaMenuBar", "Sources", "AvaMenuBar", "VoiceSettings.swift"))
-	if err != nil {
-		t.Fatalf("read VoiceSettings.swift: %v", err)
-	}
+	data := testutil.RepoFile(t, "AvaMenuBar", "Sources", "AvaMenuBar", "VoiceSettings.swift")
 
 	// Only KokoroVoice.english holds the full list; the `var voice =`
 	// default declared above it is a single id that would otherwise slip in.
