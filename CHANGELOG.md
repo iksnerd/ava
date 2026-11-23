@@ -5,6 +5,14 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Added
+- **`--trace` on `ava transcribe` and `ava speak`** prints how long each stage took to stderr (audio check, whisper-cli with its load, encode and decode, engine check and start, synthesis, playback). Stdout is unchanged.
+- **`ava setup` warms up at the end:** it transcribes a second of silence so the model is cached, and does one short synthesis if the engine is already running. A failed warm-up never fails setup; `--no-warmup` skips it.
+- **`ava update` says so when the running engine is older** than the new binary and needs `ava engine stop && ava engine start`.
+
+### Changed
+- **`ava engine start` notices a ready engine up to 0.8 s sooner:** it now polls every 0.2 s instead of every second.
+
 ### Fixed
 - **`ava update` no longer leaves speech broken.** The engine files `ava setup` installs were only replaced by running `ava setup` again, so a newer `ava` found an older engine, called it stale and refused to speak. The installed files are now brought level with the binary the next time the engine starts, with no download. A running engine still needs `ava engine stop && ava engine start` once.
 
