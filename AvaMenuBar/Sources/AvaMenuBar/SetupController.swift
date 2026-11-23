@@ -38,7 +38,12 @@ final class SetupController: ObservableObject {
             self.missing = lines.compactMap { line in
                 line.hasPrefix("❌ Missing: ") ? String(line.dropFirst("❌ Missing: ".count)) : nil
             }
-            self.state = code == 0 ? .complete : .incomplete
+            // A running engine older than this ava also makes --check exit
+            // non-zero, but no install step fixes it, so it must not offer
+            // Set up. Match the prefix of staleEngineLine in cmd/ava/setup.go.
+            let staleOnly = self.missing.isEmpty
+                && lines.contains { $0.hasPrefix("❌ The running mlx-engine is older") }
+            self.state = (code == 0 || staleOnly) ? .complete : .incomplete
         }
     }
 

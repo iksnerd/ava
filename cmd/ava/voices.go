@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -11,17 +12,33 @@ import (
 
 // newVoicesCmd lists what `speak --voice` accepts.
 func newVoicesCmd() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:           "voices",
 		Short:         "List the Kokoro voices available to `speak`",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), formatVoices(voiceconfig.Load().Voice))
+			current := voiceconfig.Load().Voice
+			if asJSON {
+				ids := []string{}
+				for _, v := range voiceconfig.Voices() {
+					ids = append(ids, v.ID)
+				}
+				b, _ := json.Marshal(struct {
+					Current string   `json:"current"`
+					Voices  []string `json:"voices"`
+				}{current, ids})
+				fmt.Fprintln(cmd.OutOrStdout(), string(b))
+				return nil
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), formatVoices(current))
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, `Print {"current":"...","voices":[...]} on stdout`)
+	return cmd
 }
 
 // formatVoices renders the voice list. Shared with the MCP list_voices tool

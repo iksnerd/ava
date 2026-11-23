@@ -26,6 +26,9 @@ func newSetupRig(t *testing.T) *setupRig {
 	testutil.WriteExec(t, filepath.Join(r.bin, "brew"), "#!/bin/sh\necho \"$@\" >> "+r.brewCalls+"\n")
 	testutil.SetPath(t, r.bin, "/usr/bin", "/bin")
 	t.Setenv("HOME", r.home)
+	// Never ask whatever is really listening on 8765 on the machine running the tests.
+	setupEngineURL = "http://127.0.0.1:1"
+	t.Cleanup(func() { setupEngineURL = "" })
 	return r
 }
 

@@ -24,7 +24,7 @@ ava
 | `--no-paste` | off | Copy to the clipboard but don't paste |
 | `--no-sound` | off | No audio cues |
 | `--verbose` | `true` | Status messages; `--quiet` is the inverse |
-| `--version`, `-v` | — | Print the version and exit |
+| `--version`, `-v` | — | Print the version and exit (`--version --json` for `{"version":...}`) |
 
 ```bash
 ava --dir ~/projects/app --lang en --model base --output transcript.txt
@@ -68,7 +68,7 @@ nothing rather than reporting success.
 
 ```bash
 ava stop       # cancel speech from any source, including the hooks
-ava voices     # ids, accents, and which one is current
+ava voices     # ids, accents, and which one is current (--json for scripts)
 ```
 
 ## Transcribe a file
@@ -152,8 +152,9 @@ both measured on macOS 27:
 
 ```bash
 ava setup                 # tools + speech model + Kokoro engine and its model
-ava setup --skip-engine   # dictation only, without the ~1.5 GB of Kokoro
+ava setup --skip-engine   # dictation only, without most of the ~1.7 GB (the Kokoro engine and model)
 ava setup --check         # what is still missing; installs nothing, exits 1 until done
+ava setup --check --json  # {"ok":bool,"missing":[...],"stale_engine":bool}
 ```
 
 Installs everything that is not the binary: `sox`, `whisper-cli` and `uv` via
@@ -222,6 +223,8 @@ installed by hand once.
 ```bash
 ava engine start    # background the mlx-engine Kokoro TTS server
 ava engine status
+ava engine status --check   # quiet; exits 1 when not running
+ava engine status --json    # {"running":bool,"pid":N|null}
 ava engine stop
 ava engine stop --keep-autostart   # temporary stop; hooks stay armed
 ```

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/iksnerd/ava/internal/speaker"
 	"github.com/iksnerd/ava/internal/voiceconfig"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newSpeakCmd speaks text through the same path the Claude Code hooks and
@@ -62,6 +64,9 @@ func newSpeakCmd() *cobra.Command {
 				return err
 			}
 			if err := validateVoice(voice); err != nil {
+				return err
+			}
+			if err := validateServerURL(serverURL); err != nil {
 				return err
 			}
 			file, err := fileArgs{out, timings, split, outDir, async}.options()
@@ -265,4 +270,18 @@ var spawnDetached = func(args []string) error {
 		return fmt.Errorf("start background speaker: %w", err)
 	}
 	return cmd.Process.Release()
+}
+
+// validateServerURL rejects a --server-url that cannot be an engine, so a typo
+// fails here naming itself, not after an auto-start as "did not come up".
+// Empty means the default.
+func validateServerURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("invalid --server-url %q: want an http or https URL such as %s", raw, mlx.DefaultServerURL)
+	}
+	return nil
 }

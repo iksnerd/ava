@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,10 +12,12 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/ava/internal/enginedist"
+	"github.com/iksnerd/ava/pkg/mlx"
 )
 
 // newSetupCmd installs everything ava needs that is not the binary.
@@ -24,7 +29,7 @@ import (
 // feature never runs. `make setup` does the same three things, but only from
 // a checkout — which is the one thing a downloaded binary does not have.
 func newSetupCmd() *cobra.Command {
-	var skipEngine, check bool
+	var skipEngine, check, asJSON bool
 
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -35,18 +40,22 @@ func newSetupCmd() *cobra.Command {
 			"  3. the Kokoro TTS engine (~1.2 GB of Python)\n" +
 			"  4. the Kokoro model and all its voices (339 MB), so speech needs no\n" +
 			"     network afterwards\n\n" +
+			"About 1.7 GB in all, most of it the engine and its model.\n\n" +
 			"Every step is skipped if it is already done, so re-running is cheap " +
 			"and is how you upgrade the engine bundle after installing a new binary.\n\n" +
 			"Use --skip-engine for dictation only, without steps 3 and 4. --check\n" +
 			"reports what is missing and installs nothing; it exits non-zero until\n" +
-			"setup is complete.",
+			"setup is complete, or while an engine older than this ava is running.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()
 			if check {
-				return checkSetup(out, skipEngine)
+				return checkSetup(out, skipEngine, asJSON)
+			}
+			if asJSON {
+				return fmt.Errorf("--json goes with --check")
 			}
 
 			if err := setupTools(out); err != nil {
@@ -74,8 +83,10 @@ func newSetupCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&check, "check", false,
 		"Report what is missing without installing anything")
+	cmd.Flags().BoolVar(&asJSON, "json", false,
+		`With --check, print {"ok":bool,"missing":[...],"stale_engine":bool} on stdout`)
 	cmd.Flags().BoolVar(&skipEngine, "skip-engine", false,
-		"Skip the Kokoro TTS engine and model (~1.5 GB); speech falls back to the macOS say voice")
+		"Skip the Kokoro TTS engine and model (most of the ~1.7 GB); speech falls back to the macOS say voice")
 	return cmd
 }
 
@@ -123,11 +134,24 @@ func setupTools(out io.Writer) error {
 	return nil
 }
 
+// setupEngineURL is where --check looks for a running engine; empty means the
+// default. A variable so tests can point it at a stub.
+var setupEngineURL string
+
+// staleEngineLine is what --check prints for a running engine older than this
+// binary. The menu bar app matches its prefix to tell it from a missing
+// install, so keep the two in step.
+const staleEngineLine = "❌ The running mlx-engine is older than this ava; " +
+	"restart it with `ava engine stop && ava engine start`"
+
 // checkSetup reports what `ava setup` would still install, using the same
-// tests setup uses to skip a step, and installs nothing. The menu bar app
-// runs it at every start to decide whether to offer Set up.
-func checkSetup(out io.Writer, skipEngine bool) error {
-	var missing []string
+// tests setup uses to skip a step, and installs nothing. It also reports a
+// running engine whose protocol is older than this binary's, which no install
+// step fixes: every speak would fail with it. The menu bar app runs this at
+// every start to decide whether to offer Set up; it must not offer one for a
+// stale engine (see SetupController.swift).
+func checkSetup(out io.Writer, skipEngine, asJSON bool) error {
+	missing := []string{}
 	tools := keysOf(setupToolFormulae)
 	sort.Strings(tools)
 	for _, bin := range tools {
@@ -139,6 +163,7 @@ func checkSetup(out io.Writer, skipEngine bool) error {
 		!modelPresent(filepath.Join(home, modelDirRel, whisperModels["base"].file), whisperModels["base"]) {
 		missing = append(missing, "the whisper speech model")
 	}
+	stale := false
 	if !skipEngine && runtime.GOARCH == "arm64" {
 		if script, ok := installedEngine(); !ok {
 			missing = append(missing, "the Kokoro engine", "the Kokoro model")
@@ -148,15 +173,51 @@ func checkSetup(out io.Writer, skipEngine bool) error {
 			missing = append(missing, "the Kokoro model")
 		}
 	}
+	if !skipEngine {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		stale = mlx.NewClient(setupEngineURL).Check(ctx) == mlx.Stale
+		cancel()
+	}
 
-	if len(missing) == 0 {
+	ok := len(missing) == 0 && !stale
+	if asJSON {
+		b, _ := json.Marshal(struct {
+			OK      bool     `json:"ok"`
+			Missing []string `json:"missing"`
+			Stale   bool     `json:"stale_engine"`
+		}{ok, missing, stale})
+		fmt.Fprintln(out, string(b))
+		if ok {
+			return nil
+		}
+		return silentExit{}
+	}
+	if ok {
 		fmt.Fprintln(out, "✅ Ava is set up.")
 		return nil
 	}
 	for _, m := range missing {
 		fmt.Fprintf(out, "❌ Missing: %s\n", m)
 	}
+	if stale {
+		fmt.Fprintln(out, staleEngineLine)
+	}
+	if len(missing) == 0 {
+		return silentExit{}
+	}
 	return fmt.Errorf("setup is incomplete; run `ava setup` to install what is missing")
+}
+
+// silentExit is an error that exits non-zero without Execute printing
+// anything: for a command that has already said what it has to, or has
+// to stay quiet (engine status --check).
+type silentExit struct{}
+
+func (silentExit) Error() string { return "" }
+
+func isSilentExit(err error) bool {
+	var s silentExit
+	return errors.As(err, &s)
 }
 
 // installedEngine returns the control script of the bundle `ava setup`

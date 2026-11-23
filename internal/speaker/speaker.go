@@ -345,6 +345,9 @@ func (s *Speaker) ready(ctx context.Context, settings voiceconfig.Settings) erro
 			return err
 		}
 		s.StartGuard.Failed()
+		if c, ok := s.Engine.(*mlx.Client); ok {
+			return fmt.Errorf("mlx-engine did not come up at %s", c.ServerURL)
+		}
 		return fmt.Errorf("mlx-engine did not come up")
 	}
 	s.StartGuard.Succeeded()

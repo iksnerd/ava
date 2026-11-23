@@ -64,7 +64,7 @@ func newRootCmd() *cobra.Command {
 			"                       run it from) and Accessibility (to paste)\n\n" +
 			"Guide: https://github.com/iksnerd/ava/blob/main/docs/getting-started.md",
 		Version:       buildinfo.Get(),
-		Args:          cobra.NoArgs,
+		Args:          noArgsSuggesting,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,6 +94,10 @@ func newRootCmd() *cobra.Command {
 		}
 	}
 
+	flags.Bool("json", false, "With --version, print {\"version\":\"...\"} instead of the text line")
+	cmd.SetVersionTemplate(`{{if eq (.Flags.Lookup "json").Value.String "true"}}{"version":{{printf "%q" .Version}}}{{else}}{{with .DisplayName}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}{{end}}
+`)
+
 	cmd.AddCommand(
 		newEngineCmd(),
 		newSetupCmd(),
@@ -114,7 +118,9 @@ func newRootCmd() *cobra.Command {
 // Execute runs the root command and exits non-zero on failure.
 func Execute() {
 	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
+		if !isSilentExit(err) {
+			fmt.Fprintf(os.Stderr, "❌ %v\n", err)
+		}
 		os.Exit(1)
 	}
 }
@@ -361,4 +367,25 @@ func (c clipboardOps) deliver(text string, paste bool) error {
 		c.paste()
 	}
 	return nil
+}
+
+// noArgsSuggesting is cobra.NoArgs with cobra's "did you mean" list added.
+// An explicit Args skips cobra's own subcommand check, which is where the
+// suggestions come from, so `ava vioces` would otherwise say only that the
+// command is unknown.
+func noArgsSuggesting(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	msg := fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())
+	if cmd.SuggestionsMinimumDistance <= 0 {
+		cmd.SuggestionsMinimumDistance = 2 // cobra's own default, which only its Find path applies
+	}
+	if sug := cmd.SuggestionsFor(args[0]); len(sug) > 0 {
+		msg += "\n\nDid you mean this?\n"
+		for _, s := range sug {
+			msg += "\t" + s + "\n"
+		}
+	}
+	return errors.New(msg)
 }

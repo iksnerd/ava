@@ -5,7 +5,15 @@ entry is a summary rather than a record kept as it happened.
 
 ## [Unreleased]
 
+### Changed
+- **`ava setup --check` now fails while an engine older than this `ava` is running,** with a line saying to run `ava engine stop && ava engine start`. It used to print "Ava is set up" and every `speak` then failed. A stopped engine is still fine. The menu bar app does not offer Set up for it.
+- **`ava engine status --check`** prints nothing and exits non-zero when the engine is not running. Plain `status` still exits 0 when stopped.
+- **`--json` on `ava voices`, `ava engine status`, `ava setup --check` and `ava --version`** prints one JSON object on stdout. Exit codes are unchanged.
+- **`ava setup --help` gives the same sizes as the README,** about 1.7 GB in all.
+
 ### Fixed
+- **Unknown subcommands are errors.** `ava engine statu` printed the group help and exited 0; it now exits 1 with `unknown command`. Both it and `ava vioces` suggest the nearest command.
+- **`speak --server-url` is checked up front** (an http or https URL with a host), and "mlx-engine did not come up" names the URL it tried.
 - **`ava transcribe --output` exits non-zero when the file cannot be written,** and the error names the path. The transcript is printed first, so it is not lost. Dictation's debug copy still only warns.
 - **`ava transcribe` reports no speech for a tone or silence in every format.** Text mode printed whisper's `♪` or `[BLANK_AUDIO]` and exited 0, while `--format srt|vtt|json` exited 1. Output made only of such markers now exits 1 with `no speech detected`; so does the MCP `transcribe` tool's text result.
 - **`ava transcribe --format srt|vtt|json` on a file that is not a WAV names the file** instead of leaking a temp path. The file is checked before whisper runs, for every format.
