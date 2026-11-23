@@ -264,6 +264,13 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        case .unavailable:
+            SectionCard(header: "Setup") {
+                Text(setup.failure ?? "The ava binary is missing from this app. Reinstall Ava.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case .failed:
             SectionCard(header: "Setup") {
                 VStack(alignment: .leading, spacing: 8) {

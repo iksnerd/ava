@@ -38,6 +38,19 @@ enum VoicePaths {
         return "\(devRepoRoot)/scripts"
     }
 
+    /// Expanded once: the hardened PATH and the installed-binary fallback both use it.
+    private static let localBinDir = NSString(string: "~/.local/bin").expandingTildeInPath
+
+    /// A `/bin/bash` Process for one of the bundled scripts, with the hardened
+    /// environment. The caller sets any termination handler and runs it.
+    static func bashTask(script: String, args: [String] = []) -> Process {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/bash")
+        task.arguments = ["\(scriptsDir)/\(script)"] + args
+        task.environment = hardenedEnvironment
+        return task
+    }
+
     /// A GUI app launched via LaunchServices/launchd inherits a minimal PATH
     /// (just /usr/bin:/bin:/usr/sbin:/sbin — confirmed via `ps eww`/`launchctl
     /// print` on this app's own running process), not the interactive shell's
@@ -47,7 +60,7 @@ enum VoicePaths {
     /// silently fail and the process exits before doing anything.
     static var hardenedEnvironment: [String: String] {
         var env = ProcessInfo.processInfo.environment
-        let extra = "/opt/homebrew/bin:/usr/local/bin:\(NSString(string: "~/.local/bin").expandingTildeInPath)"
+        let extra = "/opt/homebrew/bin:/usr/local/bin:\(localBinDir)"
         env["PATH"] = "\(extra):\(env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")"
         return env
     }
@@ -65,7 +78,7 @@ enum VoicePaths {
         }
         let local = "\(devRepoRoot)/bin/ava"
         if FileManager.default.isExecutableFile(atPath: local) { return local }
-        let installed = NSString(string: "~/.local/bin/ava").expandingTildeInPath
+        let installed = "\(localBinDir)/ava"
         if FileManager.default.isExecutableFile(atPath: installed) { return installed }
         return nil
     }

@@ -22,6 +22,11 @@ final class ServerController: ObservableObject {
     @Published var lastError: String?
 
     private var pollTimer: Timer?
+    private var watchdog: Task<Void, Never>?
+
+    /// The engine start script itself waits up to ~120s for /health; a bit
+    /// more than that, so a hung script cannot pin .starting/.stopping forever.
+    private static let operationTimeout: Duration = .seconds(150)
 
     init() {
         refresh()
@@ -61,23 +66,25 @@ final class ServerController: ObservableObject {
         }
     }
 
-    func start() {
-        status = .starting
-        lastError = nil
-        runScript("mlx-engine-server.sh", "start") { [weak self] code in
-            Task { @MainActor in
-                self?.report(code, verb: "start")
-                await self?.forceRefresh()
-            }
-        }
-    }
+    func start() { begin(verb: "start", status: .starting) }
 
-    func stop() {
-        status = .stopping
+    func stop() { begin(verb: "stop", status: .stopping) }
+
+    private func begin(verb: String, status inFlight: Status) {
+        // Ignore a second call while one is in flight, or two scripts would run at once.
+        guard status != .starting && status != .stopping else { return }
+        status = inFlight
         lastError = nil
-        runScript("mlx-engine-server.sh", "stop") { [weak self] code in
+        watchdog = Task { [weak self] in
+            try? await Task.sleep(for: Self.operationTimeout)
+            guard !Task.isCancelled, let self else { return }
+            self.lastError = "Server \(verb) did not finish within 150s. Check /tmp/mlx-engine-server.log."
+            await self.forceRefresh()
+        }
+        runScript("mlx-engine-server.sh", verb) { [weak self] code in
             Task { @MainActor in
-                self?.report(code, verb: "stop")
+                self?.watchdog?.cancel()
+                self?.report(code, verb: verb)
                 await self?.forceRefresh()
             }
         }
@@ -94,10 +101,7 @@ final class ServerController: ObservableObject {
     }
 
     private func runScript(_ name: String, _ arg: String, completion: @escaping (Int32) -> Void) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = ["\(VoicePaths.scriptsDir)/\(name)", arg]
-        task.environment = VoicePaths.hardenedEnvironment
+        let task = VoicePaths.bashTask(script: name, args: [arg])
         task.terminationHandler = { proc in
             DispatchQueue.main.async { completion(proc.terminationStatus) }
         }

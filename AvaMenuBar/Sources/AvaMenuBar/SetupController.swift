@@ -8,6 +8,8 @@ import Foundation
 final class SetupController: ObservableObject {
     enum State: Equatable {
         case checking, complete, incomplete, running, failed
+        /// The ava binary is not in this app, so there is nothing to run or retry.
+        case unavailable
     }
 
     @Published private(set) var state: State = .checking
@@ -26,7 +28,7 @@ final class SetupController: ObservableObject {
 
     func check() {
         guard let ava = VoicePaths.dictateBinary else {
-            state = .failed
+            state = .unavailable
             failure = "The ava binary is missing from this app. Reinstall Ava."
             return
         }

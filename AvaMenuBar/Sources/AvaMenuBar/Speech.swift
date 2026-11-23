@@ -12,22 +12,16 @@ enum Speech {
 
     static func speak(_ text: String, voice: String? = nil) {
         guard !text.isEmpty else { return }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        var args = ["\(VoicePaths.scriptsDir)/speak.sh", text]
+        var args = [text]
         if let voice { args.append(voice) }
-        task.arguments = args
-        task.environment = VoicePaths.hardenedEnvironment
+        let task = VoicePaths.bashTask(script: "speak.sh", args: args)
         run(task, what: "speak.sh")
     }
 
     /// Cancels whatever speak.sh is currently doing — synthesis in flight or
     /// audio already playing — rather than letting it run to completion.
     static func stop() {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = ["\(VoicePaths.scriptsDir)/stop-speaking.sh"]
-        task.environment = VoicePaths.hardenedEnvironment
+        let task = VoicePaths.bashTask(script: "stop-speaking.sh")
         run(task, what: "stop-speaking.sh")
     }
 
