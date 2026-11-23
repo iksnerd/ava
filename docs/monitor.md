@@ -80,7 +80,7 @@ which covers 99+ languages at roughly 1s latency.
 | `--stt-model` | per engine | Override the STT model id |
 | `--port` | `8766` | HTTP/SSE port |
 | `--log` | `/tmp/voice-input/transcript-<ts>.txt` | Transcript log path |
-| `--python` | `voxtral/.venv` | Python interpreter to use |
+| `--python` | `<voxtral-dir>/.venv/bin/python3` | Python interpreter to use |
 | `--voxtral-dir` | `voxtral/` | Location of the Python primitives |
 
 ## `--diarize` uses a non-commercial model

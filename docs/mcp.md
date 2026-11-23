@@ -69,10 +69,20 @@ The full workflow lives in
 
 ## Smoke-testing it
 
-Piping requests in with `echo` doesn't work: stdin hits EOF before the
-handshake completes and the server exits without replying. Drive it with a
-client that keeps the pipe open — the repo's own tests do this over the
-SDK's in-memory transport:
+Piping requests in with a bare `echo` doesn't work: stdin hits EOF before the
+reply is written and the server exits without answering. Keep the pipe open
+until the replies arrive. This sends `initialize` and `tools/list` and prints
+two JSON lines, one per request; the second lists the five tools above:
+
+```bash
+(printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+ sleep 2) | ava mcp 2>/dev/null
+```
+
+The repo's own tests drive it over the SDK's in-memory transport:
 
 ```bash
 go test ./cmd/ava/ -run 'Mcp|Tool|SpeakAccessibilityTree' -v

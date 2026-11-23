@@ -160,10 +160,10 @@ A `.whisper-context` file is the highest-leverage tuning available, and it
 needs no flags:
 
 ```bash
-echo "Kubernetes, kubectl, Istio, Prometheus, Grafana" > .whisper-context
+echo "Kubernetes, kubectl, Istio, Prometheus, Grafana" > ~/.whisper-context
 ```
 
-Per-directory beats `~/.whisper-context`; `--context` overrides both. This is
+`--context path/to/file` takes precedence over `~/.whisper-context`. This is
 how you stop it writing "cube control". See
 [`cli.md`](cli.md#context-files).
 

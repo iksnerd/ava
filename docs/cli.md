@@ -20,7 +20,7 @@ ava
 | `--beam-size` | whisper's (5) | Beam width; lower is faster and less accurate. See [tuning](tuning.md#whispercpp-speech-to-text) |
 | `--context` | — | Path to a context file (see below) |
 | `--output` | — | Also write the transcript to this file |
-| `--dir` | — | Change to this directory first |
+| `--dir` | — | Change to this directory before anything else, so a relative `--context` or `--output` path resolves from it. It does not move where the text is pasted |
 | `--no-paste` | off | Copy to the clipboard but don't paste |
 | `--no-sound` | off | No audio cues |
 | `--verbose` | `true` | Status messages; `--quiet` is the inverse |
@@ -35,6 +35,13 @@ Ctrl+C while recording stops the recording and transcribes what was captured. A 
 ## Speak
 
 Kokoro through the local server, falling back to macOS `say` when it's down.
+
+**If the Kokoro engine is not running, `speak` starts it.** That is a Python
+process of about 1.2 GB, and it keeps running after the command returns. Stop it
+with `ava engine stop`, or `ava engine stop --keep-autostart` to stop it without
+disarming auto-start for the hooks (see [Engine server](#engine-server)). With no
+engine script to start, `speak` uses `say` and says so on stderr.
+
 Goes through the same mute switch, activity markers and playback lock as the
 voice hooks, so speech from different sources queues instead of overlapping.
 
@@ -81,6 +88,10 @@ ava transcribe --format srt --output meeting.srt meeting.wav
 ```
 
 Takes a WAV file. Same `--model`, `--lang` and `--beam-size` as dictation.
+
+`--output` writes the transcript to that file as well as printing it. If the
+file cannot be written (a missing directory, no permission), `ava transcribe`
+reports the error and exits non-zero.
 
 `--format` is `text` (the default), or `srt`, `vtt` or `json` for captions that
 carry each segment's start and end time. `json` is an array of `start_ms`,
@@ -157,7 +168,9 @@ ava setup --check         # what is still missing; installs nothing, exits 1 unt
 ava setup --check --json  # {"ok":bool,"missing":[...],"stale_engine":bool}
 ```
 
-Installs everything that is not the binary: `sox`, `whisper-cli` and `uv` via
+The whole install is about 1.7 GB: the 141 MB whisper model, about 1.2 GB for
+the engine's Python environment and the 339 MB Kokoro model. Installs
+everything that is not the binary: `sox`, `whisper-cli` and `uv` via
 Homebrew, the whisper.cpp `base.en` model (~141 MB), the Kokoro TTS engine, and
 its model with every voice (339 MB), so speech needs no network afterwards.
 `--check` uses the same rules setup uses to skip a step; the menu bar app runs
@@ -303,15 +316,18 @@ streaming example; it is not what `pkg/stt/whisper` wraps.) See
 
 ## Context files
 
-A `.whisper-context` file gives whisper.cpp vocabulary hints, which helps with
+A context file gives whisper.cpp vocabulary hints, which helps with
 names, jargon and acronyms it would otherwise mangle.
 
 ```bash
 # Global, applies everywhere
 echo "Go, Golang, func, struct, goroutine, defer" > ~/.whisper-context
 
-# Per project; takes precedence over the global one
-echo "useEffect, useState, Redux, async, await" > .whisper-context
+# One project's vocabulary, passed explicitly
+echo "useEffect, useState, Redux, async, await" > app.whisper-context
+ava --context app.whisper-context
 ```
 
-Override both with `--context path/to/file`.
+`ava` reads `~/.whisper-context` on its own. A file in the current directory is
+not picked up by name: pass it with `--context path/to/file`, which takes
+precedence over the global one.
