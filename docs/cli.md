@@ -65,6 +65,7 @@ ava speak --out-dir scenes < script.txt        # a WAV per line, plus a manifest
 | `--split` | With `--out` or `--out-dir`, how segments are cut: `line` (the default) or `sentence` |
 | `--out-dir` | Speak each non-blank line of the text into its own WAV in this directory, numbered `001.wav`, `002.wav`, and write `manifest.json` last. Cannot be combined with `--out`, `--timings` or `--async` |
 | `--server-url` | Point at an mlx-engine somewhere other than `127.0.0.1:8765` |
+| `--trace` | Print how long each stage took to stderr: settings load, engine check, engine auto-start (only if it happened), synthesis, playback wait, and the total. Stdout is unchanged |
 
 A script that needs more than `--out` can talk to the engine directly: see [the engine API](engine-api.md).
 
@@ -96,6 +97,24 @@ reports the error and exits non-zero.
 `--format` is `text` (the default), or `srt`, `vtt` or `json` for captions that
 carry each segment's start and end time. `json` is an array of `start_ms`,
 `end_ms` and `text`.
+
+`--trace` prints the wall-clock time of each stage to stderr, one line per
+stage and a final total, and leaves stdout alone:
+
+```
+trace  audio check       0 ms
+trace  model resolve     0 ms
+trace  whisper-cli     312 ms
+trace  whisper load     98 ms
+trace  whisper encode  171 ms
+trace  whisper decode   23 ms
+trace  output write      0 ms
+trace  total           314 ms
+```
+
+The `whisper load`, `encode` and `decode` lines are whisper-cli's own figures,
+shown when it reports them. They are part of the `whisper-cli` time, not
+added to it.
 
 ## Narrate an accessibility tree
 

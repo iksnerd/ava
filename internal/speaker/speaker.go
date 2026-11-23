@@ -144,6 +144,19 @@ type Speaker struct {
 	// nothing: the most common "why does it sound robotic / why is it the wrong
 	// voice" confusion. nil means discard, which is what a test wants.
 	Notice io.Writer
+	// Trace, when set, is told how long each stage of a speak took:
+	// "settings load", "engine check", "engine auto-start", "synthesis" and "playback wait".
+	// nil means nobody is listening.
+	Trace func(stage string, d time.Duration)
+}
+
+// timed returns a function that reports the time since the call to Trace.
+func (s *Speaker) timed(stage string) func() {
+	if s.Trace == nil {
+		return func() {}
+	}
+	start := time.Now()
+	return func() { s.Trace(stage, time.Since(start)) }
 }
 
 // New wires a Speaker against the real mlx-engine, afplay and `say`.
@@ -214,7 +227,9 @@ func (s *Speaker) Speak(ctx context.Context, text string, opts Options) error {
 }
 
 func (s *Speaker) speak(ctx context.Context, text string, opts Options) error {
+	done := s.timed("settings load")
 	settings := s.Settings()
+	done()
 
 	marker, err := s.markActive()
 	if err != nil {
@@ -258,12 +273,15 @@ func (s *Speaker) speak(ctx context.Context, text string, opts Options) error {
 // behind to be mistaken for the narration, and a timings file never exists
 // without the WAV it describes.
 func (s *Speaker) render(ctx context.Context, text string, opts Options) error {
+	done := s.timed("settings load")
 	settings := s.Settings()
+	done()
 	if err := s.ready(ctx, settings); err != nil {
 		return fmt.Errorf("cannot write %s: %w", opts.Out, err)
 	}
 	req := s.request(text, opts, settings)
 
+	defer s.timed("synthesis")()
 	if opts.Timings == "" {
 		audio, err := s.Engine.Speak(ctx, req)
 		if err != nil {
@@ -304,6 +322,7 @@ func (s *Speaker) synthesize(ctx context.Context, text string, opts Options, set
 	if err := s.ready(ctx, settings); err != nil {
 		return nil, err
 	}
+	defer s.timed("synthesis")()
 	return s.Engine.Speak(ctx, s.request(text, opts, settings))
 }
 
@@ -311,7 +330,7 @@ func (s *Speaker) synthesize(ctx context.Context, text string, opts Options, set
 // one if it is down and the user has not stopped it on purpose. A stale
 // engine is not started over; see ErrStaleEngine.
 func (s *Speaker) ready(ctx context.Context, settings voiceconfig.Settings) error {
-	switch s.Engine.Check(ctx) {
+	switch s.check(ctx) {
 	case mlx.Stale:
 		return ErrStaleEngine
 	case mlx.Ready:
@@ -330,14 +349,17 @@ func (s *Speaker) ready(ctx context.Context, settings voiceconfig.Settings) erro
 	if until, blocked := s.StartGuard.Blocked(); blocked {
 		return &StartLimitedError{Until: until, Max: s.StartGuard.Max}
 	}
-	if err := s.AutoStart(ctx); err != nil {
+	started := s.timed("engine auto-start")
+	err := s.AutoStart(ctx)
+	started()
+	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr // abandoned, not failed: it does not count
 		}
 		s.StartGuard.Failed()
 		return fmt.Errorf("mlx-engine auto-start failed: %w", err)
 	}
-	switch s.Engine.Check(ctx) {
+	switch s.check(ctx) {
 	case mlx.Stale:
 		return ErrStaleEngine
 	case mlx.Down:
@@ -352,6 +374,12 @@ func (s *Speaker) ready(ctx context.Context, settings voiceconfig.Settings) erro
 	}
 	s.StartGuard.Succeeded()
 	return nil
+}
+
+// check asks the engine for its state, timed as "engine check".
+func (s *Speaker) check(ctx context.Context) mlx.State {
+	defer s.timed("engine check")()
+	return s.Engine.Check(ctx)
 }
 
 // StartLimitedError (match it with errors.As) is an engine that has failed to
@@ -421,6 +449,7 @@ func (s *Speaker) playTemp(ctx context.Context, audio []byte, pattern string, vo
 	f.Close()
 	defer os.Remove(path)
 
+	defer s.timed("playback wait")()
 	return s.Play(ctx, path, volume, marker+".play.pid")
 }
 

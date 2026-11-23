@@ -19,4 +19,8 @@ fi
 if [ -z "$oj" ] && [ -f "$HOME/fixture-whisper-stdout" ]; then
   cat "$HOME/fixture-whisper-stdout"
 fi
+# Likewise stderr, for the timing lines a real run ends with.
+if [ -f "$HOME/fixture-whisper-stderr" ]; then
+  cat "$HOME/fixture-whisper-stderr" >&2
+fi
 exit 0

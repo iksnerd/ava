@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +28,11 @@ const DefaultTimeout = 30 * time.Minute
 type Client struct {
 	ModelPath string
 	Timeout   time.Duration
+
+	// OnTimings, when set, is called after each run with the load, encode and
+	// decode times whisper-cli reports on stderr. It is how `--trace` shows
+	// where a transcription spent its time.
+	OnTimings func([]Timing)
 
 	// extraEnv are variables passed to whisper-cli beyond the base environment.
 	// Only the tests set it, to hand data to their stub program. Nothing needs
@@ -131,6 +138,12 @@ func (c *Client) run(args []string) ([]byte, error) {
 	// diagnostic a failure needs, where a bare "exit status 1" is not.
 	stderr := &procutil.HeadBuffer{Max: stderrKept}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
+	var timings timingScanner
+	if c.OnTimings != nil {
+		// The head buffer drops the tail, which is where the timings are.
+		cmd.Stderr = io.MultiWriter(stderr, &timings)
+		defer func() { c.OnTimings(timings.found) }()
+	}
 
 	err := cmd.Run()
 	procutil.ReapGroup(cmd)
@@ -225,4 +238,36 @@ func buildArgs(modelPath string, opts stt.Options) []string {
 		args = append(args, "-bs", strconv.Itoa(opts.BeamSize))
 	}
 	return args
+}
+
+// Timing is one stage whisper-cli reports on stderr: "load", "encode" or "decode".
+type Timing struct {
+	Name     string
+	Duration time.Duration
+}
+
+var timingLine = regexp.MustCompile(`whisper_print_timings:\s+(load|encode|decode) time =\s+([0-9.]+) ms`)
+
+// timingScanner collects the timing lines from a stream of stderr, which
+// arrives in chunks that need not end on a line.
+type timingScanner struct {
+	partial string
+	found   []Timing
+}
+
+func (t *timingScanner) Write(p []byte) (int, error) {
+	t.partial += string(p)
+	for {
+		line, rest, ok := strings.Cut(t.partial, "\n")
+		if !ok {
+			break
+		}
+		t.partial = rest
+		if m := timingLine.FindStringSubmatch(line); m != nil {
+			if ms, err := strconv.ParseFloat(m[2], 64); err == nil {
+				t.found = append(t.found, Timing{Name: m[1], Duration: time.Duration(ms * float64(time.Millisecond))})
+			}
+		}
+	}
+	return len(p), nil
 }

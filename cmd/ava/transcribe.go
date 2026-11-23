@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/iksnerd/ava/pkg/stt"
+	"github.com/iksnerd/ava/pkg/stt/whisper"
 )
 
 // newTranscribeCmd transcribes a WAV file that already exists, as opposed
@@ -21,6 +22,7 @@ func newTranscribeCmd() *cobra.Command {
 		output   string
 		beamSize int
 		format   string
+		trace    bool
 	)
 
 	cmd := &cobra.Command{
@@ -38,9 +40,17 @@ func newTranscribeCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var tr *tracer
+			if trace {
+				tr = newTracer(cmd.ErrOrStderr())
+				defer tr.Flush()
+			}
+
+			audioCheck := tr.Time("audio check")
 			if err := checkAudioFile(args[0]); err != nil {
 				return err
 			}
+			audioCheck()
 			if err := validateModel(model); err != nil {
 				return err
 			}
@@ -53,14 +63,24 @@ func newTranscribeCmd() *cobra.Command {
 
 			// A bad file gets the same message on every format, before whisper
 			// runs: the caption formats would otherwise fail on a temp path.
+			audioCheck = tr.Time("audio check")
 			if err := checkAudioDecodable(args[0]); err != nil {
 				return err
 			}
+			audioCheck()
 
+			resolved := tr.Time("model resolve")
 			transcriber, err := newTranscriber(model)
 			if err != nil {
 				return err
 			}
+			resolved()
+			var engineTimings []whisper.Timing
+			if w, ok := transcriber.(*whisper.Client); ok && trace {
+				w.OnTimings = func(t []whisper.Timing) { engineTimings = t }
+			}
+
+			ran := tr.Time("whisper-cli")
 
 			text, err := transcriber.Transcribe(stt.Options{
 				AudioPath: args[0],
@@ -70,6 +90,10 @@ func newTranscribeCmd() *cobra.Command {
 				BeamSize: beamSize,
 				Format:   format,
 			})
+			ran()
+			for _, t := range engineTimings {
+				tr.Add("whisper "+t.Name, t.Duration)
+			}
 			if err != nil {
 				return fmt.Errorf("transcription failed: %w", err)
 			}
@@ -79,6 +103,7 @@ func newTranscribeCmd() *cobra.Command {
 				return fmt.Errorf("no speech detected in %s", args[0])
 			}
 
+			defer tr.Time("output write")()
 			// Print before writing the file so a failed write loses nothing.
 			fmt.Fprintln(cmd.OutOrStdout(), strings.TrimRight(text, "\n"))
 			return stt.WriteOutputIfRequested(stt.Options{OutputPath: output}, text)
@@ -90,6 +115,7 @@ func newTranscribeCmd() *cobra.Command {
 	flags.StringVar(&model, "model", "base", modelSizeUsage)
 	flags.StringVar(&output, "output", "", "Also write the transcript to this file")
 	flags.IntVar(&beamSize, "beam-size", 0, beamSizeUsage)
+	flags.BoolVar(&trace, "trace", false, traceUsage)
 	flags.StringVar(&format, "format", "text", "Output format: "+strings.Join(stt.Formats, ", ")+". srt, vtt and json carry each segment's start and end time")
 
 	_ = cmd.MarkFlagFilename("output", "txt", "srt", "vtt", "json")

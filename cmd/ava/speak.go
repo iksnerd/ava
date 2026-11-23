@@ -33,6 +33,7 @@ func newSpeakCmd() *cobra.Command {
 		split     string
 		outDir    string
 		serverURL string
+		trace     bool
 	)
 
 	cmd := &cobra.Command{
@@ -59,6 +60,19 @@ func newSpeakCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var tr *tracer
+			if trace {
+				tr = newTracer(cmd.ErrOrStderr())
+				defer tr.Flush()
+			}
+			newSpeaker := func() *speaker.Speaker {
+				spk := speaker.New(serverURL)
+				if tr != nil {
+					spk.Trace = tr.Add
+				}
+				return spk
+			}
+
 			text, err := readSpeakText(args, cmd.InOrStdin())
 			if err != nil {
 				return err
@@ -75,13 +89,13 @@ func newSpeakCmd() *cobra.Command {
 			}
 			if toFiles(file) {
 				file.Voice, file.Speed = voice, speed
-				return speaker.New(serverURL).Speak(cmd.Context(), text, file)
+				return newSpeaker().Speak(cmd.Context(), text, file)
 			}
 			warnIfMuted(cmd)
 			if async {
 				return spawnDetached(detachedSpeakArgs(text, voice, speed, serverURL))
 			}
-			return speaker.New(serverURL).Speak(cmd.Context(), text, speaker.Options{
+			return newSpeaker().Speak(cmd.Context(), text, speaker.Options{
 				Voice: voice,
 				Speed: speed,
 			})
@@ -97,6 +111,7 @@ func newSpeakCmd() *cobra.Command {
 	flags.StringVar(&outDir, "out-dir", "", "Speak each line of the text into its own WAV in this directory, with a manifest.json of durations and segments")
 	flags.StringVar(&split, "split", "", "With --out or --out-dir, how segments are cut: line (default) or sentence")
 	flags.StringVar(&serverURL, "server-url", "", serverURLUsage)
+	flags.BoolVar(&trace, "trace", false, traceUsage)
 
 	_ = cmd.MarkFlagFilename("out", "wav")
 	_ = cmd.MarkFlagFilename("timings", "json")

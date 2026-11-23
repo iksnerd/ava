@@ -976,3 +976,36 @@ func TestTheProductionSpeakerHasTheStartLimit(t *testing.T) {
 		t.Errorf("guard file %q is not under the temp dir", g.Path)
 	}
 }
+
+// Trace is told each stage of a speak, so `speak --trace` can print where the
+// time went. Auto-start shows up only when it happened.
+func TestTraceNamesEachStageOfASpeak(t *testing.T) {
+	engine := &stubEngine{healthy: false, audio: []byte("RIFF")}
+	s, _ := newTestSpeaker(t, engine, settingsWith(autoStartOn))
+	s.AutoStart = func(context.Context) error { engine.healthy = true; return nil }
+	var stages []string
+	s.Trace = func(stage string, _ time.Duration) { stages = append(stages, stage) }
+
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+	want := []string{"settings load", "engine check", "engine auto-start", "engine check", "synthesis", "playback wait"}
+	if strings.Join(stages, ",") != strings.Join(want, ",") {
+		t.Errorf("stages = %v, want %v", stages, want)
+	}
+}
+
+func TestTraceSkipsEngineStartWhenTheEngineIsUp(t *testing.T) {
+	s, _ := newTestSpeaker(t, &stubEngine{healthy: true, audio: []byte("RIFF")}, settingsWith(autoStartOn))
+	var stages []string
+	s.Trace = func(stage string, _ time.Duration) { stages = append(stages, stage) }
+
+	if err := s.Speak(context.Background(), "hello", Options{}); err != nil {
+		t.Fatalf("Speak: %v", err)
+	}
+	for _, st := range stages {
+		if st == "engine auto-start" {
+			t.Errorf("stages = %v, want no engine start", stages)
+		}
+	}
+}
